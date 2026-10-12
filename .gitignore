@@ -1,0 +1,12 @@
+# Build output (regenerate with build.ps1)
+src/Vex/bin/
+src/Vex/obj/
+src/Vex/publish/
+Vex.exe
+
+# Editor / OS
+.vs/
+.vscode/
+*.user
+Thumbs.db
+desktop.ini

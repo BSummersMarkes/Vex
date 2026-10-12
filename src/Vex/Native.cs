@@ -1,0 +1,113 @@
+using System;
+using System.Runtime.InteropServices;
+using System.Text;
+
+namespace Vex;
+
+static class Native
+{
+    [StructLayout(LayoutKind.Sequential)]
+    public struct RECT { public int Left, Top, Right, Bottom; }
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct POINT { public int X, Y; }
+
+    [StructLayout(LayoutKind.Sequential)]
+    struct LASTINPUTINFO { public uint cbSize; public uint dwTime; }
+
+    public static readonly IntPtr HWND_TOPMOST = new(-1);
+    public const uint SWP_NOSIZE = 0x0001, SWP_NOMOVE = 0x0002, SWP_NOACTIVATE = 0x0010;
+    public const int GWL_EXSTYLE = -20;
+    public const long WS_EX_TOOLWINDOW = 0x80, WS_EX_NOACTIVATE = 0x08000000;
+    const int DWMWA_EXTENDED_FRAME_BOUNDS = 9, DWMWA_CLOAKED = 14;
+
+    [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
+    [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr hWnd, out RECT r);
+    [DllImport("user32.dll")] public static extern bool IsIconic(IntPtr hWnd);
+    [DllImport("user32.dll")] public static extern bool IsWindowVisible(IntPtr hWnd);
+    [DllImport("user32.dll")] public static extern bool GetCursorPos(out POINT p);
+    [DllImport("user32.dll")] public static extern uint GetDpiForWindow(IntPtr hWnd);
+    [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint pid);
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern int GetClassName(IntPtr hWnd, StringBuilder s, int n);
+    [DllImport("user32.dll")] static extern bool GetLastInputInfo(ref LASTINPUTINFO lii);
+    [DllImport("user32.dll")] public static extern bool SetWindowPos(IntPtr hWnd, IntPtr after, int x, int y, int cx, int cy, uint flags);
+    [DllImport("user32.dll", EntryPoint = "GetWindowLongPtrW")] public static extern long GetWindowLongPtr(IntPtr hWnd, int index);
+    [DllImport("user32.dll", EntryPoint = "SetWindowLongPtrW")] public static extern long SetWindowLongPtr(IntPtr hWnd, int index, long value);
+    [DllImport("dwmapi.dll")] static extern int DwmGetWindowAttribute(IntPtr hWnd, int attr, out RECT r, int size);
+    [DllImport("dwmapi.dll")] static extern int DwmGetWindowAttribute(IntPtr hWnd, int attr, out int v, int size);
+
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern int GetWindowText(IntPtr hWnd, StringBuilder s, int n);
+    [DllImport("user32.dll")] public static extern bool SetWindowDisplayAffinity(IntPtr hWnd, uint affinity);
+    [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr hWnd);
+    [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr hWnd, int cmd);
+    delegate bool EnumProc(IntPtr hWnd, IntPtr lParam);
+    [DllImport("user32.dll")] static extern bool EnumWindows(EnumProc cb, IntPtr lParam);
+
+    public const uint WDA_EXCLUDEFROMCAPTURE = 0x11;
+    public const int SW_RESTORE = 9;
+
+    public static string WindowText(IntPtr hWnd)
+    {
+        var sb = new StringBuilder(512);
+        GetWindowText(hWnd, sb, sb.Capacity);
+        return sb.ToString();
+    }
+
+    /// <summary>Visible top-level windows belonging to the given process ids.</summary>
+    public static System.Collections.Generic.List<IntPtr> WindowsOf(System.Collections.Generic.ISet<uint> pids)
+    {
+        var found = new System.Collections.Generic.List<IntPtr>();
+        EnumWindows((h, _) =>
+        {
+            GetWindowThreadProcessId(h, out uint pid);
+            if (pids.Contains(pid) && IsWindowVisible(h) && WindowText(h).Length > 0) found.Add(h);
+            return true;
+        }, IntPtr.Zero);
+        return found;
+    }
+
+    [DllImport("user32.dll")] public static extern bool IsZoomed(IntPtr hWnd);
+    [DllImport("user32.dll")] public static extern bool IsWindow(IntPtr hWnd);
+
+    /// <summary>Visible, titled top-level windows of other processes, topmost first, with their visible bounds.</summary>
+    public static System.Collections.Generic.List<(IntPtr Hwnd, RECT Rect)> TopWindows(uint exceptPid)
+    {
+        var list = new System.Collections.Generic.List<(IntPtr, RECT)>();
+        EnumWindows((h, _) =>
+        {
+            if (!IsWindowVisible(h) || IsIconic(h) || IsCloaked(h)) return true;
+            GetWindowThreadProcessId(h, out uint pid);
+            if (pid == exceptPid || WindowText(h).Length == 0) return true;
+            var r = Bounds(h);
+            if (r.Right - r.Left > 50 && r.Bottom - r.Top > 50) list.Add((h, r));
+            return true;
+        }, IntPtr.Zero);
+        return list;
+    }
+
+    public static string ClassName(IntPtr hWnd)
+    {
+        var sb = new StringBuilder(256);
+        GetClassName(hWnd, sb, sb.Capacity);
+        return sb.ToString();
+    }
+
+    /// <summary>Visible bounds of a window (without the invisible resize border).</summary>
+    public static RECT Bounds(IntPtr hWnd)
+    {
+        if (DwmGetWindowAttribute(hWnd, DWMWA_EXTENDED_FRAME_BOUNDS, out RECT r, Marshal.SizeOf<RECT>()) == 0) return r;
+        GetWindowRect(hWnd, out r);
+        return r;
+    }
+
+    public static bool IsCloaked(IntPtr hWnd) =>
+        DwmGetWindowAttribute(hWnd, DWMWA_CLOAKED, out int v, sizeof(int)) == 0 && v != 0;
+
+    /// <summary>Time since the last keyboard or mouse input anywhere in the session.</summary>
+    public static TimeSpan IdleTime()
+    {
+        var lii = new LASTINPUTINFO { cbSize = (uint)Marshal.SizeOf<LASTINPUTINFO>() };
+        if (!GetLastInputInfo(ref lii)) return TimeSpan.Zero;
+        return TimeSpan.FromMilliseconds(unchecked((uint)Environment.TickCount - lii.dwTime));
+    }
+}

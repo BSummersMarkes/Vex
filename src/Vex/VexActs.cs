@@ -1,0 +1,184 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using Forms = System.Windows.Forms;
+
+namespace Vex;
+
+/// <summary>Little things Vex does while he's just standing about.</summary>
+enum Act { None, Sip, Phone, Read, Sit, Stretch, Watch }
+
+/// <summary>
+/// Idle activities. One at a time: ease in, hold, ease out. Anything that needs him to move
+/// (walking, dodging, being dragged) cuts the current one short. Some are nudged by context:
+/// a meeting soon → he checks his watch; you've been sat a while → he stretches (a hint).
+/// </summary>
+public partial class VexWindow
+{
+    Act act = Act.None, pendingAct = Act.None, sitSub = Act.None;
+    double actStart, actEnd, nextAct = 15, lastSip = -999, lastWatch = -999, sitLean, pendingX, nextFlip, flipStart = -1;
+
+    double MugLevel() => Math.Clamp(1 - (DateTime.Now - Store.State.RefilledAt).TotalMinutes / Store.Config.MugDrainMinutes, 0, 1);
+
+    /// <summary>Called every frame. Ends finished activities, cuts them short when he has to move, starts new ones.</summary>
+    void UpdateActs(Forms.Screen scr)
+    {
+        if (act != Act.None && mode != Mode.Idle && actEnd > now + 0.35) actEnd = now + 0.35;
+        if (act != Act.None && now >= actEnd)
+        {
+            if (act == Act.Sip) squashUntil = now + 0.18; // "ahh"
+            act = Act.None; sitSub = Act.None;
+            nextAct = now + 12 + rng.NextDouble() * 25;
+        }
+        if (mode is Mode.Dragging or Mode.Hopping or Mode.Sleeping or Mode.Falling) pendingAct = Act.None;
+        if (mode != Mode.Idle || act != Act.None || peeking || thinking || hovering || hidden || autoHidden || currentNudge != null) return;
+
+        // Arrived at the screen edge to sit down?
+        if (pendingAct == Act.Sit)
+        {
+            pendingAct = Act.None;
+            if (Math.Abs(x - pendingX) < 3 * S) { StartSit(scr); return; }
+        }
+        if (now < nextAct) return;
+
+        var options = new List<(Act Act, double Weight)>
+        {
+            (Act.Phone, 1.4), (Act.Read, 1.2), (Act.Sit, 1.0),
+            (Act.Stretch, Services.Hub.Presence.Sitting.TotalMinutes > 45 ? 2.0 : 0.4),
+        };
+        if (MugLevel() > 0.02 && now - lastSip > 50) options.Add((Act.Sip, 4));
+        bool meetingSoon = Services.Hub.Calendar.Upcoming.Any(m => (m.Start - DateTime.Now).TotalMinutes is > 0 and < 15);
+        if (meetingSoon && now - lastWatch > 300) options.Add((Act.Watch, 6));
+
+        double roll = rng.NextDouble() * options.Sum(o => o.Weight);
+        var pick = options.First().Act;
+        foreach (var o in options) { if ((roll -= o.Weight) <= 0) { pick = o.Act; break; } }
+
+        switch (pick)
+        {
+            case Act.Sip: Begin(Act.Sip, 2.8); lastSip = now; break;
+            case Act.Phone: Begin(Act.Phone, 7 + rng.NextDouble() * 7); break;
+            case Act.Read: Begin(Act.Read, 12 + rng.NextDouble() * 14); nextFlip = now + 3; break;
+            case Act.Stretch: Begin(Act.Stretch, 2.6); break;
+            case Act.Watch: Begin(Act.Watch, 2.4); lastWatch = now; break;
+            case Act.Sit: GoSit(scr); break;
+        }
+    }
+
+    /// <summary>Testing aid (debug endpoint): start an activity now.</summary>
+    internal string DebugAct(string name)
+    {
+        if (!Enum.TryParse<Act>(name.Trim(), true, out var a) || a == Act.None) return "unknown act";
+        act = Act.None; mode = Mode.Idle;
+        switch (a)
+        {
+            case Act.Sit: GoSit(ScreenAt(x)); break;
+            case Act.Read: Begin(a, 20); nextFlip = now + 2; break;
+            default: Begin(a, a is Act.Sip or Act.Stretch or Act.Watch ? 3 : 15); break;
+        }
+        return "ok";
+    }
+
+    void Begin(Act a, double seconds) { act = a; actStart = now; actEnd = now + seconds; }
+
+    /// <summary>Wander to the nearer edge of the screen, then sit leaning against it.</summary>
+    void GoSit(Forms.Screen scr)
+    {
+        if (Perched) { Begin(Act.Read, 15); nextFlip = now + 3; return; } // no screen edge up here
+        var wa = scr.WorkingArea;
+        double half = BodyHalfW * S;
+        double left = wa.Left + half + 2 * S, right = wa.Right - half - 2 * S;
+        double tx = x - left < right - x ? left : right;
+        if (ForegroundRect() is { } r && Overlaps(r, tx, wa.Bottom)) { Begin(Act.Read, 15); nextFlip = now + 3; return; }
+        if (Math.Abs(tx - x) < 3 * S) { StartSit(scr); return; }
+        pendingAct = Act.Sit; pendingX = tx;
+        WalkTo(tx, Store.Config.WalkSpeed);
+    }
+
+    void StartSit(Forms.Screen scr)
+    {
+        bool edgeLeft = x - scr.WorkingArea.Left < scr.WorkingArea.Right - x;
+        facing = edgeLeft ? 1 : -1;          // back to the edge, looking into the screen
+        sitLean = edgeLeft ? -5 : 5;         // top of the hood rests against the edge
+        double r = rng.NextDouble();
+        sitSub = r < 0.5 ? Act.Read : r < 0.8 ? Act.Phone : Act.None;
+        Begin(Act.Sit, 35 + rng.NextDouble() * 45);
+        nextFlip = now + 5;
+    }
+
+    static double Smooth(double k) { k = Math.Clamp(k, 0, 1); return k * k * (3 - 2 * k); }
+
+    double Blend(double start, double end, double ramp) =>
+        Smooth(Math.Min((now - start) / ramp, (end - now) / ramp));
+
+    /// <summary>Applies the current activity on top of the normal pose. Overrides for the eyes come back via refs.</summary>
+    void ActPose(ref double eyeCap, ref double? turnOverride, ref double? lookY)
+    {
+        // Reset the parts only activities move.
+        MugT.X = 0; RightGloveT.X = 0; MugR.Angle = 0; Lean.Angle = 0;
+        Book.Opacity = 0; Phone.Opacity = 0;
+        if (act == Act.None) return;
+
+        if (act == Act.Sit)
+        {
+            double k = Blend(actStart, actEnd, 0.8);
+            Breath.Y += 9 * k;                       // settle down onto the hem
+            LeftFootT.X -= 4 * k; RightFootT.X += 4 * k;
+            Lean.Angle = sitLean * k;
+            if (sitSub != Act.None)
+                Pose(sitSub, Blend(actStart + 1.5, actEnd - 1.2, 0.6), ref eyeCap, ref turnOverride, ref lookY);
+            else if (k > 0.5) { turnOverride = Math.Sin(now * 0.35) * 25; } // just looking about
+            return;
+        }
+        Pose(act, Blend(actStart, actEnd, act is Act.Sip or Act.Stretch or Act.Watch ? 0.6 : 0.5), ref eyeCap, ref turnOverride, ref lookY);
+    }
+
+    void Pose(Act a, double k, ref double eyeCap, ref double? turnOverride, ref double? lookY)
+    {
+        if (k <= 0) return;
+        switch (a)
+        {
+            case Act.Sip:
+                // Mug up to where a mouth would be, tip it, eyes shut. Bliss.
+                MugT.X += -19 * k; MugT.Y += -30 * k;
+                RightGloveT.X += -19 * k; RightGloveT.Y += -30 * k;
+                MugR.Angle = -35 * k - (k >= 1 ? 6 * Math.Sin((now - actStart) * 3) : 0);
+                eyeCap = Math.Min(eyeCap, 1 - 0.85 * k);
+                turnOverride = 0; lookY = 0;
+                break;
+
+            case Act.Phone:
+                LeftGloveT.X += 21 * k; LeftGloveT.Y += -5 * k + (k >= 1 && Math.Sin(now * 1.3) > 0.97 ? -0.8 : 0); // the odd scroll
+                Phone.Opacity = Math.Min(1, k * 2);
+                PhoneScreen.Opacity = 0.75 + 0.2 * Math.Sin(now * 2.1);
+                turnOverride = -12 * k; lookY = 3.2 * k;
+                break;
+
+            case Act.Read:
+                LeftGloveT.X += 16 * k; LeftGloveT.Y += -12 * k;
+                Book.Opacity = Math.Min(1, k * 2);
+                turnOverride = -7 * k; lookY = 3.5 * k;
+                if (k >= 1 && flipStart < 0 && now >= nextFlip) flipStart = now;
+                if (flipStart >= 0)
+                {
+                    // Turn a page: the right-hand page swings over to the left.
+                    double f = (now - flipStart) / 0.55;
+                    if (f >= 1) { flipStart = -1; nextFlip = now + 4 + rng.NextDouble() * 5; FlipPage.Opacity = 0; }
+                    else { FlipPage.Opacity = 1; FlipT.ScaleX = Math.Cos(f * Math.PI); }
+                }
+                break;
+
+            case Act.Stretch:
+                LeftGloveT.X += -6 * k; LeftGloveT.Y += -40 * k;
+                RightGloveT.X += 4 * k; RightGloveT.Y += -34 * k; MugT.X += 4 * k; MugT.Y += -34 * k;
+                Squash.ScaleY *= 1 + 0.06 * k; Squash.ScaleX *= 1 - 0.03 * k;
+                eyeCap = Math.Min(eyeCap, 1 - 0.65 * k); lookY = -3 * k;
+                break;
+
+            case Act.Watch:
+                LeftGloveT.X += 16 * k; LeftGloveT.Y += -22 * k;
+                turnOverride = -15 * k; lookY = 3 * k;
+                break;
+        }
+    }
+}
