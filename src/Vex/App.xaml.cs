@@ -21,6 +21,9 @@ public partial class App : Application
 
         DispatcherUnhandledException += (_, ex) => { Store.Log($"Unhandled: {ex.Exception}"); ex.Handled = true; };
 
+        // First run: a few questions, so nothing personal is baked into the exe.
+        if (!Store.Config.SetupDone && new SetupWindow().ShowDialog() != true) { Shutdown(); return; }
+
         vex = new VexWindow();
         vex.Show();
 
@@ -39,7 +42,11 @@ public partial class App : Application
         startup.Click += (_, _) => SetStartup(startup.Checked);
         menu.Items.Add(startup);
         menu.Opening += (_, _) => startup.Checked = StartsWithWindows();
-        menu.Items.Add("Memory notes", null, (_, _) => Open(Services.Hub.MemoryFolder));
+        menu.Items.Add("Setup…", null, (_, _) =>
+        {
+            if (new SetupWindow().ShowDialog() == true) { Services.Hub.ApplySettings(); vex.Say("Settings saved.", 3); }
+        });
+        menu.Items.Add("Memory notes", null, (_, _) => Open(Services.Hub.Notes is Services.LocalNotes l ? l.Folder : Services.Hub.MemoryFolder));
         menu.Items.Add("Settings (config.json)", null, (_, _) => Open(System.IO.Path.Combine(Store.Dir, "config.json")));
         menu.Items.Add("Open data folder", null, (_, _) => Open(Store.Dir));
         menu.Items.Add(new Forms.ToolStripSeparator());
@@ -50,14 +57,14 @@ public partial class App : Application
 
     const string RunKey = @"Software\Microsoft\Windows\CurrentVersion\Run";
 
-    static bool StartsWithWindows()
+    internal static bool StartsWithWindows()
     {
         using var k = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(RunKey);
         return k?.GetValue("Vex") is string;
     }
 
     /// <summary>Per-user startup entry (no admin needed). Points at whichever Vex.exe is running.</summary>
-    static void SetStartup(bool on)
+    internal static void SetStartup(bool on)
     {
         using var k = Microsoft.Win32.Registry.CurrentUser.CreateSubKey(RunKey);
         if (on) k.SetValue("Vex", $"\"{Environment.ProcessPath}\"");
@@ -69,12 +76,12 @@ public partial class App : Application
 
     static string Status()
     {
-        var nb = Services.Hub.Notebook;
+        var nb = Services.Hub.Notes;
         var cal = Services.Hub.Calendar;
         return string.Join("\n", new[]
         {
             $"Sitting: {(int)Services.Hub.Presence.Sitting.TotalMinutes} min. Coffees: {Store.State.Coffees}.",
-            $"Notebook: {(nb.Linked ? $"{nb.Open.Count()} open to-dos" : "not linked")}{(nb.Linked && !Services.Notebook.Running ? " (app closed)" : "")}.",
+            $"Notes: {nb.Name}{(nb.Linked ? $", {nb.OpenChecks.Count + nb.Open.Count()} open to-dos" : " (not set up)")}{(nb.Linked && !nb.Live ? " (app closed)" : "")}.",
             $"Calendar: {(cal.Source == "none" ? "not connected" : $"{cal.Today.Count} today via {cal.Source}")}.",
             $"Claude Code: {(Services.ClaudeWatch.Installed() ? $"{Services.Hub.Claude.Sessions.Count} session(s) seen" : "not connected")}{(Services.Hub.Claude.Listening ? "" : ", listener down")}.",
             $"Quiet mode: {(Services.Hub.InCall != null ? $"in a call ({Services.Hub.InCall})" : Services.Hub.FullScreen ? "full screen" : "off")}.",

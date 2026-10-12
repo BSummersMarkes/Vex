@@ -156,7 +156,7 @@ public class Nudges
         if (Store.State.DoneToday.Contains("eod")) return null;
         if (!TimeSpan.TryParse(C.EndOfDay, out var at) || now.TimeOfDay < at) return null;
         MarkDone("eod");
-        int open = Hub.Notebook.OpenChecks.Count(c => c.Date == Store.Today) + Hub.Notebook.Open.Count();
+        int open = Hub.Notes.OpenChecks.Count(c => c.Date == Store.Today) + Hub.Notes.Open.Count();
         var n = new Nudge
         {
             Type = "eod", Seconds = 60,

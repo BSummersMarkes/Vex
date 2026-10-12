@@ -20,8 +20,8 @@ public interface IBrain
 /// </summary>
 public class ClaudeCodeBrain : IBrain
 {
-    static string Persona(string name) => $"""
-        You are Vex, a small desktop companion who lives on {name}'s Windows desktop at work (Markes International).
+    static string Persona(string name, string workplace) => $"""
+        You are Vex, a small desktop companion who lives on {name}'s Windows desktop at work{(workplace.Length > 0 ? $" ({workplace})" : "")}.
         You look like a hoodie with nothing but darkness and two white eyes under the hood, white gloves, little feet,
         and you carry a mug of coffee that slowly empties.
 
@@ -37,7 +37,7 @@ public class ClaudeCodeBrain : IBrain
         Claude Code sessions, reminders and memory notes. Use it when relevant ("what was I doing?", "what's next?"),
         never recite it back. You can't see window contents or files; if something needs that, say so briefly.
 
-        {Services.Hub.ActionHelp}
+        {Services.Hub.ActionHelp(name)}
         """;
 
     readonly string workDir = Path.Combine(Store.Dir, "brain");
@@ -63,7 +63,7 @@ public class ClaudeCodeBrain : IBrain
         };
         foreach (var a in new[] { "-p", "--output-format", "json", "--tools", "", "--setting-sources", "",
                                   "--strict-mcp-config", "--model", Store.Config.Model,
-                                  "--system-prompt", Persona(Store.Config.UserName) })
+                                  "--system-prompt", Persona(Services.Hub.Who, Store.Config.Workplace) })
             psi.ArgumentList.Add(a);
         if (Store.State.ChatSessionId is { } sid) { psi.ArgumentList.Add("--resume"); psi.ArgumentList.Add(sid); }
 
@@ -101,7 +101,7 @@ public class ClaudeCodeBrain : IBrain
 
     public void Forget() { Store.State.ChatSessionId = null; Store.SaveState(); ChatLog.Clear(); }
 
-    static string? FindClaude()
+    internal static string? FindClaude()
     {
         if (Store.Config.ClaudePath is { } configured && File.Exists(configured)) return configured;
         var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);

@@ -19,7 +19,7 @@ public record Check(string Date, string Text);
 /// Lab Notebook integration. Reads the notebook's data file (read-only) and sends changes through
 /// its inbox file, which the notebook applies and acknowledges. Contract: SPEC.md section 8.
 /// </summary>
-public class Notebook
+public class Notebook : INotes
 {
     static readonly string SettingsPath = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "LabNotebook", "settings.json");
@@ -52,6 +52,11 @@ public class Notebook
 
     public bool Linked => DataPath != null && File.Exists(DataPath);
     public static bool Running => Process.GetProcessesByName("LabNotebook").Length > 0;
+    public string Name => "Lab Notebook";
+    public bool Live => Running;
+
+    /// <summary>The notebook's data file, if the Lab Notebook is installed and linked on this PC.</summary>
+    public static string? Detect() => ReadDataPath() is { } p && File.Exists(p) ? p : null;
 
     public void Start()
     {

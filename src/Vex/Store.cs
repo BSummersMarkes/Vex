@@ -14,7 +14,18 @@ public class VexConfig
     public double WalkSpeed { get; set; } = 70;          // DIP per second
     public string Model { get; set; } = "sonnet";
     public string? ClaudePath { get; set; }
-    public string UserName { get; set; } = "Ben";
+    /// <summary>What Vex calls you. Asked on first run; defaults from the Windows account name.</summary>
+    public string UserName { get; set; } = "";
+    /// <summary>Optional, e.g. "Markes International". Only used to give Claude a bit of context.</summary>
+    public string Workplace { get; set; } = "";
+    /// <summary>"auto" (Lab Notebook if found, else the local folder), "notebook" or "local".</summary>
+    public string NotesMode { get; set; } = "auto";
+    /// <summary>Folder for local notes (markdown files). Default: Documents\Vex Notes.</summary>
+    public string? NotesFolder { get; set; }
+    /// <summary>Keep the app/window-title timeline on disk and share window titles with Claude when chatting.</summary>
+    public bool ActivityLog { get; set; } = true;
+    /// <summary>First-run setup has been completed.</summary>
+    public bool SetupDone { get; set; }
 
     /// <summary>Keep Vex (and his chat) out of screenshots and screen shares.</summary>
     public bool HideFromScreenCapture { get; set; } = true;
@@ -88,7 +99,8 @@ public class VexState
 
 static class Store
 {
-    public static readonly string Dir = Path.Combine(
+    /// <summary>%LOCALAPPDATA%\Vex, or VEX_DATA_DIR if set (testing a fresh install side by side).</summary>
+    public static readonly string Dir = Environment.GetEnvironmentVariable("VEX_DATA_DIR") is { Length: > 0 } d ? d : Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Vex");
     static readonly string ConfigPath = Path.Combine(Dir, "config.json");
     static readonly string StatePath = Path.Combine(Dir, "state.json");

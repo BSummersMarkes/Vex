@@ -179,6 +179,22 @@ public class ClaudeWatch
         return added == 0 ? "Already connected." : $"Connected: {added} hooks added to {SettingsPath} (backup alongside).";
     }
 
+    /// <summary>Takes Vex's hooks back out of ~/.claude/settings.json, leaving everything else as it was.</summary>
+    public static void Uninstall()
+    {
+        if (!File.Exists(SettingsPath)) return;
+        if (JsonNode.Parse(File.ReadAllText(SettingsPath)) is not JsonObject root || root["hooks"] is not JsonObject hooks) return;
+        File.Copy(SettingsPath, SettingsPath + ".vex-backup", overwrite: true);
+        foreach (var ev in Events)
+        {
+            if (hooks[ev] is not JsonArray list) continue;
+            foreach (var item in list.Where(i => i?.ToJsonString().Contains("/claude-hook") == true).ToList()) list.Remove(item);
+            if (list.Count == 0) hooks.Remove(ev);
+        }
+        if (hooks.Count == 0) root.Remove("hooks");
+        File.WriteAllText(SettingsPath, root.ToJsonString(new JsonSerializerOptions { WriteIndented = true }));
+    }
+
     /// <summary>Brings the VS Code window for a project to the front, if there is one.</summary>
     public static bool FocusVsCode(string project)
     {

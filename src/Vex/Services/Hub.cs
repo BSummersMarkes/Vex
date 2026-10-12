@@ -17,7 +17,19 @@ public static class Hub
     public static VexWindow Vex { get; private set; } = null!;
     public static Presence Presence { get; } = new();
     public static Activity Activity { get; } = new();
-    public static Notebook Notebook { get; } = new();
+    /// <summary>To-dos, notes and Vex's pages: the Lab Notebook if found, otherwise a local folder.</summary>
+    public static INotes Notes { get; private set; } = null!;
+    public static string Who => Store.Config.UserName.Length > 0 ? Store.Config.UserName : "you";
+
+    public static string DefaultNotesFolder =>
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "Vex Notes");
+
+    static INotes PickNotes()
+    {
+        var c = Store.Config;
+        bool notebook = c.NotesMode == "notebook" || (c.NotesMode == "auto" && Services.Notebook.Detect() != null);
+        return notebook ? new Notebook() : new LocalNotes(c.NotesFolder ?? DefaultNotesFolder);
+    }
     public static Calendar Calendar { get; } = new();
     public static ClaudeWatch Claude { get; } = new();
     public static Nudges Nudges { get; } = new();
@@ -39,8 +51,9 @@ public static class Hub
         Store.SaveConfig();
         EnsureMemory();
 
-        Notebook.Start();
-        Notebook.Acked += (what, ok, err) => Vex.Say(ok ? $"Notebook: {what}" : $"The notebook said no: {err ?? "unknown error"}.", 5);
+        Notes = PickNotes();
+        Notes.Start();
+        Notes.Acked += NotesAcked;
         Calendar.Refresh();
         Claude.Start();
         Claude.Changed += Nudges.OnClaude;
@@ -51,6 +64,21 @@ public static class Hub
         fast = new DispatcherTimer(TimeSpan.FromSeconds(5), DispatcherPriority.Background, (_, _) => Fast(), Vex.Dispatcher);
         slow = new DispatcherTimer(TimeSpan.FromSeconds(15), DispatcherPriority.Background, (_, _) => Slow(), Vex.Dispatcher);
         fast.Start(); slow.Start();
+    }
+
+    static void NotesAcked(string what, bool ok, string? err) =>
+        Vex.Say(ok ? $"Noted. {what}" : $"Couldn't do that in {Notes.Name}: {err ?? "unknown error"}.", 5);
+
+    /// <summary>After Setup…: switch notes store if it changed. Name, workplace and logging apply on their own.</summary>
+    public static void ApplySettings()
+    {
+        var next = PickNotes();
+        if (next.GetType() == Notes.GetType() && (next is not LocalNotes nl || nl.Folder == ((LocalNotes)Notes).Folder)) return;
+        Notes.Acked -= NotesAcked;
+        Notes = next;
+        Notes.Start();
+        Notes.Acked += NotesAcked;
+        Store.State.MemoryMigrated = false; Store.State.MigratedPages.Clear(); Store.State.MigrationIds.Clear(); Store.SaveState();
     }
 
     static void Fast()
@@ -94,12 +122,14 @@ public static class Hub
         if (InCall != null) sb.AppendLine($"In a call (microphone in use by {InCall}).");
 
         if (Activity.CurrentApp is { Length: > 0 } app && app != Activity.Away)
-            sb.AppendLine($"In front now: {app}{(Activity.CurrentTitle.Length > 0 ? $" — \"{Activity.CurrentTitle}\"" : "")}");
+            sb.AppendLine($"In front now: {app}{(Store.Config.ActivityLog && Activity.CurrentTitle.Length > 0 ? $" — \"{Activity.CurrentTitle}\"" : "")}");
         var recent = Activity.RecentWork(8);
         if (recent.Count > 0)
         {
             sb.AppendLine("Recent windows (newest first):");
-            foreach (var s in recent) sb.AppendLine($"- {s.Start:HH:mm} {s.App}: \"{s.Title}\" ({Math.Max(1, (int)(s.Secs / 60))} min)");
+            foreach (var s in recent) sb.AppendLine(Store.Config.ActivityLog
+                ? $"- {s.Start:HH:mm} {s.App}: \"{s.Title}\" ({Math.Max(1, (int)(s.Secs / 60))} min)"
+                : $"- {s.Start:HH:mm} {s.App} ({Math.Max(1, (int)(s.Secs / 60))} min)");
         }
         var top = Activity.TopApps(now.Date);
         if (top.Count > 0) sb.AppendLine("Time today by app: " + string.Join(", ", top.Select(t => $"{t.App} {Hm(t.Minutes)}")));
@@ -112,36 +142,38 @@ public static class Hub
         }
         else sb.AppendLine(Calendar.Source == "none" ? "Calendar: not connected." : "No meetings today.");
 
-        if (Notebook.Linked)
+        if (Notes.Linked)
         {
-            var checks = Notebook.OpenChecks.Take(20).ToList();
+            var checks = Notes.OpenChecks.Take(20).ToList();
             sb.AppendLine(checks.Count == 0 ? "Open journal to-dos: none." : "Open journal to-dos (unticked checkboxes, last 14 days):");
             foreach (var c in checks) sb.AppendLine($"- {c.Text}{(c.Date == Store.Today ? "" : $" (from {c.Date})")}");
-            var open = Notebook.Open.Take(10).ToList();
+            var open = Notes.Open.Take(10).ToList();
             if (open.Count > 0)
             {
                 sb.AppendLine("Older items on the notebook's separate To-Do list:");
                 foreach (var t in open) sb.AppendLine($"- {t.Text}{(t.Due != null ? $" (due {t.Due})" : "")}{(t.Project.Length > 0 ? $" [{t.Project}]" : "")}");
             }
-            if (Notebook.TodayJournal.Length > 0) sb.AppendLine("Today's journal (latest):\n" + Tail(Notebook.TodayJournal, 700));
+            if (Notes.TodayJournal.Length > 0) sb.AppendLine("Today's journal (latest):\n" + Tail(Notes.TodayJournal, 700));
         }
-        else sb.AppendLine("Lab Notebook: not linked.");
+        else sb.AppendLine("Notes: not set up.");
 
         var sessions = Claude.Sessions.Values.Where(s => now - s.Since < TimeSpan.FromHours(4)).ToList();
         if (sessions.Count > 0)
         {
             sb.AppendLine("Claude Code sessions:");
             foreach (var s in sessions)
-                sb.AppendLine($"- {s.Project}: {s.State switch { ClaudeState.Working => "working", ClaudeState.NeedsYou => $"needs Ben ({s.Message})", _ => "finished, waiting for Ben" }} since {s.Since:HH:mm}");
+                sb.AppendLine($"- {s.Project}: {s.State switch { ClaudeState.Working => "working", ClaudeState.NeedsYou => $"needs {Who} ({s.Message})", _ => $"finished, waiting for {Who}" }} since {s.Since:HH:mm}");
         }
         if (Store.State.Reminders.Count > 0)
             sb.AppendLine("Pending reminders: " + string.Join("; ", Store.State.Reminders.OrderBy(r => r.At).Select(r => $"{r.At:HH:mm} {r.Text}")));
 
-        var pages = Notebook.VexPages.ToList();
+        var pages = Notes.VexPages.ToList();
         if (pages.Count > 0)
         {
-            // Vex's own notebook project. Ben edits these too, so they're the source of truth.
-            sb.AppendLine($"Your pages in the Lab Notebook project \"{Notebook.VexProject}\" (Ben can edit them):");
+            // Vex's own pages. They edit these too, so they're the source of truth.
+            sb.AppendLine(Notes is Notebook
+                ? $"Your pages in the Lab Notebook project \"{Notebook.VexProject}\" ({Who} can edit them):"
+                : $"Your pages (markdown files in {((LocalNotes)Notes).Folder}\\Vex; {Who} can edit them):");
             int budget = 5000;
             foreach (var pg in pages.OrderBy(pg => pg.Title.StartsWith("About", StringComparison.OrdinalIgnoreCase) ? 0 : 1))
             {
@@ -154,7 +186,7 @@ public static class Hub
         else
         {
             var about = Read(AboutPath);
-            if (about.Trim().Length > 0) sb.AppendLine("About Ben (his notes):\n" + Tail(about, 1500));
+            if (about.Trim().Length > 0) sb.AppendLine($"About {Who} (their notes):\n" + Tail(about, 1500));
             var notes = Read(NotesPath);
             if (notes.Trim().Length > 0) sb.AppendLine("Things you've been asked to remember:\n" + Tail(notes, 1500));
         }
@@ -167,16 +199,16 @@ public static class Hub
 
     // ───────────── what the brain can do ─────────────
 
-    public const string ActionHelp = """
+    public static string ActionHelp(string who) => $"""
         You can take actions by adding lines at the very END of your reply, one per line, exactly like this:
-        [[todo: text]]            adds a checkbox to today's journal (Ben's to-do list lives in the journal)
+        [[todo: text]]            adds a checkbox to today's journal ({who}'s to-do list lives in the journal)
         [[done: text]]            ticks off an open checkbox (searches the last 14 days)
         [[journal: text]]         a timestamped note in today's journal ("note this down", progress, decisions)
-        [[remember: fact]]        adds a fact about Ben to your "Remembered" page
-        [[page: Page title | markdown]]  adds to a page in your own notebook project "Vex" (created if missing);
+        [[remember: fact]]        adds a fact about {who} to your "Remembered" page
+        [[page: Page title | markdown]]  adds to one of your own pages (created if missing);
                                   use it to organise longer-lived information: people, projects, how-tos
         [[remind: HH:mm | text]]  or  [[remind: 20m | text]]
-        Only act when Ben asks or clearly implies it. Never mention this syntax; Vex's app hides it and confirms.
+        Only act when {who} asks or clearly implies it. Never mention this syntax; Vex's app hides it and confirms.
         """;
 
     static readonly Regex ActionRx = new(@"\[\[\s*([a-z.]+)\s*:\s*(.*?)\s*\]\]", RegexOptions.Singleline);
@@ -196,15 +228,15 @@ public static class Hub
             case "todo" or "todo.add":
             {
                 var text = parts.Length > 1 && Regex.Match(parts[1], @"\d{4}-\d{2}-\d{2}") is { Success: true } d ? $"{parts[0]} (due {d.Value})" : parts[0];
-                return Notebook.JournalTodo(text) != null ? $"✓ To-do: ☐ {text}{Queued()}" : NoNotebook();
+                return Notes.JournalTodo(text) != null ? $"✓ To-do: ☐ {text}{Queued()}" : NoNotebook();
             }
             case "done" or "todo.done":
-                return Notebook.JournalDone(arg) != null ? $"✓ Ticking off: {arg}{Queued()}" : NoNotebook();
+                return Notes.JournalDone(arg) != null ? $"✓ Ticking off: {arg}{Queued()}" : NoNotebook();
             case "journal" or "note":
-                return Notebook.AppendJournal(arg) != null ? $"✓ Journal: [{DateTime.Now:HH:mm}] {arg}{Queued()}" : NoNotebook();
+                return Notes.AppendJournal(arg) != null ? $"✓ Journal: [{DateTime.Now:HH:mm}] {arg}{Queued()}" : NoNotebook();
             case "page":
                 if (parts.Length < 2) return "✗ Couldn't read that page note.";
-                return Notebook.PageAppend(parts[0], parts[1]) != null ? $"✓ Added to page \"{parts[0]}\"{Queued()}" : NoNotebook();
+                return Notes.PageAppend(parts[0], parts[1]) != null ? $"✓ Added to page \"{parts[0]}\"{Queued()}" : NoNotebook();
             case "remind":
             {
                 if (parts.Length < 2) return "✗ Couldn't read that reminder.";
@@ -219,7 +251,7 @@ public static class Hub
             }
             case "remember":
                 var fact = $"- {DateTime.Now:yyyy-MM-dd}: {arg}";
-                if (Store.State.MemoryMigrated && Notebook.PageAppend("Remembered", fact) != null) return $"✓ Remembered: {arg}{Queued()}";
+                if (Notes.Linked && Notes.PageAppend("Remembered", fact) != null) return $"✓ Remembered: {arg}{Queued()}";
                 File.AppendAllText(NotesPath, fact + Environment.NewLine);
                 return $"✓ Remembered: {arg}";
             default:
@@ -227,8 +259,8 @@ public static class Hub
         }
     }
 
-    static string Queued() => Notebook.Running ? "" : " (queued until Lab Notebook is open)";
-    static string NoNotebook() => "✗ Lab Notebook isn't linked to a data file, so I couldn't do that.";
+    static string Queued() => Notes.Live ? "" : $" (queued until {Notes.Name} is open)";
+    static string NoNotebook() => $"✗ {Notes.Name} isn't set up, so I couldn't do that.";
 
     static void EnsureMemory()
     {
@@ -248,10 +280,11 @@ public static class Hub
     public static string MemoryFolder => MemoryDir;
 
     static DateTime lastMigrateFail = DateTime.MinValue;
-    static readonly string[] MemoryPages = { "About Ben", "Remembered" };
+    static string AboutPage => $"About {(Store.Config.UserName.Length > 0 ? Store.Config.UserName : "me")}";
+    static string[] MemoryPages => new[] { AboutPage, "Remembered" };
 
     /// <summary>
-    /// One-off move of the local memory files into the notebook's "Vex" project ("About Ben" and
+    /// One-off move of the local memory files into the notebook's "Vex" project ("About <name>" and
     /// "Remembered" pages). Each page is sent once and its request id kept in state; it's only resent
     /// (with a new id) after the notebook explicitly rejects it, never while it's still waiting, so the
     /// text can't land twice. When both are in, the local files are renamed to *.migrated.
@@ -259,13 +292,13 @@ public static class Hub
     static void MigrateMemory()
     {
         var st = Store.State;
-        if (st.MemoryMigrated || !Notebook.Linked) return;
+        if (st.MemoryMigrated || !Notes.Linked) return;
         foreach (var page in MemoryPages)
         {
             if (st.MigratedPages.Contains(page)) continue;
             if (st.MigrationIds.TryGetValue(page, out var id))
             {
-                var ack = Notebook.FindAck(id);
+                var ack = Notes.FindAck(id);
                 if (ack == null) continue;                       // still queued: wait for it
                 st.MigrationIds.Remove(page);
                 if (ack.Value.Ok) { st.MigratedPages.Add(page); Store.SaveState(); continue; }
@@ -274,21 +307,25 @@ public static class Hub
                 Store.SaveState();
             }
             if (DateTime.Now - lastMigrateFail < TimeSpan.FromMinutes(10)) continue;
-            var sent = Notebook.PageAppend(page, MigrationText(page), (_, _, _) => { }); // quiet; checked above
-            if (sent != null) { st.MigrationIds[page] = sent; Store.SaveState(); }
+            var sent = Notes.PageAppend(page, MigrationText(page), (_, _, _) => { }); // quiet; checked above
+            if (sent == null) continue;
+            st.MigrationIds[page] = sent;
+            if (Notes.FindAck(sent) is { Ok: true }) { st.MigrationIds.Remove(page); st.MigratedPages.Add(page); } // local notes apply at once
+            Store.SaveState();
         }
         if (MemoryPages.All(st.MigratedPages.Contains))
         {
             st.MemoryMigrated = true; Store.SaveState();
             foreach (var f in new[] { AboutPath, NotesPath })
                 try { if (File.Exists(f)) File.Move(f, f + ".migrated", overwrite: true); } catch { }
-            Vex.Say("Moved my notes about you into the Lab Notebook, project \"Vex\". Edit away.", 8);
+            Vex.Say(Notes is Notebook ? "Moved my notes about you into the Lab Notebook, project \"Vex\". Edit away."
+                                      : "My notes about you are in your notes folder now, under Vex. Edit away.", 8);
         }
     }
 
     static string MigrationText(string page)
     {
-        if (page == "About Ben")
+        if (page == AboutPage)
         {
             var about = string.Join("\n", Read(AboutPath).Split('\n').Where(l => !l.StartsWith("# About me"))).Trim();
             return about.Length > 0 ? about : "- Role:\n- Main projects:\n- People I work with:\n- How I like to be nudged:";

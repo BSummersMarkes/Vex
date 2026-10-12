@@ -167,6 +167,13 @@ The notebook is the single place Ben manages things; Vex is a client of it.
 - [x] End-of-day nudge → summary in chat, offer to add it to the journal
 - [x] Chat actions: to-do add/done, journal, reminders, remember
 
+### Shareable (2026-10-12)
+- [x] First-run setup (name, workplace, notes location, start with Windows, knock sound, Claude Code alerts, activity log on/off, privacy note); tray → Setup… to change
+- [x] No personal details in the code: name and workplace come from config
+- [x] Notes store: Lab Notebook if detected, else a local folder of markdown files (`Journal\YYYY-MM-DD.md`, `Vex\*.md`) with the same to-do/notes/pages behaviour
+- [x] README for colleagues; share the single `Vex.exe`
+- [ ] Code signing (avoids the SmartScreen warning) / GitHub Releases
+
 ### v0.4: "He talks"
 - [ ] Voice in and out
 - [ ] Try a local model via Ollama

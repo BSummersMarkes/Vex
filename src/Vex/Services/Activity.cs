@@ -17,7 +17,7 @@ public record Span(DateTime Start, double Secs, string App, string Title)
 /// <summary>
 /// A timeline of which app and window title were in front, sampled every few seconds.
 /// Exclusions are applied before anything is kept, so private windows never reach memory, disk or Claude.
-/// Also answers "is Ben in a call?" and "is something full screen?".
+/// Also answers "are you in a call?" and "is something full screen?".
 /// </summary>
 public class Activity
 {
@@ -65,6 +65,7 @@ public class Activity
         var span = new Span(CurrentSince, (DateTime.Now - CurrentSince).TotalSeconds, CurrentApp, CurrentTitle);
         if (span.Secs < 2) return;
         Today.Add(span);
+        if (!Store.Config.ActivityLog) return; // kept in memory for today's nudges only, never written
         try
         {
             Directory.CreateDirectory(Path.GetDirectoryName(LogPath(day))!);

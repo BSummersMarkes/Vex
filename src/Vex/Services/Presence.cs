@@ -5,7 +5,7 @@ using Microsoft.Win32;
 namespace Vex.Services;
 
 /// <summary>
-/// Is Ben at the desk, and for how long? Built from keyboard/mouse idle time and screen lock events only.
+/// Are you at the desk, and for how long? Built from keyboard/mouse idle time and screen lock events only.
 /// </summary>
 public class Presence
 {
