@@ -182,6 +182,12 @@
                             <Path.RenderTransform><ScaleTransform x:Name="FlipT" CenterX="36"/></Path.RenderTransform>
                         </Path>
                     </Canvas>
+                    <Canvas x:Name="Sandwich" Opacity="0" IsHitTestVisible="False">
+                        <Canvas.RenderTransform><ScaleTransform x:Name="SandwichS" CenterX="30" CenterY="97"/></Canvas.RenderTransform>
+                        <Path Fill="#F3DDA8" Stroke="#C99A55" StrokeThickness="0.9" Data="M 22,99 L 38,99 L 30,86 Z"/>
+                        <Path Stroke="#D9534F" StrokeThickness="1" Data="M 25.5,94 L 34.5,94"/>
+                        <Path Stroke="#6DB34F" StrokeThickness="1.3" Data="M 24.5,96.4 L 35.5,96.4"/>
+                    </Canvas>
                     <Canvas x:Name="Phone" Opacity="0" IsHitTestVisible="False">
                         <Rectangle Canvas.Left="23.5" Canvas.Top="84" Width="11" Height="17.5" RadiusX="1.8" RadiusY="1.8"
                                    Fill="#1E2230" Stroke="#4A5068" StrokeThickness="0.7"/>
@@ -226,6 +232,17 @@
                     <Canvas.RenderTransform><TranslateTransform x:Name="RightGloveT"/></Canvas.RenderTransform>
                     <Ellipse Canvas.Left="91" Canvas.Top="95" Width="16" Height="15" Fill="{StaticResource Glove}"/>
                     <Ellipse Canvas.Left="91" Canvas.Top="95" Width="16" Height="15" Fill="{DynamicResource Weave}" Opacity="0.35" IsHitTestVisible="False"/>
+                </Canvas>
+            </Canvas>
+
+            <!-- Lunch box, on the floor beside him at lunchtime (VexLunch.cs) -->
+            <Canvas x:Name="LunchBox" Opacity="0" IsHitTestVisible="False">
+                <Rectangle Canvas.Left="-6" Canvas.Top="139" Width="22" Height="10" RadiusX="2" RadiusY="2" Fill="#3B7DD8" Stroke="#2A5FA8" StrokeThickness="0.8"/>
+                <Rectangle Canvas.Left="-4.5" Canvas.Top="139.6" Width="19" Height="2.6" Fill="#24467A"/>
+                <Canvas>
+                    <Canvas.RenderTransform><RotateTransform x:Name="LidR" CenterX="-6" CenterY="139"/></Canvas.RenderTransform>
+                    <Rectangle Canvas.Left="-7" Canvas.Top="136.4" Width="24" Height="3.2" RadiusX="1.5" RadiusY="1.5" Fill="#4A8CE6" Stroke="#2A5FA8" StrokeThickness="0.6"/>
+                    <Path Stroke="#2A5FA8" StrokeThickness="1" Data="M 2,136.4 Q 5,133.2 8,136.4"/>
                 </Canvas>
             </Canvas>
 

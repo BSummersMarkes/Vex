@@ -100,7 +100,7 @@ A small animated desktop companion that lives on top of the Windows desktop, kee
 | Water | Every couple of hours, or after coffee #3 |
 | Coffee | Comment on count; gentle disapproval after a threshold |
 | Focus check | ~2 h on the same thing: "still the plan?" |
-| Lunch | No break by ~13:30 |
+| Lunch | No break by ~13:30. "Going" → Vex has lunch too: walks to a corner, sits, eats a sandwich from his lunch box (`LunchEatMinutes`, 5), then naps for the rest (`LunchMinutes`, 30). No dodging/wandering meanwhile; click, drag or an exempt nudge ends it. |
 | End of day | Summary of the day; carry over unfinished to-dos |
 
 **How:** he knocks on the screen (mitten looms toward you, three raps with a ripple, soft knock sound unless in a call; `KnockSound`), then a bubble that **stays until a button is pressed**. Unanswered: re-knocks every 90 s, up to 3 times, while you're at the desk. Stale bubbles clear themselves (Claude answered, meeting over). Each nudge can be acted on, snoozed ("Later") or dismissed (✕).

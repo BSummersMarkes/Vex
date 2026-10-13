@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -48,6 +49,36 @@ public class ClaudeCodeBrain : IBrain
             "I can't find Claude Code. Set ClaudePath in %LOCALAPPDATA%\\Vex\\config.json.");
         Directory.CreateDirectory(workDir);
 
+        var (ok, text) = await RunOnce(exe, message, ct);
+        if (!ok && IsSignInOrNetwork(text))
+        {
+            // Common straight after login: Vex starts before Claude's sign-in has been refreshed or the
+            // network/VPN is up. Give it a moment and try once more before giving up.
+            await Task.Delay(TimeSpan.FromSeconds(6), ct);
+            (ok, text) = await RunOnce(exe, message, ct);
+        }
+        if (ok) return text;
+
+        Store.Log($"Claude error: {text}");
+        if (IsSignInOrNetwork(text))
+            return "I can't get through to Claude. Either the sign-in has lapsed or there's no network. " +
+                   "Open Claude Code (or its VS Code panel) once so it signs in again, then ask me again.";
+        if (text.Contains("conversation", StringComparison.OrdinalIgnoreCase) || text.Contains("session", StringComparison.OrdinalIgnoreCase))
+        {
+            // Claude no longer has our conversation: only then start a fresh one.
+            Store.State.ChatSessionId = null; Store.SaveState();
+            return "I lost track of our conversation, so I've started a fresh one. Say that again?";
+        }
+        return "Something went wrong on my end. Try that again.";
+    }
+
+    static bool IsSignInOrNetwork(string error) =>
+        new[] { "authenticate", "oauth", "login", "log in", "401", "403", "network", "ENOTFOUND", "ECONNRESET", "ETIMEDOUT", "fetch failed", "timed out" }
+            .Any(w => error.Contains(w, StringComparison.OrdinalIgnoreCase));
+
+    /// <summary>One headless Claude Code call. Returns (true, reply) or (false, error text).</summary>
+    async Task<(bool Ok, string Text)> RunOnce(string exe, string message, CancellationToken ct)
+    {
         var psi = new ProcessStartInfo(exe)
         {
             WorkingDirectory = workDir,
@@ -80,40 +111,32 @@ public class ClaudeCodeBrain : IBrain
         {
             using var doc = JsonDocument.Parse(stdout);
             var root = doc.RootElement;
-            if (root.TryGetProperty("session_id", out var s)) { Store.State.ChatSessionId = s.GetString(); Store.SaveState(); }
             var text = root.TryGetProperty("result", out var r) ? r.GetString() ?? "" : "";
-            if (root.TryGetProperty("is_error", out var e) && e.GetBoolean())
-            {
-                // A stale session id is the usual culprit; start fresh next time.
-                Store.State.ChatSessionId = null; Store.SaveState();
-                Store.Log($"Claude error: {text}");
-                return "Something went wrong on my end. Try that again.";
-            }
-            return text.Trim();
+            if (root.TryGetProperty("is_error", out var e) && e.GetBoolean()) return (false, text);
+            if (root.TryGetProperty("session_id", out var s)) { Store.State.ChatSessionId = s.GetString(); Store.SaveState(); }
+            return (true, text.Trim());
         }
         catch (JsonException)
         {
-            Store.Log($"Unexpected Claude output: {stdout}\n{await errTask}");
-            Store.State.ChatSessionId = null; Store.SaveState();
-            return "I lost my train of thought. Try again.";
+            return (false, $"{stdout} {await errTask}".Trim());
         }
     }
 
     public void Forget() { Store.State.ChatSessionId = null; Store.SaveState(); ChatLog.Clear(); }
 
+    /// <summary>
+    /// The newest Claude Code on this PC: the standalone install (~/.local/bin) or the one bundled with the
+    /// VS Code extension, whichever was updated most recently. ClaudePath in config.json overrides.
+    /// </summary>
     internal static string? FindClaude()
     {
         if (Store.Config.ClaudePath is { } configured && File.Exists(configured)) return configured;
         var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-        var local = Path.Combine(home, ".local", "bin", "claude.exe");
-        if (File.Exists(local)) return local;
-        // Fall back to the binary bundled with the newest VS Code extension.
+        var candidates = new List<string> { Path.Combine(home, ".local", "bin", "claude.exe") };
         var ext = Path.Combine(home, ".vscode", "extensions");
-        if (!Directory.Exists(ext)) return null;
-        return Directory.GetDirectories(ext, "anthropic.claude-code-*")
-            .Select(d => Path.Combine(d, "resources", "native-binary", "claude.exe"))
-            .Where(File.Exists)
-            .OrderByDescending(File.GetLastWriteTimeUtc)
-            .FirstOrDefault();
+        if (Directory.Exists(ext))
+            candidates.AddRange(Directory.GetDirectories(ext, "anthropic.claude-code-*")
+                .Select(d => Path.Combine(d, "resources", "native-binary", "claude.exe")));
+        return candidates.Where(File.Exists).OrderByDescending(File.GetLastWriteTimeUtc).FirstOrDefault();
     }
 }

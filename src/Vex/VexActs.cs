@@ -6,7 +6,7 @@ using Forms = System.Windows.Forms;
 namespace Vex;
 
 /// <summary>Little things Vex does while he's just standing about.</summary>
-enum Act { None, Sip, Phone, Read, Sit, Stretch, Watch }
+enum Act { None, Sip, Phone, Read, Sit, Stretch, Watch, Lunch }
 
 /// <summary>
 /// Idle activities. One at a time: ease in, hold, ease out. Anything that needs him to move
@@ -27,17 +27,19 @@ public partial class VexWindow
         if (act != Act.None && now >= actEnd)
         {
             if (act == Act.Sip) squashUntil = now + 0.18; // "ahh"
+            if (act == Act.Lunch) Zzz.Visibility = System.Windows.Visibility.Collapsed;
             act = Act.None; sitSub = Act.None;
             nextAct = now + 12 + rng.NextDouble() * 25;
         }
         if (mode is Mode.Dragging or Mode.Hopping or Mode.Sleeping or Mode.Falling) pendingAct = Act.None;
         if (mode != Mode.Idle || act != Act.None || peeking || thinking || hovering || hidden || autoHidden || currentNudge != null) return;
 
-        // Arrived at the screen edge to sit down?
-        if (pendingAct == Act.Sit)
+        // Arrived at the screen edge to sit down (or have lunch)?
+        if (pendingAct is Act.Sit or Act.Lunch)
         {
+            var was = pendingAct;
             pendingAct = Act.None;
-            if (Math.Abs(x - pendingX) < 3 * S) { StartSit(scr); return; }
+            if (Math.Abs(x - pendingX) < 3 * S) { if (was == Act.Lunch) BeginLunch(scr); else StartSit(scr); return; }
         }
         if (now < nextAct) return;
 
@@ -73,6 +75,7 @@ public partial class VexWindow
         switch (a)
         {
             case Act.Sit: GoSit(ScreenAt(x)); break;
+            case Act.Lunch: StartLunch(); break;
             case Act.Read: Begin(a, 20); nextFlip = now + 2; break;
             default: Begin(a, a is Act.Sip or Act.Stretch or Act.Watch ? 3 : 15); break;
         }
@@ -116,8 +119,9 @@ public partial class VexWindow
     {
         // Reset the parts only activities move.
         MugT.X = 0; RightGloveT.X = 0; MugR.Angle = 0; Lean.Angle = 0;
-        Book.Opacity = 0; Phone.Opacity = 0;
+        Book.Opacity = 0; Phone.Opacity = 0; Sandwich.Opacity = 0; LunchBox.Opacity = 0;
         if (act == Act.None) return;
+        if (act == Act.Lunch) { LunchPose(ref eyeCap, ref turnOverride, ref lookY); return; }
 
         if (act == Act.Sit)
         {

@@ -121,7 +121,7 @@ public partial class VexWindow : Window
         // Mouse over him or his bubble: stand still so it can be read and clicked.
         hovering = Rig.IsMouseOver || Bubble.IsMouseOver;
 
-        if (now >= nextDodgeCheck && !hovering && mode is not (Mode.Dragging or Mode.Falling or Mode.Hopping))
+        if (now >= nextDodgeCheck && !hovering && !AtLunch && mode is not (Mode.Dragging or Mode.Falling or Mode.Hopping))
         {
             nextDodgeCheck = now + 0.3;
             CheckSurroundings(scr);
@@ -174,7 +174,7 @@ public partial class VexWindow : Window
             default: // Idle
                 Settle(floor, dt);
                 if (!peeking && !thinking && !hovering && chat == null && currentNudge == null && act == Act.None && pendingAct == Act.None && now >= nextWander) Wander(scr); // no strolling off mid-conversation
-                if (!peeking && Native.IdleTime().TotalMinutes >= Store.Config.SleepAfterMinutes) Sleep();
+                if (!peeking && !AtLunch && Native.IdleTime().TotalMinutes >= Store.Config.SleepAfterMinutes) Sleep();
                 break;
         }
 
@@ -365,6 +365,7 @@ public partial class VexWindow : Window
     {
         if (mode == Mode.Sleeping) Wake(quiet: true);
         act = Act.None; pendingAct = Act.None;
+        Zzz.Visibility = Visibility.Collapsed; // e.g. woken from his lunch nap for a meeting
         if (mode == Mode.Walking) mode = Mode.Idle;
         ShowBubble(n.Text, n.Persistent && n.Buttons.Count > 0 ? double.PositiveInfinity : n.Seconds, n.Buttons, n.OnTimeout);
         currentNudge = n; reknocks = 0;
@@ -471,6 +472,7 @@ public partial class VexWindow : Window
 
     public void OpenChat(string? prompt = null)
     {
+        InterruptLunch();
         if (hidden) ToggleHidden();
         if (mode == Mode.Sleeping) Wake(quiet: true);
         HideBubble();
@@ -489,6 +491,7 @@ public partial class VexWindow : Window
         void Add(string header, Action a) { var mi = new MenuItem { Header = header }; mi.Click += (_, _) => a(); menu.Items.Add(mi); }
         Add("Chat", () => OpenChat());
         Add("I refilled my coffee", Refill);
+        Add(act == Act.Lunch ? "End lunch" : "Lunch break", () => { if (act == Act.Lunch) InterruptLunch(); else StartLunch(); });
         Add("Go to the other screen", () =>
         {
             var other = screens.FirstOrDefault(s => !s.Equals(ScreenAt(x)));

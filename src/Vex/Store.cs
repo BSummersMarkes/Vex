@@ -38,6 +38,9 @@ public class VexConfig
     public double WaterEveryMinutes { get; set; } = 120;
     public double FocusCheckMinutes { get; set; } = 120;
     public string LunchBy { get; set; } = "13:30";
+    /// <summary>How long Vex takes for lunch when you go (he eats, then naps for the rest).</summary>
+    public double LunchMinutes { get; set; } = 30;
+    public double LunchEatMinutes { get; set; } = 5;
     public string EndOfDay { get; set; } = "17:15";
     public int[] MeetingWarnMinutes { get; set; } = { 10, 2 };
 

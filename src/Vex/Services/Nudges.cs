@@ -145,7 +145,7 @@ public class Nudges
         if (!TimeSpan.TryParse(C.LunchBy, out var by) || now.TimeOfDay < by) return null;
         if (Hub.Presence.HadBreakSince(now.Date.AddHours(11.5), TimeSpan.FromMinutes(20))) { MarkDone("lunch"); return null; }
         var n = new Nudge { Type = "lunch", Text = "No lunch break yet. Food is a thing. Go and have some." };
-        n.Buttons.Add(("Going", () => { Acted("lunch"); MarkDone("lunch"); }));
+        n.Buttons.Add(("Going", () => { Acted("lunch"); MarkDone("lunch"); Hub.Vex.StartLunch(); }));
         n.Buttons.Add(("Later", () => last["lunch"] = DateTime.Now));
         n.Buttons.Add(("✕", () => { Dismissed("lunch"); MarkDone("lunch"); }));
         return now - Last("lunch") < TimeSpan.FromMinutes(25) ? null : n;
