@@ -53,6 +53,8 @@ public class VexConfig
     public bool MorningBrief { get; set; } = true;
     /// <summary>Global hotkey that opens the chat from anywhere (e.g. "Ctrl+Alt+V"). Empty = none.</summary>
     public string QuickChatHotkey { get; set; } = "Ctrl+Alt+V";
+    /// <summary>Close the chat when you click somewhere else (unless he's replying or there's a half-written message).</summary>
+    public bool ChatClosesOnClickAway { get; set; } = true;
 
     // Memory and the daily diary.
     /// <summary>Vex's own pages (markdown). Null = %LOCALAPPDATA%\Vex\memory. The Lab Notebook mirrors this folder.</summary>

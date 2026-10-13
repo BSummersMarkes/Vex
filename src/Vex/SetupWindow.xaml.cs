@@ -57,6 +57,8 @@ public partial class SetupWindow : Window
             ? "Claude Code found: chat uses your own Claude login."
             : "Claude Code isn't installed, so I can't chat yet. Everything else works. Install Claude Code and sign in, then I'll pick it up.";
 
+        // First run walks in with "Off we go"; afterwards it's just a settings window.
+        if (c.SetupDone) { Done.Content = "Save"; Title = "Vex settings"; }
         Done.Click += (_, _) => Save();
     }
 

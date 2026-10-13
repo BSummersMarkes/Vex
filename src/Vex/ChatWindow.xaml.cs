@@ -17,13 +17,24 @@ public partial class ChatWindow : Window
     readonly IBrain brain = new ClaudeCodeBrain();
     CancellationTokenSource? pending;
     bool detached;
+    /// <summary>True once the panel has been dragged away from Vex; clicking him then re-attaches it rather than closing it.</summary>
+    public bool Detached => detached;
     /// <summary>What's on screen, in order, for the copy buttons.</summary>
     readonly List<ChatLine> shown = new();
+    /// <summary>A half-written message from the last time the chat closed, put back when it reopens. Memory only.</summary>
+    static string draft = "";
+    bool closing;
 
     public ChatWindow(VexWindow vex)
     {
         InitializeComponent();
         this.vex = vex;
+        Input.Text = draft;
+        Input.CaretIndex = Input.Text.Length;
+        // Clicking anywhere outside the panel (desktop, another window) takes focus away from it: treat that as a dismiss.
+        // Deferred so the close doesn't happen inside the activation change itself.
+        Deactivated += (_, _) => Dispatcher.BeginInvoke(() => { if (!IsActive) Dismiss(); });
+        Closing += (_, _) => closing = true;
         // Dragging the panel parks it where you put it; clicking Vex again re-attaches it.
         Header.MouseLeftButtonDown += (_, _) => { detached = true; DragMove(); };
         CloseBtn.Click += (_, _) => Close();
@@ -36,7 +47,7 @@ public partial class ChatWindow : Window
             else if (e.Key == Key.C && Keyboard.Modifiers == (ModifierKeys.Control | ModifierKeys.Shift)) { CopyText(); e.Handled = true; }
         };
         Theme.Changed += Restyle;
-        Closed += (_, _) => { Theme.Changed -= Restyle; pending?.Cancel(); vex.SetThinking(false); vex.ChatClosed(); };
+        Closed += (_, _) => { draft = Input.Text; Theme.Changed -= Restyle; pending?.Cancel(); vex.SetThinking(false); vex.ChatClosed(); };
         SourceInitialized += (_, _) =>
         {
             if (Store.Config.HideFromScreenCapture)
@@ -144,6 +155,18 @@ public partial class ChatWindow : Window
         Text = label, Foreground = Theme.Brush(P.Divider), FontSize = 11,
         HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 8, 0, 4),
     });
+
+    /// <summary>
+    /// Closes the panel after a click elsewhere, the same as ✕, but not while Vex is mid-reply or there's something
+    /// typed in the box, so neither gets lost. Returns whether it closed.
+    /// </summary>
+    public bool Dismiss()
+    {
+        if (closing || !IsVisible || !Store.Config.ChatClosesOnClickAway) return false;
+        if (pending != null || Input.Text.Trim().Length > 0) return false;
+        Close();
+        return true;
+    }
 
     /// <summary>Pops up above (and clear of) Vex, kept on the same screen. Coordinates are physical pixels.</summary>
     public void ShowNear(double feetX, double headY, Forms.Screen scr)

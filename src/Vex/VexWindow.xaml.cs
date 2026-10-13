@@ -98,7 +98,7 @@ public partial class VexWindow : Window
         Rig.MouseLeftButtonUp += RigUp;
         Rig.MouseRightButtonUp += (_, e) => { ShowMenu(); e.Handled = true; };
         Mug.MouseLeftButtonDown += (_, e) => e.Handled = true;
-        Mug.MouseLeftButtonUp += (_, e) => { Refill(); e.Handled = true; };
+        Mug.MouseLeftButtonUp += (_, e) => { Refill(); chat?.Dismiss(); e.Handled = true; };   // a click away from the chat
         Mug.ToolTip = "";
         Mug.ToolTipOpening += (_, _) => Mug.ToolTip = $"Coffee #{Store.State.Coffees} today. Click when you refill yours.";
         Bubble.MouseLeftButtonUp += (_, _) => { if (BubbleButtons.Children.Count == 0) HideBubble(); };
@@ -730,7 +730,9 @@ public partial class VexWindow : Window
             if (y > floor) y = floor; // dropped onto the taskbar: pop back up
             bounces = 0;
         }
-        else OpenChat();
+        // Vex's window never takes focus, so the chat doesn't see this click as "elsewhere": clicking him with the chat
+        // open next to him dismisses it; if it stays (draft, mid-reply) or was dragged away, this brings it back to him.
+        else if (chat == null || chat.Detached || !chat.Dismiss()) OpenChat();
         e.Handled = true;
     }
 }
