@@ -3,6 +3,7 @@ src/Vex/bin/
 src/Vex/obj/
 src/Vex/publish/
 Vex.exe
+Vex.exe.old
 
 # Editor / OS
 .vs/
