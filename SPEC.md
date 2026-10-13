@@ -30,7 +30,8 @@ A small animated desktop companion that lives on top of the Windows desktop, kee
 
 - **Language/runtime:** C# / .NET 10 (`net10.0-windows`), matching Lab Notebook. Single-file exe via a `build.ps1`.
 - **Character:** WPF transparent, topmost, borderless tool window, drawn with vector shapes. Transparent pixels pass clicks through to whatever is underneath.
-- **Chat panel:** WPF window (WebView2 if it needs to get fancy).
+- **Chat panel:** WPF window (WebView2 if it needs to get fancy). Header buttons copy the whole chat as text (also Ctrl+Shift+C) or as a picture.
+- **Appearance:** tray → Appearance: dark / light / match Windows for the chat and bubbles (`Theme`), and the hoodie colour (`HoodieColour`; presets or a custom colour). The hoodie's shades are all derived from the one colour, so folds and shadows keep working (`Theme.cs`).
 - **Brain:** a swappable `IBrain` interface.
   - `ClaudeCodeBrain` (default): runs the Claude Code CLI headless (`claude -p --output-format stream-json`, resuming its session for continuity), using the existing Claude login. No API key needed.
   - `OllamaBrain` (to try): local model on the T1200 GPU, for comparison and for anything that should never leave the machine.
@@ -190,6 +191,10 @@ Each job's log (prompts' results, git output, build errors, review) is in `%LOCA
 ### Workshop (2026-10-13)
 - [x] Ask in chat for a new ability → coder session writes it, Vex builds it, a second session reviews it, commit + push to main, knock, self-swap with rollback (section 9)
 - [ ] Capability review before sharing any build that has a workshop
+
+### Comfort (2026-10-13)
+- [x] Copy the chat as text or a picture
+- [x] Light mode / match Windows; hoodie colour from the tray
 
 ### v0.4: "He talks"
 - [ ] Voice in and out

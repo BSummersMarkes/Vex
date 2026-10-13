@@ -73,6 +73,8 @@ public partial class VexWindow : Window
         InitializeComponent();
         Resources["Weave"] = MakeWeave();
         MakeBubbleWindow();
+        ApplyAppearance();
+        Theme.Changed += ApplyAppearance;
         Store.RollDay();
         SourceInitialized += (_, _) =>
         {
@@ -387,8 +389,8 @@ public partial class VexWindow : Window
             var b = new Button
             {
                 Content = label, Margin = new Thickness(6, 0, 0, 0), Padding = new Thickness(8, 2, 8, 2),
-                Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0x2E, 0x33, 0x4A)),
-                Foreground = System.Windows.Media.Brushes.White, BorderThickness = new Thickness(0), Cursor = Cursors.Hand,
+                Background = Theme.Brush(Theme.Current.Button),
+                Foreground = Theme.Brush(Theme.Current.ButtonText), BorderThickness = new Thickness(0), Cursor = Cursors.Hand,
                 FontSize = 12,
             };
             b.Click += (_, e) => { e.Handled = true; bubbleTimeout = null; HideBubble(); act(); };
@@ -399,6 +401,25 @@ public partial class VexWindow : Window
         bubbleUntil = now + seconds;
         bubbleWin?.UpdateLayout(); // resize to the new text now, so it's placed correctly on its first frame
         PlaceBubble(ScreenAt(x));
+    }
+
+    /// <summary>Parts drawn in reds that aren't his hoodie (props, mug, eyes): left alone when it's recoloured.</summary>
+    static readonly HashSet<string> NotHoodie = new() { "Book", "Sandwich", "Phone", "Mug", "LunchBox", "Eyes", "Ripple" };
+
+    /// <summary>Hoodie colour (and the matching bubble rim and Zzz), plus the speech bubble's light/dark colours.</summary>
+    void ApplyAppearance()
+    {
+        Theme.PaintHoodie(Rig, NotHoodie);
+        Theme.PaintHoodie(Zzz, NotHoodie);
+        Theme.PaintHoodie(Bubble, NotHoodie);
+        var p = Theme.Current;
+        Bubble.Background = Theme.Brush(p.Speech);
+        BubbleText.Foreground = Theme.Brush(p.Text);
+        foreach (var b in BubbleButtons.Children.OfType<Button>())
+        {
+            b.Background = Theme.Brush(p.Button);
+            b.Foreground = Theme.Brush(p.ButtonText);
+        }
     }
 
     /// <summary>Centres the bubble over his head, but keeps it wholly on the monitor he's standing on.</summary>

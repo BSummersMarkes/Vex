@@ -4,7 +4,7 @@
         Title="Vex" Width="360" Height="440"
         WindowStyle="None" AllowsTransparency="True" Background="Transparent"
         Topmost="True" ShowInTaskbar="False" ResizeMode="NoResize" FontFamily="Segoe UI">
-    <Border Background="#F2151826" BorderBrush="#4A5A86" BorderThickness="1.5" CornerRadius="12">
+    <Border x:Name="Frame" Background="#F2151826" BorderBrush="#4A5A86" BorderThickness="1.5" CornerRadius="12">
         <Grid Margin="12">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
@@ -17,7 +17,14 @@
                 <Button x:Name="CloseBtn" DockPanel.Dock="Right" Content="✕" Width="26" Height="26"
                         Background="Transparent" Foreground="#9AA3BF" BorderThickness="0" Cursor="Hand"
                         ToolTip="Close (Esc)"/>
-                <TextBlock Text="Vex" Foreground="#E8EAF2" FontSize="15" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                <!-- Copy the whole chat: as text (for pasting into email/Teams), or as a picture -->
+                <Button x:Name="CopyImageBtn" DockPanel.Dock="Right" Content="&#xE722;" FontFamily="Segoe MDL2 Assets"
+                        Width="26" Height="26" Background="Transparent" Foreground="#9AA3BF" BorderThickness="0"
+                        Cursor="Hand" ToolTip="Copy the chat as a picture"/>
+                <Button x:Name="CopyTextBtn" DockPanel.Dock="Right" Content="&#xE8C8;" FontFamily="Segoe MDL2 Assets"
+                        Width="26" Height="26" Background="Transparent" Foreground="#9AA3BF" BorderThickness="0"
+                        Cursor="Hand" ToolTip="Copy the chat as text (Ctrl+Shift+C)"/>
+                <TextBlock x:Name="TitleText" Text="Vex" Foreground="#E8EAF2" FontSize="15" FontWeight="SemiBold" VerticalAlignment="Center"/>
             </DockPanel>
 
             <ScrollViewer x:Name="Scroll" Grid.Row="1" VerticalScrollBarVisibility="Auto">

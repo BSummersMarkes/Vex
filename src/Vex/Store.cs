@@ -27,6 +27,11 @@ public class VexConfig
     /// <summary>First-run setup has been completed.</summary>
     public bool SetupDone { get; set; }
 
+    /// <summary>Chat panel and speech bubble: "dark", "light" or "system" (follow Windows). Tray → Appearance.</summary>
+    public string Theme { get; set; } = "dark";
+    /// <summary>Hoodie colour as #RRGGBB; empty = the original dark red. Tray → Appearance.</summary>
+    public string HoodieColour { get; set; } = "";
+
     /// <summary>Keep Vex (and his chat) out of screenshots and screen shares.</summary>
     public bool HideFromScreenCapture { get; set; } = true;
 
@@ -98,6 +103,8 @@ public class VexState
     public int Coffees { get; set; }
     public DateTime RefilledAt { get; set; } = DateTime.MinValue;
     public string? ChatSessionId { get; set; }
+    /// <summary>Fingerprint of the system prompt the chat session started with; a change starts a new session.</summary>
+    public string? ChatPersonaHash { get; set; }
     public Dictionary<string, NudgeStat> NudgeStats { get; set; } = new();
     public List<Reminder> Reminders { get; set; } = new();
     /// <summary>Once-a-day nudges already given today (type names).</summary>

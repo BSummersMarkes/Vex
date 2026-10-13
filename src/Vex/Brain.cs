@@ -37,8 +37,18 @@ public class ClaudeCodeBrain : IBrain
         front (app and title only; private windows are excluded), meetings, Lab Notebook to-dos and journal,
         Claude Code sessions, reminders and memory notes. Use it when relevant ("what was I doing?", "what's next?"),
         never recite it back. You can't see window contents or files; if something needs that, say so briefly.
-
+        {WorkshopNote(name)}
         {Services.Hub.ActionHelp(name)}
+        """;
+
+    /// <summary>Only when the workshop is on: tells him he can change himself, so requests become builds, not to-dos.</summary>
+    static string WorkshopNote(string name) => !Services.Workshop.Enabled ? "" : $"""
+
+        You CAN change yourself: your own app, its behaviour, looks, nudges, chat panel and settings. When {name} asks
+        for a feature, a change or a fix to you or this app ("can you add…", "you should…", "the chat should…"), that's
+        a [[build: …]] job, not a to-do or a feature request for someone else. Confirm what you'll build in a sentence
+        and add the action. (If earlier in this conversation you said you couldn't, that was before you had a workshop.)
+
         """;
 
     readonly string workDir = Path.Combine(Store.Dir, "brain");
@@ -92,14 +102,25 @@ public class ClaudeCodeBrain : IBrain
             StandardOutputEncoding = System.Text.Encoding.UTF8,
             StandardErrorEncoding = System.Text.Encoding.UTF8,
         };
+        // Claude Code keeps a session's original system prompt when it's resumed and ignores the new one, so when
+        // Vex's instructions change (new actions, a new name, the workshop switched on) the old conversation would
+        // never hear about it. Start a fresh one instead, carrying the end of the old chat over for continuity.
+        var persona = Persona(Services.Hub.Who, Store.Config.Workplace);
+        var version = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(persona)))[..16];
+        var recap = "";
+        if (Store.State.ChatPersonaHash != version)
+        {
+            Store.State.ChatSessionId = null;
+            recap = Recap(message);
+        }
+
         foreach (var a in new[] { "-p", "--output-format", "json", "--tools", "", "--setting-sources", "",
-                                  "--strict-mcp-config", "--model", Store.Config.Model,
-                                  "--system-prompt", Persona(Services.Hub.Who, Store.Config.Workplace) })
+                                  "--strict-mcp-config", "--model", Store.Config.Model, "--system-prompt", persona })
             psi.ArgumentList.Add(a);
         if (Store.State.ChatSessionId is { } sid) { psi.ArgumentList.Add("--resume"); psi.ArgumentList.Add(sid); }
 
         using var p = Process.Start(psi)!;
-        await p.StandardInput.WriteAsync($"<context>\n{Services.Hub.Context()}</context>\n\n{message}");
+        await p.StandardInput.WriteAsync($"{recap}<context>\n{Services.Hub.Context()}</context>\n\n{message}");
         p.StandardInput.Close();
         var outTask = p.StandardOutput.ReadToEndAsync(ct);
         var errTask = p.StandardError.ReadToEndAsync(ct);
@@ -113,13 +134,26 @@ public class ClaudeCodeBrain : IBrain
             var root = doc.RootElement;
             var text = root.TryGetProperty("result", out var r) ? r.GetString() ?? "" : "";
             if (root.TryGetProperty("is_error", out var e) && e.GetBoolean()) return (false, text);
-            if (root.TryGetProperty("session_id", out var s)) { Store.State.ChatSessionId = s.GetString(); Store.SaveState(); }
+            if (root.TryGetProperty("session_id", out var s)) { Store.State.ChatSessionId = s.GetString(); Store.State.ChatPersonaHash = version; Store.SaveState(); }
             return (true, text.Trim());
         }
         catch (JsonException)
         {
             return (false, $"{stdout} {await errTask}".Trim());
         }
+    }
+
+    /// <summary>The last stretch of the visible chat (minus the message being sent), to open a fresh session with.</summary>
+    static string Recap(string message)
+    {
+        var lines = ChatLog.Recent(30);
+        if (lines.Count > 0 && lines[^1].Who == "me" && lines[^1].Text == message) lines.RemoveAt(lines.Count - 1);
+        if (lines.Count == 0) return "";
+        var who = Services.Hub.Who;
+        var body = string.Join("\n", lines.Select(l => l.Who switch { "me" => $"{who}: {l.Text}", "note" => $"  ({l.Text})", _ => $"Vex: {l.Text}" }));
+        return "<earlier_chat note=\"Your instructions have been updated, so this is a new conversation. This is the end of the " +
+               "previous one, for continuity. Where it conflicts with your current instructions (e.g. something you said you " +
+               $"couldn't do), your current instructions win.\">\n{body}\n</earlier_chat>\n\n";
     }
 
     public void Forget() { Store.State.ChatSessionId = null; Store.SaveState(); ChatLog.Clear(); }

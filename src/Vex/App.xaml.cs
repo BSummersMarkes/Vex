@@ -42,6 +42,7 @@ public partial class App : Application
         startup.Click += (_, _) => SetStartup(startup.Checked);
         menu.Items.Add(startup);
         menu.Opening += (_, _) => startup.Checked = StartsWithWindows();
+        menu.Items.Add(AppearanceMenu(menu));
         menu.Items.Add("Setup…", null, (_, _) =>
         {
             if (new SetupWindow().ShowDialog() == true) { Services.Hub.ApplySettings(); vex.Say("Settings saved.", 3); }
@@ -53,6 +54,52 @@ public partial class App : Application
         menu.Items.Add("Quit", null, (_, _) => Quit());
         tray = new Forms.NotifyIcon { Icon = MakeIcon(), Text = "Vex", Visible = true, ContextMenuStrip = menu };
         tray.MouseClick += (_, me) => { if (me.Button == Forms.MouseButtons.Left) vex.OpenChat(); };
+    }
+
+    /// <summary>Tray → Appearance: dark/light/follow Windows for the chat and bubbles, and the hoodie colour.</summary>
+    static Forms.ToolStripMenuItem AppearanceMenu(Forms.ContextMenuStrip menu)
+    {
+        var root = new Forms.ToolStripMenuItem("Appearance");
+        var themes = new[] { ("Dark", "dark"), ("Light", "light"), ("Match Windows", "system") }
+            .Select(t => new Forms.ToolStripMenuItem(t.Item1, null, (_, _) => Theme.SetTheme(t.Item2)) { Tag = t.Item2 }).ToList();
+        root.DropDownItems.AddRange(themes.ToArray());
+        root.DropDownItems.Add(new Forms.ToolStripSeparator());
+
+        var hoodie = new Forms.ToolStripMenuItem("Hoodie colour");
+        foreach (var (name, hex) in Theme.Hoodies)
+        {
+            var c = (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(hex);
+            hoodie.DropDownItems.Add(new Forms.ToolStripMenuItem(name, Swatch(c), (_, _) => Theme.SetHoodie(c)) { Tag = hex });
+        }
+        hoodie.DropDownItems.Add(new Forms.ToolStripSeparator());
+        hoodie.DropDownItems.Add("Custom…", null, (_, _) =>
+        {
+            var cur = Theme.Hoodie;
+            using var dlg = new Forms.ColorDialog { FullOpen = true, Color = System.Drawing.Color.FromArgb(cur.R, cur.G, cur.B) };
+            if (dlg.ShowDialog() == Forms.DialogResult.OK)
+                Theme.SetHoodie(System.Windows.Media.Color.FromRgb(dlg.Color.R, dlg.Color.G, dlg.Color.B));
+        });
+        root.DropDownItems.Add(hoodie);
+
+        // Tick the current choices each time the menu opens.
+        menu.Opening += (_, _) =>
+        {
+            foreach (var t in themes) t.Checked = (string)t.Tag! == Store.Config.Theme;
+            var current = Theme.Hex(Theme.Hoodie);
+            foreach (var item in hoodie.DropDownItems.OfType<Forms.ToolStripMenuItem>())
+                item.Checked = item.Tag is string hex && string.Equals(hex, current, StringComparison.OrdinalIgnoreCase);
+        };
+        return root;
+    }
+
+    /// <summary>A little colour square for the hoodie menu.</summary>
+    static Bitmap Swatch(System.Windows.Media.Color c)
+    {
+        var bmp = new Bitmap(16, 16);
+        using var g = Graphics.FromImage(bmp);
+        using var b = new SolidBrush(System.Drawing.Color.FromArgb(c.R, c.G, c.B));
+        g.FillRectangle(b, 1, 1, 14, 14);
+        return bmp;
     }
 
     const string RunKey = @"Software\Microsoft\Windows\CurrentVersion\Run";

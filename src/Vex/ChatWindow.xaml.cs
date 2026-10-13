@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Windows;
 using System.Windows.Controls;
@@ -15,6 +17,8 @@ public partial class ChatWindow : Window
     readonly IBrain brain = new ClaudeCodeBrain();
     CancellationTokenSource? pending;
     bool detached;
+    /// <summary>What's on screen, in order, for the copy buttons.</summary>
+    readonly List<ChatLine> shown = new();
 
     public ChatWindow(VexWindow vex)
     {
@@ -23,37 +27,121 @@ public partial class ChatWindow : Window
         // Dragging the panel parks it where you put it; clicking Vex again re-attaches it.
         Header.MouseLeftButtonDown += (_, _) => { detached = true; DragMove(); };
         CloseBtn.Click += (_, _) => Close();
+        CopyTextBtn.Click += (_, _) => CopyText();
+        CopyImageBtn.Click += (_, _) => CopyImage();
         Input.KeyDown += InputKey;
-        PreviewKeyDown += (_, e) => { if (e.Key == Key.Escape) Close(); };
-        Closed += (_, _) => { pending?.Cancel(); vex.SetThinking(false); vex.ChatClosed(); };
+        PreviewKeyDown += (_, e) =>
+        {
+            if (e.Key == Key.Escape) Close();
+            else if (e.Key == Key.C && Keyboard.Modifiers == (ModifierKeys.Control | ModifierKeys.Shift)) { CopyText(); e.Handled = true; }
+        };
+        Theme.Changed += Restyle;
+        Closed += (_, _) => { Theme.Changed -= Restyle; pending?.Cancel(); vex.SetThinking(false); vex.ChatClosed(); };
         SourceInitialized += (_, _) =>
         {
             if (Store.Config.HideFromScreenCapture)
                 Native.SetWindowDisplayAffinity(new WindowInteropHelper(this).Handle, Native.WDA_EXCLUDEFROMCAPTURE);
         };
-        // Pick up where we left off; a fresh "What." only when there's no history.
+        Restyle();
+        Loaded += (_, _) => Scroll.ScrollToEnd();
+    }
+
+    Palette P => Theme.Current;
+
+    /// <summary>Applies the current theme's colours and redraws the messages in them.</summary>
+    void Restyle()
+    {
+        Frame.Background = Theme.Brush(P.Panel);
+        Frame.BorderBrush = Theme.Brush(P.PanelBorder);
+        TitleText.Foreground = Theme.Brush(P.Text);
+        foreach (var b in new[] { CloseBtn, CopyTextBtn, CopyImageBtn }) b.Foreground = Theme.Brush(P.SubText);
+        Status.Foreground = Theme.Brush(P.SubText);
+        Input.Background = Theme.Brush(P.Input);
+        Input.Foreground = Input.CaretBrush = Theme.Brush(P.Text);
+        Input.BorderBrush = Theme.Brush(P.InputBorder);
+        LoadHistory();
+    }
+
+    /// <summary>Pick up where we left off; a fresh "What." only when there's no history.</summary>
+    void LoadHistory()
+    {
+        Messages.Children.Clear();
+        shown.Clear();
         var history = ChatLog.Recent();
         DateTime? last = null;
         foreach (var line in history)
         {
             if (last == null || line.At.Date != last.Value.Date) Divider(line.At.Date == DateTime.Today ? "Today" : line.At.ToString("dddd d MMMM"));
-            Render(line.Who, line.Text);
+            Render(line.Who, line.Text, line.At);
             last = line.At;
         }
-        if (history.Count == 0) Render("vex", "What.");
-        Loaded += (_, _) => Scroll.ScrollToEnd();
+        if (history.Count == 0) Render("vex", "What.", DateTime.Now);
+    }
+
+    // ───────────── copying ─────────────
+
+    /// <summary>The visible chat as plain text, one message per paragraph, for pasting into email or Teams.</summary>
+    void CopyText()
+    {
+        var me = Store.Config.UserName.Length > 0 ? Store.Config.UserName : "Me";
+        var text = string.Join(Environment.NewLine + Environment.NewLine, shown.Select(l => l.Who switch
+        {
+            "note" => $"    {l.Text}",
+            "me" => $"[{l.At:HH:mm}] {me}: {l.Text}",
+            _ => $"[{l.At:HH:mm}] Vex: {l.Text}",
+        }));
+        try { Clipboard.SetText(text); Flash("Copied the chat as text."); }
+        catch (Exception ex) { Store.Log($"Copy text: {ex.Message}"); Flash("Couldn't get at the clipboard."); }
+    }
+
+    /// <summary>
+    /// The whole visible chat (not just the scrolled part) as a picture on the clipboard, on the panel's background.
+    /// Rendered directly, so it works even though Vex's windows are hidden from screenshots.
+    /// </summary>
+    void CopyImage()
+    {
+        try
+        {
+            const double pad = 12;
+            double w = Messages.ActualWidth, h = Messages.ActualHeight, dpi = 96 * VisualTreeHelper.GetDpi(this).DpiScaleX;
+            var dv = new DrawingVisual();
+            using (var dc = dv.RenderOpen())
+            {
+                dc.DrawRectangle(Theme.Brush(Color.FromRgb(P.Panel.R, P.Panel.G, P.Panel.B)), null, new Rect(0, 0, w + 2 * pad, h + 2 * pad));
+                dc.DrawRectangle(new VisualBrush(Messages) { Stretch = Stretch.None, AlignmentX = AlignmentX.Left, AlignmentY = AlignmentY.Top },
+                                 null, new Rect(pad, pad, w, h));
+            }
+            var bmp = new System.Windows.Media.Imaging.RenderTargetBitmap(
+                (int)Math.Ceiling((w + 2 * pad) * dpi / 96), (int)Math.Ceiling((h + 2 * pad) * dpi / 96), dpi, dpi, PixelFormats.Pbgra32);
+            bmp.Render(dv);
+            Clipboard.SetImage(bmp);
+            Flash("Copied the chat as a picture.");
+        }
+        catch (Exception ex) { Store.Log($"Copy image: {ex.Message}"); Flash("Couldn't copy that."); }
+    }
+
+    /// <summary>A short note in the status line, unless Vex is busy thinking.</summary>
+    async void Flash(string text)
+    {
+        if (pending != null) return;
+        Status.Text = text;
+        Status.Visibility = Visibility.Visible;
+        await System.Threading.Tasks.Task.Delay(1800);
+        if (pending != null) return;
+        Status.Visibility = Visibility.Collapsed;
+        Status.Text = "Vex is thinking…";
     }
 
     /// <summary>Shows a message and keeps it in the transcript on disk.</summary>
     void Add(string who, string text)
     {
-        Render(who, text);
+        Render(who, text, DateTime.Now);
         ChatLog.Append(who, text);
     }
 
     void Divider(string label) => Messages.Children.Add(new TextBlock
     {
-        Text = label, Foreground = new SolidColorBrush(Color.FromRgb(0x6F, 0x77, 0x92)), FontSize = 11,
+        Text = label, Foreground = Theme.Brush(P.Divider), FontSize = 11,
         HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 8, 0, 4),
     });
 
@@ -98,6 +186,7 @@ public partial class ChatWindow : Window
         if (pending != null) return;
         Add("me", text);
         pending = new CancellationTokenSource();
+        Status.Text = "Vex is thinking…";
         Status.Visibility = Visibility.Visible;
         vex.SetThinking(true);
         try
@@ -121,13 +210,14 @@ public partial class ChatWindow : Window
         }
     }
 
-    void Render(string who, string text)
+    void Render(string who, string text, DateTime at)
     {
+        shown.Add(new ChatLine(at, who, text));
         if (who == "note")
         {
             Messages.Children.Add(new TextBlock
             {
-                Text = text, Foreground = new SolidColorBrush(Color.FromRgb(0x8C, 0xC4, 0x9A)), FontSize = 11.5,
+                Text = text, Foreground = Theme.Brush(P.Note), FontSize = 11.5,
                 Margin = new Thickness(4, 1, 0, 3), TextWrapping = TextWrapping.Wrap,
             });
             Scroll.ScrollToEnd();
@@ -136,7 +226,7 @@ public partial class ChatWindow : Window
         bool me = who == "me";
         var bubble = new Border
         {
-            Background = new SolidColorBrush(me ? Color.FromRgb(0x34, 0x42, 0x6A) : Color.FromRgb(0x23, 0x28, 0x42)),
+            Background = Theme.Brush(me ? P.MeBubble : P.VexBubble),
             CornerRadius = new CornerRadius(10),
             Padding = new Thickness(10, 6, 10, 6),
             Margin = new Thickness(me ? 40 : 0, 3, me ? 0 : 40, 3),
@@ -144,7 +234,7 @@ public partial class ChatWindow : Window
             Child = new TextBox
             {
                 Text = text, IsReadOnly = true, TextWrapping = TextWrapping.Wrap, BorderThickness = new Thickness(0),
-                Background = Brushes.Transparent, Foreground = new SolidColorBrush(Color.FromRgb(0xE8, 0xEA, 0xF2)),
+                Background = Brushes.Transparent, Foreground = Theme.Brush(P.Text),
                 FontSize = 13,
             },
         };

@@ -28,7 +28,8 @@ For chat you need **[Claude Code](https://claude.com/claude-code) installed and 
 | Drag Vex | Pick him up and drop him (on the taskbar or on a window) |
 | Click the mug | "I've refilled my coffee" |
 | Right-click Vex | Menu: nap, hide, other screen, forget the chat… |
-| Tray icon | Setup…, start with Windows, what Vex knows, show/hide, quit |
+| Tray icon | Setup…, Appearance (light/dark, hoodie colour), start with Windows, what Vex knows, show/hide, quit |
+| Chat header | Copy the chat as text (Ctrl+Shift+C) or as a picture |
 
 **Notes and to-dos** go in a folder of plain markdown files (default `Documents\Vex Notes`), or the Lab Notebook if you have it:
 
