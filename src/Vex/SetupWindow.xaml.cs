@@ -42,6 +42,8 @@ public partial class SetupWindow : Window
         ChatClickAway.IsChecked = c.ChatClosesOnClickAway;
         CodingAtLaptop.IsChecked = c.CodingAtLaptop;
         CodingForClaude.IsChecked = c.CodingForClaude;
+        LunchRoutine.IsChecked = c.LunchRoutine;
+        LunchMinutes.Text = c.LunchMinutes.ToString(CultureInfo.CurrentCulture);
         ActivityLog.IsChecked = c.ActivityLog;
         Curious.IsChecked = c.Curious;
         WatchApps.Text = string.Join(", ", c.WatchContentApps);
@@ -93,6 +95,10 @@ public partial class SetupWindow : Window
         c.ChatClosesOnClickAway = ChatClickAway.IsChecked == true;
         c.CodingAtLaptop = CodingAtLaptop.IsChecked == true;
         c.CodingForClaude = CodingForClaude.IsChecked == true;
+        c.LunchRoutine = LunchRoutine.IsChecked == true;
+        // Anything unreadable keeps the old length; a lunch shorter than a couple of minutes isn't one.
+        if (double.TryParse(LunchMinutes.Text.Trim(), NumberStyles.Float, CultureInfo.CurrentCulture, out var lunch) && lunch > 0)
+            c.LunchMinutes = Math.Clamp(lunch, 2, 240);
         c.ActivityLog = ActivityLog.IsChecked == true;
         c.Curious = Curious.IsChecked == true;
         c.WatchContentApps = WatchApps.Text.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)

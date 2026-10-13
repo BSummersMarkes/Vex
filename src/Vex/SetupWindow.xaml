@@ -126,6 +126,14 @@
                               IsEnabled="{Binding IsChecked, ElementName=CodingAtLaptop}"/>
                     <TextBlock Style="{StaticResource Note}" Margin="20,0,0,0"
                                Text="Bottom-right corner (CodingCorner in config.json). Drag me somewhere and I'll type there instead."/>
+                    <CheckBox x:Name="LunchRoutine" Content="Have my own lunch when you go for yours (a sandwich, then a nap)"/>
+                    <StackPanel Orientation="Horizontal" Margin="20,5,0,0" IsEnabled="{Binding IsChecked, ElementName=LunchRoutine}">
+                        <TextBlock Text="Lunch length" VerticalAlignment="Center"/>
+                        <TextBox x:Name="LunchMinutes" Width="45" Margin="8,0,6,0"/>
+                        <TextBlock Text="minutes" VerticalAlignment="Center"/>
+                    </StackPanel>
+                    <TextBlock Style="{StaticResource Note}" Margin="20,0,0,0"
+                               Text="Starts when you press Going on the lunch nudge or tell me you're off. Come back early and I'll wake up."/>
                 </StackPanel>
             </TabItem>
 

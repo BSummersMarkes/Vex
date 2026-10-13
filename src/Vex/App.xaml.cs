@@ -31,11 +31,11 @@ public partial class App : Application
         menu.Items.Add("Chat", null, (_, _) => vex.OpenChat());
         var showHide = menu.Items.Add("Hide Vex", null, (_, _) => vex.ToggleHidden());
         menu.Opening += (_, _) => showHide.Text = vex.IsHidden ? "Show Vex" : "Hide Vex";
-        menu.Items.Add("What Vex knows…", null, (_, _) => vex.Say(Status(), 20));
+        menu.Items.Add("What Vex knows…", null, (_, _) => vex.Say(Status(), 20, important: true));
         var connect = menu.Items.Add("Connect Claude Code", null, (_, _) =>
         {
-            try { vex.Say(Services.ClaudeWatch.Install() + " New Claude Code sessions will report in.", 8); }
-            catch (Exception ex) { Store.Log($"Hook install: {ex}"); vex.Say("Couldn't edit Claude Code's settings. It's in the log.", 6); }
+            try { vex.Say(Services.ClaudeWatch.Install() + " New Claude Code sessions will report in.", 8, important: true); }
+            catch (Exception ex) { Store.Log($"Hook install: {ex}"); vex.Say("Couldn't edit Claude Code's settings. It's in the log.", 6, important: true); }
         });
         menu.Opening += (_, _) => connect.Text = Services.ClaudeWatch.Installed() ? "Claude Code: connected ✓" : "Connect Claude Code";
         var startup = new Forms.ToolStripMenuItem("Start with Windows") { CheckOnClick = true };
@@ -45,7 +45,7 @@ public partial class App : Application
         menu.Items.Add(AppearanceMenu(menu));
         menu.Items.Add("Setup…", null, (_, _) =>
         {
-            if (new SetupWindow().ShowDialog() == true) { Services.Hub.ApplySettings(); vex.Say("Settings saved.", 3); }
+            if (new SetupWindow().ShowDialog() == true) { Services.Hub.ApplySettings(); vex.Say("Settings saved.", 3, important: true); }
         });
         menu.Items.Add("Memory (Vex's pages)", null, (_, _) => Open(Services.Memory.Folder));
         menu.Items.Add("Chat history", null, (_, _) => Open(ChatLog.Folder));

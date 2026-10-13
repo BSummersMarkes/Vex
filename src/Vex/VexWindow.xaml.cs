@@ -176,7 +176,7 @@ public partial class VexWindow : Window
 
             default: // Idle
                 Settle(floor, dt);
-                if (!peeking && !thinking && !hovering && chat == null && currentNudge == null && act == Act.None && pendingAct == Act.None && now >= nextWander) Wander(scr); // no strolling off mid-conversation
+                if (!peeking && !thinking && !hovering && chat == null && currentNudge == null && act == Act.None && pendingAct == Act.None && !AtLunch && now >= nextWander) Wander(scr); // no strolling off mid-conversation
                 if (!peeking && !AtLunch && !Coding && Native.IdleTime().TotalMinutes >= Store.Config.SleepAfterMinutes) Sleep();
                 break;
         }
@@ -358,7 +358,12 @@ public partial class VexWindow : Window
 
     public void SetThinking(bool on) { thinking = on; if (on) HideBubble(); }
 
-    public void Say(string text, double seconds = 6) => ShowBubble(text, seconds, null, null);
+    /// <param name="important">Shown even while he naps at lunch (things you just asked for, errors); other remarks are dropped then.</param>
+    public void Say(string text, double seconds = 6, bool important = false)
+    {
+        if (LunchNapping && !important) return;
+        ShowBubble(text, seconds, null, null);
+    }
 
     /// <summary>
     /// A nudge: he knocks on the screen, and the bubble stays until a button is pressed (unless the nudge
@@ -370,9 +375,11 @@ public partial class VexWindow : Window
     public void ShowNudge(Services.Nudge n)
     {
         if (mode == Mode.Sleeping) Wake(quiet: true);
-        if (act != Act.Code) act = Act.None;   // at the laptop he knocks from his seat (and packs up first if he's done)
+        // At the laptop or at lunch he knocks from his seat (and packs the laptop up first if he's done). Mid-nap, the
+        // knock and bubble open his eyes until it's dealt with (VexLunch.cs).
+        if (act is not (Act.Code or Act.Lunch)) act = Act.None;
         pendingAct = Act.None;
-        Zzz.Visibility = Visibility.Collapsed; // e.g. woken from his lunch nap for a meeting
+        Zzz.Visibility = Visibility.Collapsed;
         if (mode == Mode.Walking) mode = Mode.Idle;
         ShowBubble(n.Text, n.Persistent && n.Buttons.Count > 0 ? double.PositiveInfinity : n.Seconds, n.Buttons, n.OnTimeout);
         if (hidden || autoHidden) Services.Pending.Park(n);   // never made it on screen: keep it for the chat's Pending tab
@@ -517,7 +524,7 @@ public partial class VexWindow : Window
 
     public void OpenChat(string? prompt = null)
     {
-        InterruptLunch();
+        if (LunchNapping) LunchBack();   // poked mid-nap: you're evidently back. Eating, he just chats.
         if (hidden) ToggleHidden();
         if (mode == Mode.Sleeping) Wake(quiet: true);
         HideBubble();
@@ -582,14 +589,16 @@ public partial class VexWindow : Window
         void Add(string header, Action a) { var mi = new MenuItem { Header = header }; mi.Click += (_, _) => a(); menu.Items.Add(mi); }
         Add("Chat", () => OpenChat());
         Add("I refilled my coffee", Refill);
-        Add(act == Act.Lunch ? "End lunch" : "Lunch break", () => { if (act == Act.Lunch) InterruptLunch(); else StartLunch(); });
+        if (AtLunch) Add("End lunch", LunchBack);
+        else if (Store.Config.LunchRoutine) Add("Lunch break", StartLunch);
         Add("Go to the other screen", () =>
         {
             var other = screens.FirstOrDefault(s => !s.Equals(ScreenAt(x)));
             if (other != null) HopTo(other.WorkingArea.Right - 320 * S, false);
         });
-        Add(mode == Mode.Sleeping ? "Wake up" : "Have a nap", () => { if (mode == Mode.Sleeping) Wake(); else Sleep(requested: true); });
-        Add("Forget today's chat", () => { chat?.Close(); new ClaudeCodeBrain().Forget(); Say("Forgotten. Mostly.", 3); });
+        if (!AtLunch)   // he naps at lunch anyway
+            Add(mode == Mode.Sleeping ? "Wake up" : "Have a nap", () => { if (mode == Mode.Sleeping) Wake(); else Sleep(requested: true); });
+        Add("Forget today's chat", () => { chat?.Close(); new ClaudeCodeBrain().Forget(); Say("Forgotten. Mostly.", 3, important: true); });
         Add("Hide", ToggleHidden);
         menu.Items.Add(new Separator());
         Add("Quit", () => ((App)Application.Current).Quit());

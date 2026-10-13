@@ -83,7 +83,7 @@ public static class Hub
     }
 
     static void NotesAcked(string what, bool ok, string? err) =>
-        Vex.Say(ok ? $"Noted. {what}" : $"Couldn't do that in {Notes.Name}: {err ?? "unknown error"}.", 5);
+        Vex.Say(ok ? $"Noted. {what}" : $"Couldn't do that in {Notes.Name}: {err ?? "unknown error"}.", 5, important: !ok);
 
     /// <summary>After Setup…: switch notes store if it changed. Name, workplace and logging apply on their own.</summary>
     public static void ApplySettings()
@@ -120,7 +120,7 @@ public static class Hub
 
     static void WelcomeBack(TimeSpan away)
     {
-        if (away < TimeSpan.FromMinutes(15) || Quiet) return;
+        if (away < TimeSpan.FromMinutes(15) || Quiet || Vex.LunchRecent) return;   // his lunch wake-up line says it already
         var next = Calendar.Upcoming.FirstOrDefault(m => m.Start > DateTime.Now && m.Start - DateTime.Now < TimeSpan.FromMinutes(45));
         var line = next != null ? $"Welcome back. {next.Subject} at {next.Start:HH:mm}." : "Oh. You're back. Nothing happened. I checked.";
         Vex.Say(line, 6);
@@ -147,6 +147,7 @@ public static class Hub
             sb.AppendLine("Away from the desk today (not breaks; may have been working elsewhere): " +
                           string.Join(", ", p.AwayTimes.TakeLast(4).Select(a => $"{a.Start:HH:mm}–{a.End:HH:mm}")));
         if (InCall != null) sb.AppendLine($"In a call (microphone in use by {InCall}).");
+        if (Vex.LunchStatus() is { } lunch) sb.AppendLine(lunch);
         if (Commute.Summary() is { } home) sb.AppendLine(home);
 
         if (Activity.CurrentApp is { Length: > 0 } app && app != Activity.Away)
@@ -236,6 +237,9 @@ public static class Hub
         [[break: had]]  or  [[break: lunch]]  records a break or lunch {who} says they're taking or have had, which restarts
                                   the sitting timer and stops the lunch nudge (add "| HH:mm" if they say when). Breaks are
                                   never assumed: time away from the desk is often work elsewhere, so only record what {who} tells you.
+                                  [[break: going to lunch]] when they're heading off for lunch right now: records it and you
+                                  have your own lunch too (eat, then nap). [[break: back]] when they say they're back from
+                                  lunch while you're still on yours: wakes you up (records nothing).
         {(Commute.CanCheck ? "[[traffic: now]]          checks the drive home right now and tells " + who + " in a bubble\n" : "")}{(Workshop.Enabled ? WorkshopHelp(who) : "")}Only act when {who} asks or clearly implies it. Never mention this syntax; Vex's app hides it and confirms.
 
         You're learning {who}'s work, so keep your pages organised as a knowledge base: "Projects", "People",
@@ -322,10 +326,14 @@ public static class Hub
             case "break":
             {
                 // The chat's way of confirming a break or lunch, same as the nudge buttons. A time in the future is ignored.
+                // "back" only ends Vex's own lunch routine; "going" (to lunch, now) also starts it, like the nudge's "Going".
+                if (parts[0].StartsWith("back", StringComparison.OrdinalIgnoreCase)) { Vex.LunchBack(); return "✓ Lunch over"; }
                 var lunch = parts[0].Contains("lunch", StringComparison.OrdinalIgnoreCase);
                 var at = DateTime.Now;
-                if (parts.Length > 1 && TimeSpan.TryParse(parts[1], CultureInfo.InvariantCulture, out var t) && DateTime.Today + t <= at) at = DateTime.Today + t;
+                bool when = false;
+                if (parts.Length > 1 && TimeSpan.TryParse(parts[1], CultureInfo.InvariantCulture, out var t) && DateTime.Today + t <= at) { at = DateTime.Today + t; when = true; }
                 Presence.ConfirmBreak(lunch, at);
+                if (lunch && !when && parts[0].Contains("going", StringComparison.OrdinalIgnoreCase)) Vex.StartLunch();
                 return $"✓ {(lunch ? "Lunch" : "Break")} noted ({at:HH:mm})";
             }
             case "remember":

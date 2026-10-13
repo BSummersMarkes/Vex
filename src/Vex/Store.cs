@@ -47,9 +47,15 @@ public class VexConfig
     public double WaterEveryMinutes { get; set; } = 120;
     public double FocusCheckMinutes { get; set; } = 120;
     public string LunchBy { get; set; } = "13:30";
-    /// <summary>How long Vex takes for lunch when you go (he eats, then naps for the rest).</summary>
+    /// <summary>When you go for lunch, Vex has his own (eats, then naps for the rest) on a timer. Setup → Behaviour.</summary>
+    public bool LunchRoutine { get; set; } = true;
+    /// <summary>How long that lunch timer runs. Setup → Behaviour.</summary>
     public double LunchMinutes { get; set; } = 30;
-    public double LunchEatMinutes { get; set; } = 5;
+    /// <summary>He eats for a random time between these (never more than half the break), then naps.</summary>
+    public double LunchEatMinMinutes { get; set; } = 5;
+    public double LunchEatMaxMinutes { get; set; } = 10;
+    /// <summary>Idle this long (or locked) during his lunch means you've gone; your next input then wakes him early.</summary>
+    public double LunchAwayMinutes { get; set; } = 3;
     public string EndOfDay { get; set; } = "17:15";
     public int[] MeetingWarnMinutes { get; set; } = { 10, 2 };
 

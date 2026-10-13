@@ -96,7 +96,7 @@ public static class Commute
     public static async Task SayNow()
     {
         var text = await Check() ?? "I've no live traffic without a TomTom key. Here's the map.";
-        Hub.Vex.Say(text, 10);
+        Hub.Vex.Say(text, 10, important: true);   // you asked
         if (!CanCheck) OpenMap();
     }
 

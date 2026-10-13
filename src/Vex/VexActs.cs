@@ -27,11 +27,16 @@ public partial class VexWindow
         if (act != Act.None && now >= actEnd)
         {
             if (act == Act.Sip) squashUntil = now + 0.18; // "ahh"
-            if (act == Act.Lunch) Zzz.Visibility = System.Windows.Visibility.Collapsed;
+            if (act == Act.Lunch)
+            {
+                Zzz.Visibility = System.Windows.Visibility.Collapsed;
+                if (lunchWake != 0) FinishLunch();   // stood up after waking; otherwise he was moved and sits down again
+            }
             act = Act.None; sitSub = Act.None;
             nextAct = now + 12 + rng.NextDouble() * 25;
         }
         if (mode is Mode.Dragging or Mode.Hopping or Mode.Sleeping or Mode.Falling) pendingAct = Act.None;
+        UpdateLunch(scr);    // lunch timer, you coming back, sitting down again after being moved (VexLunch.cs)
         UpdateCoding(scr);   // off to the laptop while code is being written (VexCoding.cs)
         if (mode != Mode.Idle || act != Act.None || peeking || thinking || hovering || hidden || autoHidden || currentNudge != null) return;
 
