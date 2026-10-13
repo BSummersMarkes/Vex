@@ -72,7 +72,7 @@ public static class Hub
         Calendar.Refresh();
         Claude.Start();
         Claude.Changed += Nudges.OnClaude;
-        Presence.BackFromBreak += WelcomeBack;
+        Presence.BackAfterAway += WelcomeBack;
         if (Activity.Today.Count > 0) Presence.SeenSince(Activity.Today[0].Start);
         Workshop.Started();
         Diary.Tick();
@@ -137,9 +137,15 @@ public static class Hub
         var p = Presence;
         // FirstSeenToday is MaxValue until the first keyboard/mouse input of the day.
         sb.Append(p.FirstSeenToday == DateTime.MaxValue ? "Not at the desk yet today; " : $"At desk since {p.FirstSeenToday:HH:mm}; ");
-        sb.Append(p.OnBreak ? "currently on a break" : $"sitting for {(int)p.Sitting.TotalMinutes} min");
-        if (p.Breaks.Count > 0) { var b = p.Breaks[^1]; sb.Append($"; last break {b.Start:HH:mm}–{b.End:HH:mm}"); }
+        // Breaks only count when Ben confirms them; time away is shown separately, as information, since he's often
+        // working elsewhere (lab, other machines, meetings).
+        sb.Append($"sitting for {(int)p.Sitting.TotalMinutes} min ");
+        sb.Append(p.LastBreak is { } b ? $"(last confirmed break: {(b.Lunch ? "lunch" : "a break")} at {b.At:HH:mm})" : "(no break confirmed today)");
         sb.AppendLine($"; coffees today: {Store.State.Coffees}");
+        if (p.AwayLong) sb.AppendLine($"Away from the desk since {p.AwaySince:HH:mm} (not a break; may be working elsewhere).");
+        else if (p.AwayTimes.Count > 0)
+            sb.AppendLine("Away from the desk today (not breaks; may have been working elsewhere): " +
+                          string.Join(", ", p.AwayTimes.TakeLast(4).Select(a => $"{a.Start:HH:mm}–{a.End:HH:mm}")));
         if (InCall != null) sb.AppendLine($"In a call (microphone in use by {InCall}).");
         if (Commute.Summary() is { } home) sb.AppendLine(home);
 
@@ -227,6 +233,9 @@ public static class Hub
         [[remember: fact]]        adds a fact about {who} to your "{Memory.Remembered}" page
         [[page: Page title | markdown]]  adds to one of your own pages (created if missing)
         [[remind: HH:mm | text]]  or  [[remind: 20m | text]]
+        [[break: had]]  or  [[break: lunch]]  records a break or lunch {who} says they're taking or have had, which restarts
+                                  the sitting timer and stops the lunch nudge (add "| HH:mm" if they say when). Breaks are
+                                  never assumed: time away from the desk is often work elsewhere, so only record what {who} tells you.
         {(Commute.CanCheck ? "[[traffic: now]]          checks the drive home right now and tells " + who + " in a bubble\n" : "")}{(Workshop.Enabled ? WorkshopHelp(who) : "")}Only act when {who} asks or clearly implies it. Never mention this syntax; Vex's app hides it and confirms.
 
         You're learning {who}'s work, so keep your pages organised as a knowledge base: "Projects", "People",
@@ -309,6 +318,15 @@ public static class Hub
                 Store.State.Reminders.Add(new Reminder { At = at, Text = parts[1] });
                 Store.SaveState();
                 return $"✓ Reminder at {at:HH:mm}: {parts[1]}";
+            }
+            case "break":
+            {
+                // The chat's way of confirming a break or lunch, same as the nudge buttons. A time in the future is ignored.
+                var lunch = parts[0].Contains("lunch", StringComparison.OrdinalIgnoreCase);
+                var at = DateTime.Now;
+                if (parts.Length > 1 && TimeSpan.TryParse(parts[1], CultureInfo.InvariantCulture, out var t) && DateTime.Today + t <= at) at = DateTime.Today + t;
+                Presence.ConfirmBreak(lunch, at);
+                return $"✓ {(lunch ? "Lunch" : "Break")} noted ({at:HH:mm})";
             }
             case "remember":
                 return Memory.Append(Memory.Remembered, $"- {DateTime.Now:yyyy-MM-dd}: {arg}") ? $"✓ Remembered: {arg}" : "✗ Couldn't write that down.";

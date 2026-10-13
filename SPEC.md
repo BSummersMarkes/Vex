@@ -77,7 +77,7 @@ A small animated desktop companion that lives on top of the Windows desktop, kee
 
 | Source | What he gets | How |
 |---|---|---|
-| Presence | At the desk / away, sitting time, breaks | Last keyboard/mouse input time, screen lock/unlock events. Idle > 10 min = a break. |
+| Presence | At the desk / away, sitting time, time away | Last keyboard/mouse input time, screen lock/unlock events. Idle > `AwayMinutes` (10) or locked 3+ min = time away, shown to him as information only. **Breaks are never assumed** (away is often work elsewhere: lab, other machines, meetings): only a break or lunch confirmed on the stretch/lunch nudge or in chat (the `[[break: …]]` action) restarts the sitting timer and counts as "last confirmed break" (kept in `state.json`). Restarting Vex doesn't reset the timer either. |
 | Active app | Process name + window title | Foreground window polling. Exclusion list applied *before* anything is stored. |
 | Window text | Text of the window in front, allowlisted apps only | UI Automation (no screenshots), off the UI thread, capped at `WatchContentChars`. Sent with chat messages and used for his questions. `Services/WindowText.cs`. |
 | Curiosity | What he doesn't know yet about your work | Every `CuriousEveryMinutes` (90), at most `CuriousPerDay` (3): a background Claude call looks at recent titles (and allowlisted window text) against his pages and picks one question. Asked as a normal nudge; "Tell you" opens the chat and the answer is filed on his pages. `Services/Curiosity.cs`. |
@@ -106,11 +106,11 @@ A small animated desktop companion that lives on top of the Windows desktop, kee
 | Claude Code waiting | Session needs input or permission; repeat after 5 min |
 | Claude Code finished | Session completes while you're in another window |
 | Eyes (20-20-20) | Every ~20 min of continuous screen time |
-| Stretch / stand | ~50–60 min continuous sitting. While a remote session is in front (`StretchHoldApps`: TeamViewer, mstsc) it waits until you switch window, at most `StretchHoldMaxMinutes` (30) |
+| Stretch / stand | ~50–60 min since the last confirmed break. Buttons: Taking a break, Had my break (both record a break and restart the sitting timer), Not now (10 min), ✕. While a remote session is in front (`StretchHoldApps`: TeamViewer, mstsc) it waits until you switch window, at most `StretchHoldMaxMinutes` (30) |
 | Water | Every couple of hours, or after coffee #3 |
 | Coffee | Comment on count; gentle disapproval after a threshold |
 | Focus check | ~2 h on the same thing: "still the plan?" |
-| Lunch | No break by ~13:30. "Going" → Vex has lunch too: walks to a corner, sits, eats a sandwich from his lunch box (`LunchEatMinutes`, 5), then naps for the rest (`LunchMinutes`, 30). No dodging/wandering meanwhile; click, drag or an exempt nudge ends it. |
+| Lunch | No lunch confirmed by ~13:30 (never guessed from time away); every 25 min until answered. "Had lunch" records it; "Not now" asks again later; ✕ drops it for the day. "Going" records it and Vex has lunch too: walks to a corner, sits, eats a sandwich from his lunch box (`LunchEatMinutes`, 5), then naps for the rest (`LunchMinutes`, 30). No dodging/wandering meanwhile; click, drag or an exempt nudge ends it. |
 | Pack-up | `PackUpMinutes` (15) before `LeaveAt` on `CommuteDays`: pack up, with the live drive home ("34 min, 9 slower than usual"). Buttons: Packing up, Summarise day, Map, 10 min. Also stands in for the end-of-day nudge |
 | End of day | Summary of the day; carry over unfinished to-dos |
 | Curious | One of his own questions (see section 6), as a normal rate-limited nudge |
@@ -228,6 +228,7 @@ Each job's log (prompts' results, git output, build errors, review) is in `%LOCA
 - [x] Pack-up nudge with TomTom traffic (or a Google Maps link), `[[traffic]]` in chat
 - [x] Morning brief, "Prep me" on meeting reminders, quick-chat hotkey (`QuickChatHotkey`, Ctrl+Alt+V)
 - [x] Stretch nudge held back while watching a remote session (TeamViewer / remote desktop) until you switch window, 30 min cap
+- [x] Breaks never assumed from time away: only confirmed on the stretch/lunch nudge ("Taking a break", "Had my break", "Had lunch") or in chat (`[[break]]`); context shows the last confirmed break, and time away separately as information
 - [ ] Notebook mirror of the memory folder (Lab Notebook session)
 - [ ] Streamed chat replies; weekly review; workshop cancel/undo; Claude Code reaction animations
 

@@ -31,8 +31,8 @@ public class Nudge
 }
 
 /// <summary>
-/// Decides when Vex pipes up. One wellbeing nudge per gap at most; never while away, on a break, in a
-/// call or full screen. Learns per nudge type: brushed off often → asks less often, acted on → back to normal.
+/// Decides when Vex pipes up. One wellbeing nudge per gap at most; never while away, in a call or full screen.
+/// Breaks and lunch are never assumed from time away: only the stretch and lunch nudges' buttons (or the chat) record one. Learns per nudge type: brushed off often → asks less often, acted on → back to normal.
 /// Exempt nudges (reminders, meetings, Claude Code, packing up) that can't be shown yet (something's full screen)
 /// stay pending and are retried every tick, rather than dropped.
 /// </summary>
@@ -74,7 +74,7 @@ public class Nudges
 
     /// <summary>A wellbeing-type nudge would be shown now (at the desk, not quiet, gap passed).</summary>
     public bool CanNudge =>
-        !Hub.Quiet && !Hub.Presence.Away && !Hub.Presence.OnBreak && DateTime.Now - lastNormal >= TimeSpan.FromMinutes(C.NudgeGapMinutes);
+        !Hub.Quiet && !Hub.Presence.Away && DateTime.Now - lastNormal >= TimeSpan.FromMinutes(C.NudgeGapMinutes);
 
     NudgeStat Stat(string type)
     {
@@ -148,7 +148,7 @@ public class Nudges
         PackUp(now);
 
         var p = Hub.Presence;
-        if (p.Away || p.OnBreak || Hub.Quiet) return;
+        if (p.Away || Hub.Quiet) return;
         if (now - lastNormal < TimeSpan.FromMinutes(C.NudgeGapMinutes)) return;
 
         foreach (var make in new Func<DateTime, Nudge?>[] { Morning, Lunch, Stretch, Eyes, Water, Focus, EndOfDay })
@@ -211,7 +211,28 @@ public class Nudges
         return StretchNudge($"You've been sat for {mins} minutes. Stand up, stretch. I'll guard the desk.");
     }
 
-    Nudge StretchNudge(string text) => Wellbeing("stretch", text, onDone: () => last["eyes"] = DateTime.Now);
+    /// <summary>
+    /// The break reminder. Only "Taking a break" / "Had my break" (or telling him in chat) count as a break and restart
+    /// the sitting timer. "Not now" snoozes it; left unanswered it goes to Pending and comes round at the usual cadence.
+    /// It quietly goes if a break is confirmed some other way while it's up.
+    /// </summary>
+    Nudge StretchNudge(string text)
+    {
+        var shown = DateTime.Now;
+        var n = new Nudge
+        {
+            Type = "stretch", Text = text, OnTimeout = () => Ignored("stretch"), PendingKey = "stretch",
+            StillValid = () => Hub.Presence.SittingSince < shown,
+        };
+        n.Buttons.Add(("Taking a break", () => { Acted("stretch"); Hub.Presence.ConfirmBreak(lunch: false); }));
+        n.Buttons.Add(("Had my break", () => { Acted("stretch"); Hub.Presence.ConfirmBreak(lunch: false); }));
+        n.Buttons.Add(("Not now", () => Snooze("stretch", 10)));
+        n.Buttons.Add(("✕", () => Dismissed("stretch")));
+        return n;
+    }
+
+    /// <summary>Puts a nudge off for a few minutes rather than its full interval.</summary>
+    void Snooze(string type, double minutes) => last[type] = DateTime.Now - Every(type, Interval(type)) + TimeSpan.FromMinutes(minutes);
 
     Nudge? Eyes(DateTime now)
     {
@@ -250,15 +271,18 @@ public class Nudges
     {
         if (Store.State.DoneToday.Contains("lunch")) return null;
         if (!TimeSpan.TryParse(C.LunchBy, out var by) || now.TimeOfDay < by) return null;
-        if (Hub.Presence.HadBreakSince(now.Date.AddHours(11.5), TimeSpan.FromMinutes(20))) { MarkDone("lunch"); return null; }
+        // Never guessed from time away from the desk (that's often the lab or a meeting): it keeps coming until you
+        // say you've had it, here or in the chat, or dismiss it for the day.
         return now - Last("lunch") < TimeSpan.FromMinutes(25) ? null : LunchNudge("No lunch break yet. Food is a thing. Go and have some.");
     }
 
+    /// <summary>"Going" (Vex has lunch too) or "Had lunch" record it as today's lunch; "Not now" asks again in 25 minutes.</summary>
     Nudge LunchNudge(string text)
     {
-        var n = new Nudge { Type = "lunch", Text = text };
-        n.Buttons.Add(("Going", () => { Acted("lunch"); MarkDone("lunch"); Hub.Vex.StartLunch(); }));
-        n.Buttons.Add(("Later", () => last["lunch"] = DateTime.Now));
+        var n = new Nudge { Type = "lunch", Text = text, StillValid = () => !Store.State.DoneToday.Contains("lunch") };
+        n.Buttons.Add(("Going", () => { Acted("lunch"); Hub.Presence.ConfirmBreak(lunch: true); Hub.Vex.StartLunch(); }));
+        n.Buttons.Add(("Had lunch", () => { Acted("lunch"); Hub.Presence.ConfirmBreak(lunch: true); }));
+        n.Buttons.Add(("Not now", () => last["lunch"] = DateTime.Now));
         n.Buttons.Add(("✕", () => { Dismissed("lunch"); MarkDone("lunch"); }));
         return n;
     }

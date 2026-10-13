@@ -6,6 +6,7 @@ A small desktop companion for Windows. He lives on your taskbar in a dark red ho
 
 - **Wanders the taskbar** on any monitor, gets out of the way of the window you're using, and sits, reads or checks his phone when he's bored. Drag him around; drop him on top of a window and he'll stand on it.
 - **Nudges** you about eye breaks, stretching, water, lunch and long stretches on one thing. At most one every 15 minutes, never while you're in a call. The stretch nudge waits while TeamViewer or remote desktop is in front, until you switch window (30 minutes at most). He knocks on the screen and waits until you answer.
+- **Breaks are never assumed:** being away from your desk doesn't count (you might be in the lab or a meeting). Tell him on the stretch nudge ("Taking a break" / "Had my break"), the lunch nudge ("Going" / "Had lunch"), or in the chat ("had lunch at 12:30"), and the sitting timer restarts. "Not now" puts the nudge off; unanswered ones wait in the chat's Pending tab.
 - **Lunch:** when you head off (the lunch nudge's "Going", or right-click → Lunch break) he sits in a corner, eats a sandwich from his lunch box, then naps for the rest of the break (30 minutes by default).
 - **Meeting reminders** from classic Outlook (if it's running), with a "Prep me" button. A short **morning brief** when you first sit down.
 - **Going home:** tell him when you leave (Setup) and he says when to pack up, with the drive home. Live traffic needs a free TomTom key; without one you get a Google Maps button.

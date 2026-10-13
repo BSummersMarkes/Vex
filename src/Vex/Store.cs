@@ -36,7 +36,7 @@ public class VexConfig
     public bool HideFromScreenCapture { get; set; } = true;
 
     // Presence and nudges (minutes unless noted).
-    public double BreakMinutes { get; set; } = 10;          // idle this long (or locked 3+ min) counts as a break
+    public double AwayMinutes { get; set; } = 10;           // idle this long (or locked 3+ min) is noted as time away; never a break
     public double NudgeGapMinutes { get; set; } = 15;       // at most one wellbeing nudge per gap
     public double EyesEveryMinutes { get; set; } = 20;
     public double StretchEveryMinutes { get; set; } = 55;
@@ -171,6 +171,9 @@ public class VexState
     public List<Reminder> Reminders { get; set; } = new();
     /// <summary>Once-a-day nudges already given today (type names).</summary>
     public List<string> DoneToday { get; set; } = new();
+    /// <summary>The last break or lunch you confirmed (nudge button or chat), and which: "break" or "lunch". Never guessed.</summary>
+    public DateTime LastBreakAt { get; set; } = DateTime.MinValue;
+    public string LastBreakKind { get; set; } = "";
     /// <summary>Old memory files/pages have been gathered into the memory folder (Services/Memory.cs), once.</summary>
     public bool MemoryAdopted { get; set; }
     /// <summary>The day the chat session started; a new day starts a new session (yesterday's is in the diary).</summary>
