@@ -27,7 +27,7 @@ For chat you need **[Claude Code](https://claude.com/claude-code) installed and 
 | | |
 |---|---|
 | Click Vex | Open the chat (click him again, or anywhere else, to close it) |
-| Esc, ✕ or click away | Close the chat. It stays open while he's replying or you've typed something; a half-written message is kept for next time (`ChatClosesOnClickAway` in config.json) |
+| Esc, ✕ or click away | Close the chat. Click-away closing can be turned off in Setup → Behaviour; it stays open while he's replying or waiting for a Build it click. A half-written message is kept for next time |
 | Ctrl+Alt+V | Open the chat from anywhere (`QuickChatHotkey` in config.json) |
 | Drag Vex | Pick him up and drop him (on the taskbar or on a window) |
 | Click the mug | "I've refilled my coffee" |

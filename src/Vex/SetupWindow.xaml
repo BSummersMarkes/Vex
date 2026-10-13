@@ -118,6 +118,9 @@
                         <TextBlock Text="Tell me when Claude Code needs you (adds small hooks to Claude Code's settings)" TextWrapping="Wrap" Foreground="#E8EAF2"/>
                     </CheckBox>
                     <TextBlock x:Name="ClaudeNote" Style="{StaticResource Note}" Margin="20,0,0,0"/>
+                    <CheckBox x:Name="ChatClickAway" Content="Close the chat when you click outside it"/>
+                    <TextBlock Style="{StaticResource Note}" Margin="20,0,0,0"
+                               Text="Not while I'm replying or a Build it button is waiting. Anything half-typed is kept for next time."/>
                 </StackPanel>
             </TabItem>
 

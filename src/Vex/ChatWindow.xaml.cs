@@ -23,7 +23,11 @@ public partial class ChatWindow : Window
     readonly List<ChatLine> shown = new();
     /// <summary>A half-written message from the last time the chat closed, put back when it reopens. Memory only.</summary>
     static string draft = "";
+    /// <summary>Whether a half-written message is being kept for next time (read once the chat has closed).</summary>
+    internal static bool HasDraft => !string.IsNullOrWhiteSpace(draft);
     bool closing;
+    /// <summary>Build it / Restart cards still waiting for a click; the chat won't close on a click away while any are.</summary>
+    int awaitingConfirm;
 
     public ChatWindow(VexWindow vex)
     {
@@ -157,13 +161,17 @@ public partial class ChatWindow : Window
     });
 
     /// <summary>
-    /// Closes the panel after a click elsewhere, the same as ✕, but not while Vex is mid-reply or there's something
-    /// typed in the box, so neither gets lost. Returns whether it closed.
+    /// Closes the panel after a click elsewhere, the same as ✕. A half-typed message is safe (it's kept in
+    /// <see cref="draft"/>) and the conversation is on disk, but it stays open while Vex is mid-reply, while a
+    /// Build it / Restart card is waiting (those lapse on close), or while a modal dialog is up, since none of those
+    /// should be thrown away by a stray click. Returns whether it closed.
     /// </summary>
     public bool Dismiss()
     {
         if (closing || !IsVisible || !Store.Config.ChatClosesOnClickAway) return false;
-        if (pending != null || Input.Text.Trim().Length > 0) return false;
+        if (pending != null || awaitingConfirm > 0) return false;
+        // A dialog shown with ShowDialog (ours or a WinForms one) takes focus from the chat; that isn't a click away.
+        if (ComponentDispatcher.IsThreadModal || OwnedWindows.Cast<Window>().Any(w => w.IsVisible)) return false;
         Close();
         return true;
     }
@@ -263,8 +271,9 @@ public partial class ChatWindow : Window
             HorizontalAlignment = HorizontalAlignment.Left,
             Child = new StackPanel { Children = { new TextBlock { Text = c.Text, TextWrapping = TextWrapping.Wrap, Foreground = Theme.Brush(P.Text), FontSize = 13 }, buttons } },
         };
-        go.Click += (_, _) => { buttons.IsEnabled = false; Add("note", c.Go()); };
-        no.Click += (_, _) => { buttons.IsEnabled = false; Add("note", "✗ Left it."); };
+        awaitingConfirm++;
+        go.Click += (_, _) => { buttons.IsEnabled = false; awaitingConfirm--; Add("note", c.Go()); };
+        no.Click += (_, _) => { buttons.IsEnabled = false; awaitingConfirm--; Add("note", "✗ Left it."); };
         Messages.Children.Add(card);
         Scroll.ScrollToEnd();
     }

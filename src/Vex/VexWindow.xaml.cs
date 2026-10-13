@@ -506,7 +506,15 @@ public partial class VexWindow : Window
         if (prompt != null) chat.Send(prompt);
     }
 
-    internal void ChatClosed() { chat = null; Services.Hub.PendingQuestion = null; }   // closed without answering: drop his question
+    /// <summary>
+    /// The chat has closed. If his question wasn't answered, drop it, unless a half-typed answer was kept as the draft:
+    /// then it's still pending, so the answer sent after reopening is still filed against the right question.
+    /// </summary>
+    internal void ChatClosed()
+    {
+        chat = null;
+        if (!ChatWindow.HasDraft) Services.Hub.PendingQuestion = null;
+    }
 
     /// <summary>Opens the chat with a question Vex thought of himself; your next message answers it.</summary>
     public void AskInChat(string question)

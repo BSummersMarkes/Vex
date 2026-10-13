@@ -31,7 +31,7 @@ A small animated desktop companion that lives on top of the Windows desktop, kee
 
 - **Language/runtime:** C# / .NET 10 (`net10.0-windows`), matching Lab Notebook. Single-file exe via a `build.ps1`.
 - **Character:** WPF transparent, topmost, borderless tool window, drawn with vector shapes. Transparent pixels pass clicks through to whatever is underneath.
-- **Chat panel:** WPF window (WebView2 if it needs to get fancy). Header buttons copy the whole chat as text (also Ctrl+Shift+C) or as a picture. Closes on ✕, Esc, or a click anywhere outside it (another window, the desktop, Vex or his mug; `ChatClosesOnClickAway`), except while he's replying or something is typed in the box. A half-written message is kept in memory and put back when the chat reopens.
+- **Chat panel:** WPF window (WebView2 if it needs to get fancy). Header buttons copy the whole chat as text (also Ctrl+Shift+C) or as a picture. Closes on ✕, Esc, or a click anywhere outside it (another window, the desktop, Vex or his mug; `ChatClosesOnClickAway`, on by default, Setup → Behaviour), except while he's replying, a Build it / Restart card is waiting for a click, or a modal dialog is open. A half-written message is kept in memory and put back when the chat reopens.
 - **Appearance:** tray → Appearance: dark / light / match Windows for the chat and bubbles (`Theme`), and the hoodie colour (`HoodieColour`; presets or a custom colour). The hoodie's shades are all derived from the one colour, so folds and shadows keep working (`Theme.cs`).
 - **Brain:** a swappable `IBrain` interface.
   - `ClaudeCodeBrain` (default): runs the Claude Code CLI headless (`claude -p --output-format stream-json`, resuming its session for continuity), using the existing Claude login. No API key needed.
@@ -208,7 +208,7 @@ Each job's log (prompts' results, git output, build errors, review) is in `%LOCA
 ### Comfort (2026-10-13)
 - [x] Copy the chat as text or a picture
 - [x] Light mode / match Windows; hoodie colour from the tray
-- [x] Chat closes when you click away (not mid-reply or with a draft); drafts survive closing
+- [x] Chat closes when you click away (not mid-reply, with a Build it card waiting or a dialog open); drafts survive closing; on/off in Setup → Behaviour
 
 ### He learns (2026-10-13)
 - [x] Build/restart from chat need a click (prompt-injection guard); context marked as data, not instructions
