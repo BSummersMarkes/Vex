@@ -24,6 +24,8 @@ public class Nudge
 /// <summary>
 /// Decides when Vex pipes up. One wellbeing nudge per gap at most; never while away, on a break, in a
 /// call or full screen. Learns per nudge type: brushed off often → asks less often, acted on → back to normal.
+/// Exempt nudges (reminders, meetings, Claude Code, packing up) that can't be shown yet (something's full screen)
+/// stay pending and are retried every tick, rather than dropped.
 /// </summary>
 public class Nudges
 {
@@ -35,6 +37,10 @@ public class Nudges
 
     // ───────────── showing ─────────────
 
+    /// <summary>The last exempt nudge put on screen, and when.</summary>
+    Nudge? lastExempt;
+    DateTime lastExemptAt = DateTime.MinValue;
+
     public bool Offer(Nudge n)
     {
         if (!n.Exempt)
@@ -43,11 +49,23 @@ public class Nudges
             if (DateTime.Now - lastNormal < TimeSpan.FromMinutes(C.NudgeGapMinutes)) return false;
             lastNormal = DateTime.Now;
         }
-        else if (Hub.FullScreen) return false;
+        else
+        {
+            if (Hub.FullScreen) return false;
+            // One exempt nudge at a time: if another is still up (unanswered, still relevant, under 2 minutes old),
+            // this one waits for a later tick instead of replacing it, so a backlog after full screen comes out in turn.
+            if (lastExempt != null && Hub.Vex.ShowingNudge(lastExempt) && lastExempt.StillValid?.Invoke() != false
+                && DateTime.Now - lastExemptAt < TimeSpan.FromMinutes(2)) return false;
+            lastExempt = n; lastExemptAt = DateTime.Now;
+        }
         last[n.Type] = DateTime.Now;
         Hub.Vex.ShowNudge(n);
         return true;
     }
+
+    /// <summary>A wellbeing-type nudge would be shown now (at the desk, not quiet, gap passed).</summary>
+    public bool CanNudge =>
+        !Hub.Quiet && !Hub.Presence.Away && !Hub.Presence.OnBreak && DateTime.Now - lastNormal >= TimeSpan.FromMinutes(C.NudgeGapMinutes);
 
     NudgeStat Stat(string type)
     {
@@ -78,6 +96,7 @@ public class Nudges
         "stretch" => C.StretchEveryMinutes,
         "water" => C.WaterEveryMinutes,
         "focus" => C.FocusCheckMinutes,
+        "curious" => C.CuriousEveryMinutes,
         _ => 60,
     };
 
@@ -89,14 +108,45 @@ public class Nudges
         Reminders(now);
         Meetings(now);
         ClaudeRenudge(now);
+        PackUp(now);
 
         var p = Hub.Presence;
         if (p.Away || p.OnBreak || Hub.Quiet) return;
         if (now - lastNormal < TimeSpan.FromMinutes(C.NudgeGapMinutes)) return;
 
-        foreach (var make in new Func<DateTime, Nudge?>[] { Lunch, Stretch, Eyes, Water, Focus, EndOfDay })
+        foreach (var make in new Func<DateTime, Nudge?>[] { Morning, Lunch, Stretch, Eyes, Water, Focus, EndOfDay })
             if (make(now) is { } n && Offer(n)) return;
     }
+
+    /// <summary>
+    /// First sight of you in the morning: meetings and open to-dos in a line, built locally (no Claude call).
+    /// "Rundown" opens the chat for the full version, with yesterday's diary to draw on.
+    /// </summary>
+    Nudge? Morning(DateTime now)
+    {
+        if (!C.MorningBrief || Store.State.DoneToday.Contains("morning")) return null;
+        var first = Hub.Presence.FirstSeenToday;
+        if (first == DateTime.MaxValue || now.Hour < 6) return null;
+        MarkDone("morning");
+        if (now - first > TimeSpan.FromHours(3)) return null;   // started Vex mid-day: too late for "morning"
+        var meetings = Hub.Calendar.Upcoming.ToList();
+        var todos = Hub.Notes.Linked ? Hub.Notes.OpenChecks.Count + Hub.Notes.Open.Count() : 0;
+        var carried = Hub.Notes.Linked ? Hub.Notes.OpenChecks.Count(c => c.Date != Store.Today) : 0;
+        var parts = new List<string>();
+        if (Hub.Calendar.Source != "none")
+            parts.Add(meetings.Count == 0 ? "No meetings." : $"{meetings.Count} meeting{(meetings.Count == 1 ? "" : "s")}, first {meetings[0].Subject} at {meetings[0].Start:HH:mm}.");
+        if (Hub.Notes.Linked)
+            parts.Add(todos == 0 ? "Nothing open on the to-do front." : $"{todos} to-do{(todos == 1 ? "" : "s")} open{(carried > 0 ? $", {carried} carried over" : "")}.");
+        var n = new Nudge { Type = "morning", Text = "Morning. " + (parts.Count > 0 ? string.Join(" ", parts) : "Want the rundown?") };
+        n.Buttons.Add(("Rundown", () => Hub.Vex.OpenChat(
+            "Morning rundown: what's on today, what carried over from yesterday (use your diary), and what should I start with? Keep it short.")));
+        n.Buttons.Add(("✕", () => { }));
+        return n;
+    }
+
+    /// <summary>A question Vex came up with himself (<see cref="Curiosity"/>). "Tell you" opens the chat with it.</summary>
+    public Nudge Curious(string question) =>
+        Wellbeing("curious", question, doneLabel: "Tell you", snoozeMinutes: 30, onDone: () => Hub.Vex.AskInChat(question));
 
     DateTime SinceSitting(string type) => Last(type) > Hub.Presence.SittingSince ? Last(type) : Hub.Presence.SittingSince;
 
@@ -180,13 +230,14 @@ public class Nudges
         if (due.Count == 0) return;
         foreach (var r in due)
         {
-            Store.State.Reminders.Remove(r);
             var n = new Nudge { Type = "reminder", Exempt = true, Seconds = 120, Text = $"Reminder: {r.Text}" };
             n.Buttons.Add(("OK", () => { }));
             n.Buttons.Add(("10 min", () => { Store.State.Reminders.Add(new Reminder { At = DateTime.Now.AddMinutes(10), Text = r.Text }); Store.SaveState(); }));
-            Offer(n);
+            // Kept until it's actually on screen: while something's full screen it waits for the next tick.
+            if (!Offer(n)) return;
+            Store.State.Reminders.Remove(r);
+            Store.SaveState();
         }
-        Store.SaveState();
     }
 
     void Meetings(DateTime now)
@@ -200,8 +251,7 @@ public class Nudges
             {
                 // The tightest warning window we're inside; mark the wider ones as done so they don't double up.
                 var w = warns.FirstOrDefault(x => until <= x);
-                if (w == 0 || !meetingKeys.Add($"{id}|{w}")) continue;
-                foreach (var wider in warns.Where(x => x > w)) meetingKeys.Add($"{id}|{wider}");
+                if (w == 0 || meetingKeys.Contains($"{id}|{w}")) continue;
                 var where = string.IsNullOrWhiteSpace(m.Location) ? "" : $" ({m.Location})";
                 var n = new Nudge
                 {
@@ -209,14 +259,19 @@ public class Nudges
                     Text = until < 1.5 ? $"{m.Subject}{where} is starting now." : $"{m.Subject}{where} in {Math.Ceiling(until)} minutes.",
                 };
                 n.Buttons.Add(("OK", () => { }));
-                Offer(n);
+                if (until >= 3) n.Buttons.Add(("Prep me", () => Hub.Vex.OpenChat(
+                    $"I've got \"{m.Subject}\" at {m.Start:HH:mm}. Anything I should know or have ready? Check your pages, my journal and to-dos. Brief.")));
+                // Only counts as warned once it's on screen; until then it's retried (and stops when the meeting ends).
+                if (!Offer(n)) continue;
+                meetingKeys.Add($"{id}|{w}");
+                foreach (var wider in warns.Where(x => x > w)) meetingKeys.Add($"{id}|{wider}");
             }
-            else if (until <= -2 && until > -10 && Activity.MicInUse() == null && !Hub.Presence.Away && meetingKeys.Add($"{id}|late"))
+            else if (until <= -2 && until > -10 && Activity.MicInUse() == null && !Hub.Presence.Away && !meetingKeys.Contains($"{id}|late"))
             {
                 var n = new Nudge { Type = "meeting", Exempt = true, Seconds = 60, Text = $"Aren't you meant to be in {m.Subject}?" };
                 n.Buttons.Add(("On it", () => { }));
                 n.Buttons.Add(("Skipping it", () => { }));
-                Offer(n);
+                if (Offer(n)) meetingKeys.Add($"{id}|late");
             }
         }
     }
@@ -225,8 +280,8 @@ public class Nudges
     {
         if (s.State == ClaudeState.NeedsYou)
         {
-            s.LastNudge = DateTime.Now;
-            Offer(ClaudeNudge(s, $"{s.Project}: {s.Message ?? "Claude needs you."}", ClaudeState.NeedsYou));
+            // Not shown (full screen)? LastNudge stays old, so ClaudeRenudge tries again on the next tick.
+            if (Offer(ClaudeNudge(s, $"{s.Project}: {s.Message ?? "Claude needs you."}", ClaudeState.NeedsYou))) s.LastNudge = DateTime.Now;
         }
         else if (s.State == ClaudeState.Finished && s.WorkedFor >= TimeSpan.FromSeconds(20) && !VsCodeInFront())
         {
@@ -240,9 +295,52 @@ public class Nudges
             if (s.State == ClaudeState.NeedsYou && now - s.LastNudge >= TimeSpan.FromMinutes(C.ClaudeRenudgeMinutes)
                 && now - s.Since < TimeSpan.FromHours(1) && !Hub.Presence.Away)
             {
-                s.LastNudge = now;
-                Offer(ClaudeNudge(s, $"Still waiting on you: {s.Project}. {(int)(now - s.Since).TotalMinutes} minutes and counting.", ClaudeState.NeedsYou));
+                var first = s.LastNudge < s.Since;
+                var text = first ? $"{s.Project}: {s.Message ?? "Claude needs you."}"
+                                 : $"Still waiting on you: {s.Project}. {(int)(now - s.Since).TotalMinutes} minutes and counting.";
+                if (Offer(ClaudeNudge(s, text, ClaudeState.NeedsYou))) s.LastNudge = now;
             }
+    }
+
+    // ───────────── going home ─────────────
+
+    bool packUpChecking;
+    DateTime packUpSnooze = DateTime.MinValue;
+
+    /// <summary>
+    /// PackUpMinutes before LeaveAt: "pack up", with the drive home if TomTom is set up. Exempt (like a meeting), shown
+    /// once a day; if it can't be shown yet it's retried until half an hour after leaving time. Also counts as the
+    /// end-of-day nudge, which would otherwise come after you've gone.
+    /// </summary>
+    void PackUp(DateTime now)
+    {
+        if (packUpChecking || Store.State.DoneToday.Contains("packup") || now < packUpSnooze) return;
+        if (Commute.PackUpAt() is not { } at || Commute.LeaveTime() is not { } leave) return;
+        if (now < at || now > leave.AddMinutes(30) || Hub.Presence.Away) return;   // away: wait for you to be back (or gone)
+        packUpChecking = true;
+        _ = ShowPackUp(leave);
+    }
+
+    async System.Threading.Tasks.Task ShowPackUp(DateTime leave)
+    {
+        try
+        {
+            var traffic = await Commute.Check(maxAge: TimeSpan.FromMinutes(5));   // retries reuse a fresh result
+            var n = new Nudge
+            {
+                Type = "packup", Exempt = true, Seconds = 90,
+                Text = $"Pack-up time, you're off at {leave:HH:mm}." + (traffic != null ? " " + traffic : ""),
+            };
+            n.Buttons.Add(("Packing up", () => Acted("packup")));
+            n.Buttons.Add(("Summarise day", () => Hub.Vex.OpenChat(
+                "I'm packing up. Summarise my day from what you've seen: what I worked on, meetings, and what's still open. " +
+                "Then suggest the first thing for tomorrow. Offer to add the summary to my journal.")));
+            n.Buttons.Add(("Map", Commute.OpenMap));
+            n.Buttons.Add(("10 min", () => { packUpSnooze = DateTime.Now.AddMinutes(10); Store.State.DoneToday.Remove("packup"); Store.SaveState(); }));
+            if (Offer(n)) { MarkDone("packup"); if (!Store.State.DoneToday.Contains("eod")) MarkDone("eod"); }
+        }
+        catch (Exception ex) { Store.Log($"Pack-up: {ex.Message}"); }
+        finally { packUpChecking = false; }
     }
 
     static Nudge ClaudeNudge(ClaudeSession s, string text, ClaudeState shownFor)

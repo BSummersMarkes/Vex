@@ -192,9 +192,10 @@ public partial class ChatWindow : Window
         try
         {
             var raw = await brain.AskAsync(text, pending.Token);
-            var (reply, done) = Services.Hub.RunActions(raw);
+            var (reply, done, confirms) = Services.Hub.RunActions(raw);
             Add("vex", reply.Length > 0 ? reply : "...");
             foreach (var d in done) Add("note", d);
+            foreach (var c in confirms) ConfirmCard(c);
         }
         catch (OperationCanceledException) { }
         catch (Exception ex)
@@ -208,6 +209,41 @@ public partial class ChatWindow : Window
             Status.Visibility = Visibility.Collapsed;
             vex.SetThinking(false);
         }
+    }
+
+    /// <summary>
+    /// Vex asking something of his own accord (a <see cref="Services.Curiosity"/> question): shown as his message, and
+    /// passed to the brain with the next message so it knows what the answer is about.
+    /// </summary>
+    public void Ask(string question)
+    {
+        Add("vex", question);
+        Services.Hub.PendingQuestion = question;
+        Input.Focus();
+    }
+
+    /// <summary>
+    /// An action that changes Vex himself (build, restart), waiting for a click. Only a person at the keyboard can press
+    /// it, so text planted in a window title or meeting invite can't get a build started on its own. Not kept on disk:
+    /// close the chat and it lapses.
+    /// </summary>
+    void ConfirmCard(Services.Confirm c)
+    {
+        var go = new Button { Content = c.GoLabel, Padding = new Thickness(10, 3, 10, 3), Margin = new Thickness(0, 6, 6, 0), Cursor = Cursors.Hand };
+        var no = new Button { Content = "No", Padding = new Thickness(10, 3, 10, 3), Margin = new Thickness(0, 6, 0, 0), Cursor = Cursors.Hand };
+        foreach (var b in new[] { go, no }) { b.Background = Theme.Brush(P.Button); b.Foreground = Theme.Brush(P.ButtonText); b.BorderThickness = new Thickness(0); }
+        var buttons = new StackPanel { Orientation = Orientation.Horizontal, Children = { go, no } };
+        var card = new Border
+        {
+            Background = Theme.Brush(P.VexBubble), BorderBrush = Theme.Brush(P.Note), BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(10), Padding = new Thickness(10, 6, 10, 8), Margin = new Thickness(0, 3, 40, 3),
+            HorizontalAlignment = HorizontalAlignment.Left,
+            Child = new StackPanel { Children = { new TextBlock { Text = c.Text, TextWrapping = TextWrapping.Wrap, Foreground = Theme.Brush(P.Text), FontSize = 13 }, buttons } },
+        };
+        go.Click += (_, _) => { buttons.IsEnabled = false; Add("note", c.Go()); };
+        no.Click += (_, _) => { buttons.IsEnabled = false; Add("note", "✗ Left it."); };
+        Messages.Children.Add(card);
+        Scroll.ScrollToEnd();
     }
 
     void Render(string who, string text, DateTime at)

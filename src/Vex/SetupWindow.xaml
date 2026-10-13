@@ -52,6 +52,29 @@
         <TextBlock Style="{StaticResource Note}" Margin="22,0,0,0"
                    Text="Lets me answer &quot;what was I doing?&quot; and spot long stretches. Off: I only know app names, today, in memory."/>
 
+        <TextBlock Style="{StaticResource Heading}" Text="Watching and learning"/>
+        <CheckBox x:Name="Curious" Content="Now and then, ask me about things you keep seeing in window titles"/>
+        <TextBlock Style="{StaticResource Note}" Margin="22,0,0,0"
+                   Text="So I learn your projects, kit and people. A few questions a day at most, as ordinary nudges."/>
+        <TextBlock Style="{StaticResource Note}" Margin="0,8,0,2" Text="Apps whose window text I may read (comma-separated process names, e.g. WINWORD, EXCEL, Code). Empty: never."/>
+        <TextBox x:Name="WatchApps"/>
+
+        <TextBlock Style="{StaticResource Heading}" Text="Going home (optional)"/>
+        <Grid>
+            <Grid.ColumnDefinitions><ColumnDefinition Width="130"/><ColumnDefinition/></Grid.ColumnDefinitions>
+            <Grid.RowDefinitions><RowDefinition/><RowDefinition/><RowDefinition/><RowDefinition/></Grid.RowDefinitions>
+            <TextBlock Text="I leave at (HH:mm)" VerticalAlignment="Center"/>
+            <TextBox x:Name="LeaveAt" Grid.Column="1" Width="80" HorizontalAlignment="Left" Margin="0,2"/>
+            <TextBlock Grid.Row="1" Text="Work address" VerticalAlignment="Center"/>
+            <TextBox x:Name="WorkAddress" Grid.Row="1" Grid.Column="1" Margin="0,2"/>
+            <TextBlock Grid.Row="2" Text="Home address" VerticalAlignment="Center"/>
+            <TextBox x:Name="HomeAddress" Grid.Row="2" Grid.Column="1" Margin="0,2"/>
+            <TextBlock Grid.Row="3" Text="TomTom key" VerticalAlignment="Center"/>
+            <TextBox x:Name="TomTomKey" Grid.Row="3" Grid.Column="1" Margin="0,2"/>
+        </Grid>
+        <TextBlock Style="{StaticResource Note}"
+                   Text="15 minutes before you leave I'll tell you to pack up. With a free TomTom key (developer.tomtom.com) I check the live drive home; that sends the two addresses to TomTom. Without one you get a Google Maps button. Postcodes are fine."/>
+
         <TextBlock Style="{StaticResource Heading}" Text="Privacy"/>
         <TextBlock x:Name="PrivacyText" Style="{StaticResource Note}"/>
         <TextBlock x:Name="ClaudeNote" Style="{StaticResource Note}" Margin="0,8,0,0"/>

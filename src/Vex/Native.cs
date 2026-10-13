@@ -68,6 +68,9 @@ static class Native
 
     [DllImport("user32.dll")] public static extern bool IsZoomed(IntPtr hWnd);
     [DllImport("user32.dll")] public static extern bool IsWindow(IntPtr hWnd);
+    [DllImport("user32.dll")] public static extern bool RegisterHotKey(IntPtr hWnd, int id, uint mods, uint vk);
+    public const uint MOD_ALT = 1, MOD_CONTROL = 2, MOD_SHIFT = 4, MOD_WIN = 8, MOD_NOREPEAT = 0x4000;
+    public const int WM_HOTKEY = 0x0312;
 
     /// <summary>Visible, titled top-level windows of other processes, topmost first, with their visible bounds.</summary>
     public static System.Collections.Generic.List<(IntPtr Hwnd, RECT Rect)> TopWindows(uint exceptPid)

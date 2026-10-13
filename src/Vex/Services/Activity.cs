@@ -27,6 +27,8 @@ public class Activity
     public string CurrentApp { get; private set; } = "";
     public string CurrentTitle { get; private set; } = "";
     public DateTime CurrentSince { get; private set; } = DateTime.Now;
+    /// <summary>The window you were last working in (never Vex's own), for reading allowlisted window text.</summary>
+    public IntPtr CurrentHwnd { get; private set; }
 
     readonly uint ownPid = (uint)Environment.ProcessId;
     readonly Dictionary<uint, string> names = new();
@@ -41,7 +43,7 @@ public class Activity
         if (day != Store.Today) { Close(); day = Store.Today; Today.Clear(); }
 
         string app, title;
-        if (away) { app = Away; title = ""; }
+        if (away) { app = Away; title = ""; CurrentHwnd = IntPtr.Zero; }
         else
         {
             var h = Native.GetForegroundWindow();
@@ -50,7 +52,8 @@ public class Activity
             if (pid == ownPid) return; // talking to Vex doesn't change what you're working on
             app = ProcessName(pid);
             title = Native.WindowText(h).Trim();
-            if (IsPrivate(app, title)) { app = Private; title = ""; }
+            if (IsPrivate(app, title)) { app = Private; title = ""; h = IntPtr.Zero; }
+            CurrentHwnd = h;
             if (title.Length > 140) title = title[..140] + "…";
         }
 
@@ -76,6 +79,21 @@ public class Activity
 
     public void Flush() { Close(); CurrentSince = DateTime.Now; }
 
+    /// <summary>A past day's log, for the diary (empty if the log is off or missing).</summary>
+    public static List<Span> Load(DateTime day)
+    {
+        var list = new List<Span>();
+        try
+        {
+            var path = LogPath(day.ToString("yyyy-MM-dd"));
+            if (File.Exists(path))
+                foreach (var line in File.ReadLines(path))
+                    if (JsonSerializer.Deserialize<Span>(line) is { } s) list.Add(s);
+        }
+        catch (Exception ex) { Store.Log($"Activity load ({day:yyyy-MM-dd}): {ex.Message}"); }
+        return list;
+    }
+
     void LoadToday()
     {
         try
@@ -87,7 +105,7 @@ public class Activity
         catch (Exception ex) { Store.Log($"Activity load: {ex.Message}"); }
     }
 
-    static bool IsPrivate(string app, string title)
+    public static bool IsPrivate(string app, string title)
     {
         var c = Store.Config;
         if (c.ExcludedApps.Any(a => a.Equals(app, StringComparison.OrdinalIgnoreCase))) return true;

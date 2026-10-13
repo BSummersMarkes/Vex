@@ -49,6 +49,44 @@ public class VexConfig
     public string EndOfDay { get; set; } = "17:15";
     public int[] MeetingWarnMinutes { get; set; } = { 10, 2 };
 
+    /// <summary>Morning brief on the first sight of you each day: meetings, to-dos, what carried over.</summary>
+    public bool MorningBrief { get; set; } = true;
+    /// <summary>Global hotkey that opens the chat from anywhere (e.g. "Ctrl+Alt+V"). Empty = none.</summary>
+    public string QuickChatHotkey { get; set; } = "Ctrl+Alt+V";
+
+    // Memory and the daily diary.
+    /// <summary>Vex's own pages (markdown). Null = %LOCALAPPDATA%\Vex\memory. The Lab Notebook mirrors this folder.</summary>
+    public string? MemoryFolder { get; set; }
+    /// <summary>Writes each day's diary entry (and files what he learned) from the chat and activity, the next morning.</summary>
+    public string DiaryModel { get; set; } = "sonnet";
+
+    // Watching: curiosity about what you work on, and (allowlisted apps only) reading the window in front.
+    /// <summary>Now and then, asks you about something he keeps seeing in window titles and doesn't know yet.</summary>
+    public bool Curious { get; set; } = true;
+    public double CuriousEveryMinutes { get; set; } = 90;
+    public int CuriousPerDay { get; set; } = 3;
+    /// <summary>
+    /// Apps (process names, e.g. "WINWORD", "EXCEL", "Code") whose window text Vex may read when they're in front:
+    /// sent with chat messages and used for his questions. Empty = never. Exclusions and password fields still apply.
+    /// </summary>
+    public List<string> WatchContentApps { get; set; } = new();
+    public int WatchContentChars { get; set; } = 3000;
+
+    // Going home: a pack-up nudge with a traffic check.
+    /// <summary>When you leave work (HH:mm). Empty = no pack-up nudge.</summary>
+    public string LeaveAt { get; set; } = "";
+    public double PackUpMinutes { get; set; } = 15;
+    public List<string> CommuteDays { get; set; } = new() { "Mon", "Tue", "Wed", "Thu", "Fri" };
+    /// <summary>Addresses or postcodes. Sent to TomTom (if a key is set) to find the route; otherwise used for a Google Maps link.</summary>
+    public string WorkAddress { get; set; } = "";
+    public string HomeAddress { get; set; } = "";
+    /// <summary>Free key from developer.tomtom.com. Empty = no live traffic, just a "Check traffic" maps link.</summary>
+    public string TomTomKey { get; set; } = "";
+    /// <summary>Country code(s) for looking up the addresses (bare postcodes can match abroad otherwise).</summary>
+    public string TrafficCountry { get; set; } = "GB";
+    /// <summary>Delay (minutes over the usual) at which he suggests leaving early.</summary>
+    public double TrafficSlowMinutes { get; set; } = 10;
+
     // Integrations.
     public int HookPort { get; set; } = 47321;
     public string? CalendarJsonPath { get; set; }           // Power Automate export; default %OneDriveCommercial%\Vex\calendar.json
@@ -109,11 +147,15 @@ public class VexState
     public List<Reminder> Reminders { get; set; } = new();
     /// <summary>Once-a-day nudges already given today (type names).</summary>
     public List<string> DoneToday { get; set; } = new();
-    /// <summary>Local memory files have been moved into the notebook's Vex project.</summary>
-    public bool MemoryMigrated { get; set; }
-    public List<string> MigratedPages { get; set; } = new();
-    /// <summary>Outstanding migration request id per page (survives restarts, so nothing is sent twice).</summary>
-    public Dictionary<string, string> MigrationIds { get; set; } = new();
+    /// <summary>Old memory files/pages have been gathered into the memory folder (Services/Memory.cs), once.</summary>
+    public bool MemoryAdopted { get; set; }
+    /// <summary>The day the chat session started; a new day starts a new session (yesterday's is in the diary).</summary>
+    public string? ChatSessionDate { get; set; }
+    /// <summary>Questions Vex has asked by himself (newest last), so he doesn't ask the same thing twice.</summary>
+    public List<string> AskedQuestions { get; set; } = new();
+    public int AskedToday { get; set; }
+    /// <summary>Address → "lat,lon" from TomTom, so addresses are looked up once.</summary>
+    public Dictionary<string, string> GeoCache { get; set; } = new();
 }
 
 static class Store
@@ -140,6 +182,7 @@ static class Store
         State.Date = Today;
         State.Coffees = 0;
         State.DoneToday.Clear();
+        State.AskedToday = 0;
         SaveState();
     }
 

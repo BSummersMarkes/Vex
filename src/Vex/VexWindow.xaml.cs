@@ -89,6 +89,7 @@ public partial class VexWindow : Window
             y = wa.Bottom;
             Place(force: true);
             Services.Hub.Start(this);
+            RegisterQuickChat();
         };
         SystemEvents.DisplaySettingsChanged += (_, _) => Dispatcher.Invoke(() => screens = Forms.Screen.AllScreens);
 
@@ -363,6 +364,9 @@ public partial class VexWindow : Window
     /// A nudge: he knocks on the screen, and the bubble stays until a button is pressed (unless the nudge
     /// says otherwise). If it's replaced before being answered, that counts as "ignored".
     /// </summary>
+    /// <summary>This nudge is the one in the bubble right now, still waiting for an answer.</summary>
+    public bool ShowingNudge(Services.Nudge n) => currentNudge == n && Bubble.Visibility == Visibility.Visible;
+
     public void ShowNudge(Services.Nudge n)
     {
         if (mode == Mode.Sleeping) Wake(quiet: true);
@@ -502,7 +506,45 @@ public partial class VexWindow : Window
         if (prompt != null) chat.Send(prompt);
     }
 
-    internal void ChatClosed() => chat = null;
+    internal void ChatClosed() { chat = null; Services.Hub.PendingQuestion = null; }   // closed without answering: drop his question
+
+    /// <summary>Opens the chat with a question Vex thought of himself; your next message answers it.</summary>
+    public void AskInChat(string question)
+    {
+        OpenChat();
+        chat?.Ask(question);
+    }
+
+    /// <summary>
+    /// QuickChatHotkey (e.g. "Ctrl+Alt+V"): opens the chat from anywhere. Registered on Vex's own window; if another
+    /// app already owns the combination it's just logged.
+    /// </summary>
+    void RegisterQuickChat()
+    {
+        var spec = Store.Config.QuickChatHotkey;
+        if (string.IsNullOrWhiteSpace(spec)) return;
+        uint mods = Native.MOD_NOREPEAT;
+        Key key = Key.None;
+        foreach (var part in spec.Split('+', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries))
+            switch (part.ToLowerInvariant())
+            {
+                case "ctrl" or "control": mods |= Native.MOD_CONTROL; break;
+                case "alt": mods |= Native.MOD_ALT; break;
+                case "shift": mods |= Native.MOD_SHIFT; break;
+                case "win": mods |= Native.MOD_WIN; break;
+                // Digits are D0-D9 ("1" would otherwise parse as the enum's numeric value); F-keys and letters by name.
+                default: key = part.Length == 1 && char.IsDigit(part[0]) ? Key.D0 + (part[0] - '0')
+                             : Enum.TryParse(part, true, out Key k) && !int.TryParse(part, out _) ? k : Key.None; break;
+            }
+        if (key == Key.None || !Native.RegisterHotKey(hwnd, QuickChatId, mods, (uint)KeyInterop.VirtualKeyFromKey(key)))
+        { Store.Log($"Quick-chat hotkey \"{spec}\" not available."); return; }
+        HwndSource.FromHwnd(hwnd)?.AddHook((IntPtr h, int msg, IntPtr w, IntPtr l, ref bool handled) =>
+        {
+            if (msg == Native.WM_HOTKEY && w.ToInt32() == QuickChatId) { OpenChat(); handled = true; }
+            return IntPtr.Zero;
+        });
+    }
+    const int QuickChatId = 0x5658;
 
     string Pick(params string[] lines) => lines[rng.Next(lines.Length)];
 
@@ -519,7 +561,7 @@ public partial class VexWindow : Window
             if (other != null) HopTo(other.WorkingArea.Right - 320 * S, false);
         });
         Add(mode == Mode.Sleeping ? "Wake up" : "Have a nap", () => { if (mode == Mode.Sleeping) Wake(); else Sleep(requested: true); });
-        Add("Forget our chat", () => { chat?.Close(); new ClaudeCodeBrain().Forget(); Say("Forgotten. Mostly.", 3); });
+        Add("Forget today's chat", () => { chat?.Close(); new ClaudeCodeBrain().Forget(); Say("Forgotten. Mostly.", 3); });
         Add("Hide", ToggleHidden);
         menu.Items.Add(new Separator());
         Add("Quit", () => ((App)Application.Current).Quit());

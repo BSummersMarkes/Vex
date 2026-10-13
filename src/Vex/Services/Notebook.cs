@@ -31,8 +31,8 @@ public class Notebook : INotes
     /// <summary>Open journal checkboxes from the last 14 days, newest first.</summary>
     public List<Check> OpenChecks { get; private set; } = new();
 
+    /// <summary>The notebook project that mirrors Vex's memory folder (the notebook does the mirroring).</summary>
     public const string VexProject = "Vex";
-    public IEnumerable<Page> VexPages => Pages.Where(p => p.Project.Equals(VexProject, StringComparison.OrdinalIgnoreCase));
 
     static readonly System.Text.RegularExpressions.Regex OpenCheckRx =
         new(@"^(\s*>)*\s*([-*+]|\d+[.)])\s+\[ \]\s+(?<text>.+)$");
@@ -181,10 +181,6 @@ public class Notebook : INotes
         Send(new { cmd = "journal.append", text, date = Store.Today, time = DateTime.Now.ToString("HH:mm"), source = "vex" },
              $"Journal: {text}");
 
-    /// <summary>Appends markdown to a page in the Vex project (both created if missing).</summary>
-    public string? PageAppend(string page, string text, Action<bool, string?, JsonElement>? onAck = null) =>
-        Send(new { cmd = "page.append", project = VexProject, page, text, source = "vex" }, $"Added to \"{page}\"", onAck);
-
     // The old To-Do list: still read, and used as a fallback for ticking things off.
     public string? CompleteTodo(string text)
     {
@@ -231,29 +227,10 @@ public class Notebook : INotes
                 else Acked?.Invoke(p.Description, ok, Str(r, "error"));
             }
             // Keep the ack file small once nothing we're waiting for is in it.
-            if (pending.Count == 0 && Store.State.MigrationIds.Count == 0 && new FileInfo(Done).Length > 64 * 1024) File.WriteAllText(Done, "");
+            if (pending.Count == 0 && new FileInfo(Done).Length > 64 * 1024) File.WriteAllText(Done, "");
         }
         catch (Exception ex) { Store.Log($"Notebook acks: {ex.Message}"); }
     }
 
     public int Pending => pending.Count;
-
-    /// <summary>The notebook's answer to a request, or null if it hasn't been processed yet.</summary>
-    public (bool Ok, string? Error)? FindAck(string id)
-    {
-        if (!Linked || !File.Exists(Done)) return null;
-        try
-        {
-            foreach (var line in ReadShared(Done).Split('\n', StringSplitOptions.RemoveEmptyEntries))
-            {
-                if (!line.Contains(id)) continue;
-                using var doc = JsonDocument.Parse(line);
-                var r = doc.RootElement;
-                if (Str(r, "id") != id) continue;
-                return (r.TryGetProperty("ok", out var o) && o.ValueKind == JsonValueKind.True, Str(r, "error"));
-            }
-        }
-        catch (Exception ex) { Store.Log($"Notebook ack lookup: {ex.Message}"); }
-        return null;
-    }
 }

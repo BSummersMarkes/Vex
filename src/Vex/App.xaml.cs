@@ -47,7 +47,8 @@ public partial class App : Application
         {
             if (new SetupWindow().ShowDialog() == true) { Services.Hub.ApplySettings(); vex.Say("Settings saved.", 3); }
         });
-        menu.Items.Add("Memory notes", null, (_, _) => Open(Services.Hub.Notes is Services.LocalNotes l ? l.Folder : Services.Hub.MemoryFolder));
+        menu.Items.Add("Memory (Vex's pages)", null, (_, _) => Open(Services.Memory.Folder));
+        menu.Items.Add("Chat history", null, (_, _) => Open(ChatLog.Folder));
         menu.Items.Add("Settings (config.json)", null, (_, _) => Open(System.IO.Path.Combine(Store.Dir, "config.json")));
         menu.Items.Add("Open data folder", null, (_, _) => Open(Store.Dir));
         menu.Items.Add(new Forms.ToolStripSeparator());

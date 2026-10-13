@@ -7,7 +7,9 @@ A small desktop companion for Windows. He lives on your taskbar in a dark red ho
 - **Wanders the taskbar** on any monitor, gets out of the way of the window you're using, and sits, reads or checks his phone when he's bored. Drag him around; drop him on top of a window and he'll stand on it.
 - **Nudges** you about eye breaks, stretching, water, lunch and long stretches on one thing. At most one every 15 minutes, never while you're in a call. He knocks on the screen and waits until you answer.
 - **Lunch:** when you head off (the lunch nudge's "Going", or right-click → Lunch break) he sits in a corner, eats a sandwich from his lunch box, then naps for the rest of the break (30 minutes by default).
-- **Meeting reminders** from classic Outlook (if it's running).
+- **Meeting reminders** from classic Outlook (if it's running), with a "Prep me" button. A short **morning brief** when you first sit down.
+- **Going home:** tell him when you leave (Setup) and he says when to pack up, with the drive home. Live traffic needs a free TomTom key; without one you get a Google Maps button.
+- **Learns your work:** every night he writes a short diary of the day and files what he picked up (projects, people, kit, terms) on his own pages. Now and then he asks about something he keeps seeing ("What's ChromSpace_2?"). You can let him read the text of windows from apps you choose.
 - **Claude Code alerts:** tells you when a Claude Code session needs you or has finished (optional).
 - **Chat:** click him. He knows roughly what you've been doing today, your meetings and your to-dos, and can add to-dos, tick them off, take notes, set reminders and remember things about you.
 - **The mug** empties over time. Click it when you refill yours. He counts.
@@ -25,6 +27,7 @@ For chat you need **[Claude Code](https://claude.com/claude-code) installed and 
 | | |
 |---|---|
 | Click Vex | Open the chat |
+| Ctrl+Alt+V | Open the chat from anywhere (`QuickChatHotkey` in config.json) |
 | Drag Vex | Pick him up and drop him (on the taskbar or on a window) |
 | Click the mug | "I've refilled my coffee" |
 | Right-click Vex | Menu: nap, hide, other screen, forget the chat… |
@@ -34,13 +37,15 @@ For chat you need **[Claude Code](https://claude.com/claude-code) installed and 
 **Notes and to-dos** go in a folder of plain markdown files (default `Documents\Vex Notes`), or the Lab Notebook if you have it:
 
 - `Journal\YYYY-MM-DD.md`: each day's log. To-dos are `- [ ] item`; Vex ticks them `- [x]` in place, so you keep the history.
-- `Vex\*.md`: Vex's own pages: *About you*, *Remembered*, and anything else he organises. Edit them freely; he reads them back.
+
+Vex's own pages (*About you*, *Remembered*, *Diary*, *Projects*, ...) are markdown files in `%LOCALAPPDATA%\Vex\memory` (tray → *Memory*). Edit them freely; he reads them back. Each day's chat is kept in `%LOCALAPPDATA%\Vex\chats` (tray → *Chat history*); each morning starts a fresh conversation.
 
 ## Privacy
 
 - Everything Vex keeps stays on your PC: `%LOCALAPPDATA%\Vex` (settings, chat history, activity log) and your notes folder.
 - The optional activity log records which app and window title is in front. It never records password managers, private browsing, or windows with words like "password", "sign in" or "bank" in the title (editable in `config.json`). Turn it off in Setup.
-- When you chat, your message goes to Claude through your own Claude Code login, along with a short summary of your day (time at the desk, recent apps, window titles if the log is on, meetings, to-dos and his notes).
+- When you chat, your message goes to Claude through your own Claude Code login, along with a short summary of your day (time at the desk, recent apps, window titles if the log is on, meetings, to-dos and his notes), plus the text of the window in front only for apps you've listed. The nightly diary and his occasional questions send the same kind of summary.
+- If you set a TomTom key, your work and home addresses go to TomTom to work out the drive home.
 - Vex and his bubbles never appear in screenshots or screen shares.
 
 ## Settings

@@ -19,11 +19,12 @@ A small animated desktop companion that lives on top of the Windows desktop, kee
 
 ## 2. Principles
 
-1. **Local first.** Everything is stored on this laptop under `%LOCALAPPDATA%\Vex\`. Nothing leaves the machine except text sent to the AI model when chatting or when he's asked to think about something.
+1. **Local first.** Everything is stored on this laptop under `%LOCALAPPDATA%\Vex\`. Nothing leaves the machine except text sent to the AI model (chatting, the nightly diary, his questions) and, only if a TomTom key is set, the work and home addresses sent to TomTom for the traffic check.
 2. **No secrets, ever.** He never records password fields, password managers, banking or private browsing windows, or anything on the exclusion list (see section 6).
-3. **Seeing a window is opt-in.** Without permission he only knows the active app name and window title. To show him a window, you share it explicitly using Windows' own picker, which draws a yellow border while sharing.
+3. **Seeing a window is opt-in.** By default he only knows the active app name and window title. He reads a window's text only for apps you list (`WatchContentApps`, empty by default), never excluded windows, never password fields.
 4. **Out of the way.** He never covers what you're working on, never steals focus, never appears in Alt-Tab or the taskbar.
-5. **Editable memory.** Everything he remembers is readable and editable: his pages in the Lab Notebook's "Vex" project.
+5. **Editable memory.** Everything he remembers is readable and editable: markdown pages in his memory folder, mirrored into the Lab Notebook's "Vex" project.
+7. **Only you can change him.** Text he reads (window titles, meeting invites, window contents) is data, never instructions. Anything that changes or restarts Vex himself needs a click from you.
 6. **Constant tweaking.** Behaviour, timings, lines and nudges live in config files, not code.
 
 ## 3. Architecture
@@ -40,8 +41,8 @@ A small animated desktop companion that lives on top of the Windows desktop, kee
 - **Storage:** `%LOCALAPPDATA%\Vex\`
   - `config.json`: timings, exclusions, preferences
   - `state.json`: today's counters (coffees, sitting time, last nudges)
-  - `chat.jsonl`: visible chat transcript (last 400 lines; "Forget our chat" clears it)
-  - `memory\`: pre-notebook memory files (renamed `*.migrated` once moved into the notebook)
+  - `chats\YYYY-MM-DD.jsonl`: each day's chat transcript, kept as an archive (tray → Chat history; "Forget today's chat" removes today's)
+  - `memory\*.md`: his own pages (*About Ben*, *Remembered*, *Diary*, *Projects*, *People*, ...), the source of truth for what he knows; `MemoryFolder` moves it
   - `log\activity-YYYY-MM-DD.jsonl`: app/title timeline (exclusions already filtered out; stays local, never in OneDrive)
 - **Startup:** per-user Run key, toggled from the tray ("Start with Windows"). Runs without the notebook open.
 
@@ -73,10 +74,12 @@ A small animated desktop companion that lives on top of the Windows desktop, kee
 |---|---|---|
 | Presence | At the desk / away, sitting time, breaks | Last keyboard/mouse input time, screen lock/unlock events. Idle > 10 min = a break. |
 | Active app | Process name + window title | Foreground window polling. Exclusion list applied *before* anything is stored. |
-| Shared window | Contents of one window you choose | Windows Graphics Capture picker (yellow border while active). Read on demand only. |
+| Window text | Text of the window in front, allowlisted apps only | UI Automation (no screenshots), off the UI thread, capped at `WatchContentChars`. Sent with chat messages and used for his questions. `Services/WindowText.cs`. |
+| Curiosity | What he doesn't know yet about your work | Every `CuriousEveryMinutes` (90), at most `CuriousPerDay` (3): a background Claude call looks at recent titles (and allowlisted window text) against his pages and picks one question. Asked as a normal nudge; "Tell you" opens the chat and the answer is filed on his pages. `Services/Curiosity.cs`. |
+| Traffic | Drive time home now vs usual | TomTom routing API (free key) when `TomTomKey` and both addresses are set; else a Google Maps link. `Services/Commute.cs`. |
 | Claude Code | Session finished / waiting for input / needs permission | Claude Code hooks (`Stop`, `Notification`) that post to Vex's local listener. |
 | Calendar | Today's meetings | Classic Outlook (local COM) once the laptop moves back to it; fallback: Power Automate writes `calendar.json` to OneDrive. |
-| Lab Notebook | Journal, checkbox to-dos, his "Vex" pages | Reads the notebook's data file (read-only). Writes go via an inbox — see section 8. |
+| Lab Notebook | Journal, checkbox to-dos | Reads the notebook's data file (read-only). Writes go via an inbox — see section 8. |
 | Calls | In a call | Microphone in use (Windows privacy registry); suppresses wellbeing nudges and the knock sound. |
 
 **Exclusion list (defaults):** password managers (Bitwarden, 1Password, KeePass, LastPass), browser private/InPrivate windows, anything with "password", "sign in", "login", "bank" in the title, credential prompts, Windows Security. Password fields (UI Automation `IsPassword`) are never read. Editable in `config.json`.
@@ -87,13 +90,14 @@ A small animated desktop companion that lives on top of the Windows desktop, kee
 
 ## 7. Nudges and interruptions
 
-**Rate limit:** at most one nudge per 15 minutes. **Exempt:** meeting reminders and Claude Code prompts.
+**Rate limit:** at most one nudge per 15 minutes. **Exempt:** reminders, meeting reminders, Claude Code prompts, pack-up.
 
-**Never interrupt during:** Teams calls, screen sharing, full-screen presentations. Queued nudges are delivered afterwards or dropped if stale.
+**Never interrupt during:** Teams calls, screen sharing, full-screen presentations. Exempt nudges that can't be shown yet stay pending and are retried every 15 s (reminders until shown, meetings until they end, pack-up until 30 min after leaving time); wellbeing nudges just wait for their next turn.
 
 | Nudge | Trigger (defaults, tweakable) |
 |---|---|
-| Meeting | 10 min and 2 min before; "you're late" at +2 min |
+| Morning brief | First sight of you each day (`MorningBrief`): meetings and open/carried-over to-dos in a line; "Rundown" asks for the full version in chat |
+| Meeting | 10 min and 2 min before; "you're late" at +2 min. "Prep me" opens the chat to pull together what he knows about it |
 | Claude Code waiting | Session needs input or permission; repeat after 5 min |
 | Claude Code finished | Session completes while you're in another window |
 | Eyes (20-20-20) | Every ~20 min of continuous screen time |
@@ -102,7 +106,9 @@ A small animated desktop companion that lives on top of the Windows desktop, kee
 | Coffee | Comment on count; gentle disapproval after a threshold |
 | Focus check | ~2 h on the same thing: "still the plan?" |
 | Lunch | No break by ~13:30. "Going" → Vex has lunch too: walks to a corner, sits, eats a sandwich from his lunch box (`LunchEatMinutes`, 5), then naps for the rest (`LunchMinutes`, 30). No dodging/wandering meanwhile; click, drag or an exempt nudge ends it. |
+| Pack-up | `PackUpMinutes` (15) before `LeaveAt` on `CommuteDays`: pack up, with the live drive home ("34 min, 9 slower than usual"). Buttons: Packing up, Summarise day, Map, 10 min. Also stands in for the end-of-day nudge |
 | End of day | Summary of the day; carry over unfinished to-dos |
+| Curious | One of his own questions (see section 6), as a normal rate-limited nudge |
 
 **How:** he knocks on the screen (mitten looms toward you, three raps with a ripple, soft knock sound unless in a call; `KnockSound`), then a bubble that **stays until a button is pressed**. Unanswered: re-knocks every 90 s, up to 3 times, while you're at the desk. Stale bubbles clear themselves (Claude answered, meeting over). Each nudge can be acted on, snoozed ("Later") or dismissed (✕).
 
@@ -116,23 +122,30 @@ The notebook is the single place Ben manages things; Vex is a client of it.
 |---|---|
 | To-dos | Journal checkboxes (`- [ ] item`), ticked in place for a permanent history. Open = unticked in the last 14 days. The old To-Do list is still read and can be ticked. |
 | Notes ("note this down") | Today's journal, timestamped |
-| Vex's memory | Notebook project **"Vex"**: pages *About Ben*, *Remembered*, plus any Vex creates to organise information. Ben edits them too. |
+| Vex's memory | **Vex owns it**: `%LOCALAPPDATA%\Vex\memory\*.md`. The notebook mirrors it as project **"Vex"** (see below). |
 | Chat transcript, activity log, settings, nudge learning | Stay with Vex (local) |
 
 **Mechanism:** Vex reads the data file directly (safe at any time; `FileShare.ReadWrite | FileShare.Delete`) and writes through an inbox that the notebook applies and acknowledges. Contract v2, agreed with the Lab Notebook session:
 
 - **Files**, for `DataPath` from `%LOCALAPPDATA%\LabNotebook\settings.json` = `X\lab-notebook-data.json`: `X\lab-notebook-data.inbox.jsonl` (Vex appends), `.inbox.processing.jsonl` (notebook only), `.inbox.done.jsonl` (acks).
 - **Writing:** one single-line UTF-8 JSON object per request, closed immediately, retried on `IOException`. Every request (and every retry) gets a **new** id; a retry is only sent after an `ok:false` ack, never while a request is still unacknowledged.
-- **Commands:** `journal.append {text, date?, time?}` → `[HH:MM] text`; `journal.todo {text, date?}` → `- [ ] text`; `journal.done {text, done?, date?}` → ticks newest match in last 14 days (ack returns `date`, actual `text`); `page.append {project, page, text}` (creates project/page if missing; ack `pageId`, `created`); legacy `todo.add` / `todo.done`.
+- **Commands:** `journal.append {text, date?, time?}` → `[HH:MM] text`; `journal.todo {text, date?}` → `- [ ] text`; `journal.done {text, done?, date?}` → ticks newest match in last 14 days (ack returns `date`, actual `text`); legacy `todo.add` / `todo.done`. (`page.append` is no longer sent.)
 - **Acks:** `{id, ok, error?, at, ...}`. Requests are applied only while LabNotebook.exe runs; otherwise they wait for its next launch.
 - **Schema read back:** `journal[] {id, date, body}`, `notes[] {id, title, body, project}` (pages), `projects[]`, `todos[]`.
-- **Memory migration:** on first run against v2, Vex moves `memory\about-me.md` and `notes.md` into *About Ben* / *Remembered* (send-once, ids kept in `state.json`).
+
+**Vex's memory (from 2026-10-13; notebook side still to build):** Vex keeps his own pages so remembering never depends on the notebook running. The notebook mirrors them:
+
+- **Folder:** `%LOCALAPPDATA%\Vex\memory\` (or `MemoryFolder` in `%LOCALAPPDATA%\Vex\config.json`). One UTF-8 markdown file per page; file name = page title (`About Ben.md`, `Remembered.md`, `Diary.md`, `Projects.md`, ...). No front matter.
+- **Vex** appends to the end of a file (open, append, close) and re-reads files every time he needs them, so outside edits are picked up at once. He never deletes or renames pages.
+- **Notebook** shows each file as a page in project "Vex" (watch the folder). If the notebook edits a page, it writes the whole file back atomically (write `*.tmp`, then replace). If the file changed underneath since it was loaded, reload rather than overwrite. Deleting a page in the notebook deletes the file.
+- `Diary.md` is written by Vex nightly (`## YYYY-MM-DD` entries); best shown read-only.
+- Old notebook "Vex" project pages created via `page.append` (if any) can be dropped; the files are the source of truth.
 
 ## 9. Workshop (Vex changing himself)
 
 Ask him in chat for a new ability or a change ("add a nudge that…", "make him wave when…") and he does it himself, in the background. Developer only: off unless `SourcePath` in `config.json` points at a git checkout of this repo, so shared copies never offer it. Code: `Services/Workshop.cs`.
 
-1. The chat brain writes the full request into a `[[build: …]]` action (the builder can't see the chat, so it asks first if the request is vague). One job at a time; refused if the repo has uncommitted changes.
+1. The chat brain writes the full request into a `[[build: …]]` action (the builder can't see the chat, so it asks first if the request is vague). The chat then shows the request with **Build it / No** buttons; nothing starts until Ben clicks (same for `[[restart]]`). That way text planted in a window title or meeting invite can't start a build. One job at a time; refused if the repo has uncommitted changes.
 2. **Coder:** a headless Claude Code session (`WorkshopModel`, default opus) in the repo. `--restricted` (file tools confined to the repo, no user/project settings or hooks), edits auto-accepted, Bash limited to `dotnet build`/`restore` and read-only git, so no network and no git writes. Its rules: read SPEC.md first, match the style, comment the change for Ben, keep SPEC/README current, keep section 2's principles, never run `build.ps1`.
 3. **Build:** Vex publishes it himself into `%LOCALAPPDATA%\Vex\workshop\out` (same settings as `build.ps1`, without stopping the running Vex). Build errors go back to the coder.
 4. **Review:** a second, fresh, read-only Claude session (`WorkshopReviewModel`) checks the staged diff: does what was asked, bugs/threading, privacy principles, comments, no secrets. Objections go back to the coder. Up to 3 rounds.
@@ -177,7 +190,7 @@ Each job's log (prompts' results, git output, build errors, review) is in `%LOCA
 - [x] Notebook v2 on Vex's side: journal checkboxes, "Vex" project pages, memory migration. **Waiting on the notebook v2 rebuild.**
 - [x] Calendar: classic Outlook over COM when running, else Power Automate `calendar.json` in OneDrive; 10/2-min reminders, "aren't you meant to be in…"
 - [ ] Share-a-window to ask about what's on screen
-- [x] Memory files (`memory\about-me.md` for Ben, `memory\notes.md` for Vex); nudge intervals adapt to Done/Later/✕/ignored
+- [x] Memory pages (now `memory\*.md`, owned by Vex); nudge intervals adapt to Done/Later/✕/ignored
 - [x] End-of-day nudge → summary in chat, offer to add it to the journal
 - [x] Chat actions: to-do add/done, journal, reminders, remember
 
@@ -196,6 +209,17 @@ Each job's log (prompts' results, git output, build errors, review) is in `%LOCA
 - [x] Copy the chat as text or a picture
 - [x] Light mode / match Windows; hoodie colour from the tray
 
+### He learns (2026-10-13)
+- [x] Build/restart from chat need a click (prompt-injection guard); context marked as data, not instructions
+- [x] Exempt nudges wait while something's full screen instead of being dropped
+- [x] Vex owns his memory (`memory\*.md`); the notebook mirrors it (notebook side to build)
+- [x] A fresh chat each day; daily chat archive; nightly diary entry + learned facts filed onto his pages
+- [x] Curiosity: asks about recurring things in window titles; reads window text for allowlisted apps
+- [x] Pack-up nudge with TomTom traffic (or a Google Maps link), `[[traffic]]` in chat
+- [x] Morning brief, "Prep me" on meeting reminders, quick-chat hotkey (`QuickChatHotkey`, Ctrl+Alt+V)
+- [ ] Notebook mirror of the memory folder (Lab Notebook session)
+- [ ] Streamed chat replies; weekly review; workshop cancel/undo; Claude Code reaction animations
+
 ### v0.4: "He talks"
 - [ ] Voice in and out
 - [ ] Try a local model via Ollama
@@ -208,5 +232,6 @@ Each job's log (prompts' results, git output, build errors, review) is in `%LOCA
 ## 12. Open questions
 
 - Calendar: nothing connected yet. Classic Outlook arrives with the new laptop (works automatically when it's running); Power Automate `calendar.json` is the fallback if wanted sooner.
+- The workshop coder can run `dotnet build`, which runs whatever the project file says, so its sandbox isn't airtight. The reviewer and Ben are the real check; what matters is that it only changes Vex's own repo.
 - Memory use (~285 MB, mostly drawing effects in software rendering); slim down if it matters.
 - Not yet seen in real use: wellbeing nudge timings over a full day, meeting reminders, a live Claude Code permission prompt, full-screen hiding.

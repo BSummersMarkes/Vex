@@ -1,6 +1,7 @@
 using System;
 using System.Globalization;
 using System.IO;
+using System.Linq;
 using System.Windows;
 
 namespace Vex;
@@ -39,12 +40,19 @@ public partial class SetupWindow : Window
         ClaudeHooks.IsEnabled = claude;
         ClaudeHooks.IsChecked = claude && (Services.ClaudeWatch.Installed() || !c.SetupDone);
         ActivityLog.IsChecked = c.ActivityLog;
+        Curious.IsChecked = c.Curious;
+        WatchApps.Text = string.Join(", ", c.WatchContentApps);
+        LeaveAt.Text = c.LeaveAt;
+        WorkAddress.Text = c.WorkAddress;
+        HomeAddress.Text = c.HomeAddress;
+        TomTomKey.Text = c.TomTomKey;
 
         PrivacyText.Text =
             "Everything I keep stays on this PC (in %LOCALAPPDATA%\\Vex and your notes). I never record password managers, " +
             "private browsing or windows with words like \"password\" or \"bank\" in the title. When you chat with me, your " +
             "message goes to Claude with a short summary of your day: time at the desk, recent apps (and window titles if the " +
-            "log is on), meetings, to-dos and my notes. Please check that using Claude this way is OK where you work.";
+            "log is on), meetings, to-dos and my notes, plus the text of the window in front only for apps you list above. " +
+            "Please check that using Claude this way is OK where you work.";
         ClaudeNote.Text = claude
             ? "Claude Code found: chat uses your own Claude login."
             : "Claude Code isn't installed, so I can't chat yet. Everything else works. Install Claude Code and sign in, then I'll pick it up.";
@@ -78,6 +86,13 @@ public partial class SetupWindow : Window
         c.NotesFolder = UseLocal.IsChecked == true ? FolderBox.Text.Trim() : c.NotesFolder;
         c.KnockSound = Knock.IsChecked == true;
         c.ActivityLog = ActivityLog.IsChecked == true;
+        c.Curious = Curious.IsChecked == true;
+        c.WatchContentApps = WatchApps.Text.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)
+            .Select(a => a.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) ? a[..^4] : a).ToList();
+        c.LeaveAt = Services.Commute.ParseTime(LeaveAt.Text) is { } leave ? $"{leave:hh\\:mm}" : "";
+        c.WorkAddress = WorkAddress.Text.Trim();
+        c.HomeAddress = HomeAddress.Text.Trim();
+        c.TomTomKey = TomTomKey.Text.Trim();
         c.SetupDone = true;
         Store.SaveConfig();
 
