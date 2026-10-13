@@ -7,6 +7,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using Forms = System.Windows.Forms;
 
 namespace Vex;
@@ -24,7 +25,11 @@ public partial class ChatWindow : Window
     /// <summary>A half-written message from the last time the chat closed, put back when it reopens. Memory only.</summary>
     static string draft = "";
     /// <summary>Whether a half-written message is being kept for next time (read once the chat has closed).</summary>
-    internal static bool HasDraft => !string.IsNullOrWhiteSpace(draft);
+    internal static bool HasDraft => !string.IsNullOrWhiteSpace(draft) || draftImages.Count > 0;
+    /// <summary>Pictures pasted in but not yet sent when the chat last closed, put back with <see cref="draft"/>. Memory only.</summary>
+    static List<ChatImage> draftImages = new();
+    /// <summary>Pictures pasted into the box (Ctrl+V), shown as thumbnails above it and sent with the next message.</summary>
+    readonly List<ChatImage> attached = new();
     bool closing;
     /// <summary>
     /// Build it / Restart cards still waiting for a click; the chat won't close on a click away while any are, and
@@ -40,6 +45,7 @@ public partial class ChatWindow : Window
         this.vex = vex;
         Input.Text = draft;
         Input.CaretIndex = Input.Text.Length;
+        attached.AddRange(draftImages);
         // Clicking anywhere outside the panel (desktop, another window) takes focus away from it: treat that as a dismiss.
         // Deferred so the close doesn't happen inside the activation change itself.
         Deactivated += (_, _) => Dispatcher.BeginInvoke(() => { if (!IsActive) Dismiss(); });
@@ -52,6 +58,12 @@ public partial class ChatWindow : Window
         ChatTab.Click += (_, _) => ShowTab(pending: false);
         PendingTab.Click += (_, _) => ShowTab(pending: true);
         Input.KeyDown += InputKey;
+        Input.PreviewKeyDown += InputPreviewKey;
+        // The reply bubbles are read-only text boxes, which swallow the mouse wheel even with nothing to scroll, so a
+        // long reply under the pointer couldn't be scrolled past. Scroll the conversation itself instead.
+        Scroll.PreviewMouseWheel += (_, e) => { Scroll.ScrollToVerticalOffset(Scroll.VerticalOffset - e.Delta / 3.0); e.Handled = true; };
+        Scroll.ScrollChanged += (_, _) => { if (AtBottom) NewBelow.Visibility = Visibility.Collapsed; };
+        NewBelow.Click += (_, _) => Scroll.ScrollToEnd();
         PreviewKeyDown += (_, e) =>
         {
             if (e.Key == Key.Escape) Close();
@@ -61,7 +73,7 @@ public partial class ChatWindow : Window
         Services.Pending.Changed += RenderPending;
         Closed += (_, _) =>
         {
-            draft = Input.Text; Theme.Changed -= Restyle; Services.Pending.Changed -= RenderPending;
+            draft = Input.Text; draftImages = attached.ToList(); Theme.Changed -= Restyle; Services.Pending.Changed -= RenderPending;
             foreach (var c in awaitingConfirm) Services.Pending.Park(c);
             pending?.Cancel(); vex.SetThinking(false); vex.ChatClosed();
         };
@@ -88,6 +100,9 @@ public partial class ChatWindow : Window
         Input.Foreground = Input.CaretBrush = Theme.Brush(P.Text);
         Input.BorderBrush = Theme.Brush(P.InputBorder);
         Badge.Background = Theme.Brush(Theme.Hoodie);
+        NewBelow.Background = Theme.Brush(P.Button);
+        NewBelow.Foreground = Theme.Brush(P.ButtonText);
+        RenderAttachments();
         LoadHistory();
         ShowTab(showingPending);
     }
@@ -104,6 +119,7 @@ public partial class ChatWindow : Window
         PendingTab.Foreground = Theme.Brush(pending ? P.Text : P.SubText);
         RenderPending();
         if (!pending) Scroll.ScrollToEnd();
+        else NewBelow.Visibility = Visibility.Collapsed;
     }
 
     /// <summary>Redraws the Pending list and the count on its tab. Raised by <see cref="Services.Pending.Changed"/> too.</summary>
@@ -229,11 +245,24 @@ public partial class ChatWindow : Window
         Status.Text = "Vex is thinking…";
     }
 
-    /// <summary>Shows a message and keeps it in the transcript on disk.</summary>
-    void Add(string who, string text)
+    /// <summary>Shows a message and keeps it in the transcript on disk (pictures only on screen, not on disk).</summary>
+    void Add(string who, string text, IReadOnlyList<ChatImage>? images = null)
     {
-        Render(who, text, DateTime.Now);
+        Render(who, text, DateTime.Now, images);
         ChatLog.Append(who, text);
+    }
+
+    /// <summary>Whether the conversation is scrolled to (or very near) the newest message.</summary>
+    bool AtBottom => Scroll.ScrollableHeight - Scroll.VerticalOffset < 24;
+
+    /// <summary>
+    /// After adding a message: follow it down if the conversation was already at the bottom (or Ben sent it), but don't
+    /// yank the view away while he's scrolled up reading older ones; the "New ↓" button offers the jump instead.
+    /// </summary>
+    void KeepInView(bool follow)
+    {
+        if (follow) Scroll.ScrollToEnd();
+        else NewBelow.Visibility = Visibility.Visible;
     }
 
     void Divider(string label) => Messages.Children.Add(new TextBlock
@@ -288,24 +317,170 @@ public partial class ChatWindow : Window
         if (e.Key != Key.Enter || Keyboard.Modifiers.HasFlag(ModifierKeys.Shift)) return;
         e.Handled = true;
         var text = Input.Text.Trim();
-        if (text.Length == 0 || pending != null) return;
+        if ((text.Length == 0 && attached.Count == 0) || pending != null) return;
+        var images = attached.ToList();
         Input.Text = "";
-        Send(text);
+        attached.Clear();
+        RenderAttachments();
+        Send(text, images);
     }
 
-    /// <summary>Sends a message to Vex as if typed, shows the reply and carries out any actions in it.</summary>
-    public async void Send(string text)
+    /// <summary>
+    /// Keys the box needs before its own handling: Shift+Enter and Shift+Space start a new line (Shift+Space because
+    /// Ben asked for it; plain Enter still sends), and Ctrl+V / Shift+Insert with a picture on the clipboard attaches it.
+    /// </summary>
+    void InputPreviewKey(object sender, KeyEventArgs e)
+    {
+        var mods = Keyboard.Modifiers;
+        if (mods == ModifierKeys.Shift && (e.Key == Key.Enter || e.Key == Key.Space))
+        {
+            int at = Input.SelectionStart;
+            Input.SelectedText = Environment.NewLine;
+            Input.Select(at + Environment.NewLine.Length, 0);
+            e.Handled = true;
+        }
+        else if ((mods == ModifierKeys.Control && e.Key == Key.V) || (mods == ModifierKeys.Shift && e.Key == Key.Insert))
+            e.Handled = PasteImages();   // no picture: the box pastes text as usual
+    }
+
+    // ───────────── pictures ─────────────
+
+    /// <summary>
+    /// Attaches the picture(s) on the clipboard, up to <see cref="VexConfig.ChatImagesPerMessage"/> per message.
+    /// Text on the clipboard wins (Excel, for one, copies cells as text and a picture), so this returns false and the
+    /// box pastes normally.
+    /// </summary>
+    bool PasteImages()
+    {
+        var found = ClipboardImages();
+        if (found.Count == 0) return false;
+        int max = Math.Max(1, Store.Config.ChatImagesPerMessage), room = max - attached.Count;
+        foreach (var src in found.Take(Math.Max(0, room)))
+            if (Prepare(src) is { } img) attached.Add(img);
+        if (found.Count > room) Flash($"{max} picture{(max == 1 ? "" : "s")} per message is the limit.");
+        RenderAttachments();
+        return true;
+    }
+
+    /// <summary>The pictures on the clipboard: a copied image, or image files copied in Explorer. Empty if there's text.</summary>
+    static List<BitmapSource> ClipboardImages()
+    {
+        var found = new List<BitmapSource>();
+        try
+        {
+            if (Clipboard.ContainsText()) return found;
+            if (Clipboard.ContainsFileDropList())
+            {
+                foreach (var file in Clipboard.GetFileDropList().Cast<string>())
+                    if (new[] { ".png", ".jpg", ".jpeg", ".bmp", ".gif", ".webp", ".tif", ".tiff" }.Contains(System.IO.Path.GetExtension(file).ToLowerInvariant()))
+                        using (var fs = System.IO.File.OpenRead(file))
+                            found.Add(BitmapDecoder.Create(fs, BitmapCreateOptions.None, BitmapCacheOption.OnLoad).Frames[0]);
+            }
+            // Browsers and the Snipping Tool also put a PNG on the clipboard, which keeps transparency right.
+            else if (Clipboard.GetData("PNG") is System.IO.Stream png)
+                found.Add(BitmapDecoder.Create(png, BitmapCreateOptions.None, BitmapCacheOption.OnLoad).Frames[0]);
+            // The plain bitmap (Print Screen etc.) often has an empty alpha channel, which would read as fully
+            // transparent, so the alpha is dropped.
+            else if (Clipboard.ContainsImage() && Clipboard.GetImage() is { } bmp)
+                found.Add(new FormatConvertedBitmap(bmp, PixelFormats.Bgr24, null, 0));
+        }
+        catch (Exception ex) { Store.Log($"Paste picture: {ex.Message}"); }
+        return found;
+    }
+
+    /// <summary>
+    /// Scales a pasted picture down to <see cref="VexConfig.ChatImageMaxSide"/> on its longest side (bigger only costs
+    /// time and tokens; Claude scales them down anyway), flattens it onto white so transparent diagrams stay legible,
+    /// and encodes it: PNG keeps screenshot text sharp, JPEG if that comes out too big to send (photos).
+    /// </summary>
+    static ChatImage? Prepare(BitmapSource src)
+    {
+        try
+        {
+            double scale = Math.Min(1, Math.Max(64, Store.Config.ChatImageMaxSide) / (double)Math.Max(src.PixelWidth, src.PixelHeight));
+            int w = Math.Max(1, (int)Math.Round(src.PixelWidth * scale)), h = Math.Max(1, (int)Math.Round(src.PixelHeight * scale));
+            var dv = new DrawingVisual();
+            RenderOptions.SetBitmapScalingMode(dv, BitmapScalingMode.HighQuality);
+            using (var dc = dv.RenderOpen())
+            {
+                dc.DrawRectangle(Brushes.White, null, new Rect(0, 0, w, h));
+                dc.DrawImage(src, new Rect(0, 0, w, h));
+            }
+            var bmp = new RenderTargetBitmap(w, h, 96, 96, PixelFormats.Pbgra32);
+            bmp.Render(dv);
+            var png = Encode(new PngBitmapEncoder(), bmp);
+            // Claude takes up to 5 MB per picture, and it goes base64-encoded (a third bigger).
+            return png.Length <= 3_500_000 ? new ChatImage(png, "image/png")
+                                           : new ChatImage(Encode(new JpegBitmapEncoder { QualityLevel = 85 }, bmp), "image/jpeg");
+        }
+        catch (Exception ex) { Store.Log($"Prepare picture: {ex.Message}"); return null; }
+    }
+
+    static byte[] Encode(BitmapEncoder encoder, BitmapSource bmp)
+    {
+        encoder.Frames.Add(BitmapFrame.Create(bmp));
+        using var ms = new System.IO.MemoryStream();
+        encoder.Save(ms);
+        return ms.ToArray();
+    }
+
+    /// <summary>A small preview of an attached picture, decoded at about the size it's shown.</summary>
+    static Image Thumbnail(ChatImage img, double height)
+    {
+        var bi = new BitmapImage();
+        bi.BeginInit();
+        bi.CacheOption = BitmapCacheOption.OnLoad;
+        bi.StreamSource = new System.IO.MemoryStream(img.Data);
+        bi.DecodePixelHeight = (int)(height * 2);
+        bi.EndInit();
+        bi.Freeze();
+        return new Image { Source = bi, Height = height, MaxWidth = height * 2, Stretch = Stretch.Uniform };
+    }
+
+    /// <summary>Redraws the thumbnails above the box, each with a ✕ to take it off again.</summary>
+    void RenderAttachments()
+    {
+        Attachments.Children.Clear();
+        foreach (var img in attached)
+        {
+            var remove = new Button
+            {
+                Content = "✕", FontSize = 9, Width = 16, Height = 16, Padding = new Thickness(0), Margin = new Thickness(2),
+                HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Top, Cursor = Cursors.Hand,
+                Background = Theme.Brush(P.Button), Foreground = Theme.Brush(P.ButtonText), BorderThickness = new Thickness(0),
+                ToolTip = "Remove",
+            };
+            remove.Click += (_, _) => { attached.Remove(img); RenderAttachments(); Input.Focus(); };
+            Attachments.Children.Add(new Grid
+            {
+                Margin = new Thickness(0, 0, 6, 0),
+                Children = { new Border { BorderBrush = Theme.Brush(P.InputBorder), BorderThickness = new Thickness(1), Child = Thumbnail(img, 48) }, remove },
+            });
+        }
+        Attachments.Visibility = attached.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    /// <summary>
+    /// Sends a message to Vex as if typed, with any pasted pictures, shows the reply and carries out any actions in it.
+    /// The transcript only notes how many pictures there were ("[1 picture]"); the pictures themselves aren't kept.
+    /// </summary>
+    public async void Send(string text, IReadOnlyList<ChatImage>? images = null)
     {
         if (pending != null) return;
         if (showingPending) ShowTab(pending: false);   // the reply should be in view
-        Add("me", text);
+        if (images is { Count: > 0 })
+        {
+            var tag = $"[{images.Count} picture{(images.Count == 1 ? "" : "s")}]";
+            text = text.Length > 0 ? $"{text}\n{tag}" : tag;
+        }
+        Add("me", text, images);
         pending = new CancellationTokenSource();
         Status.Text = "Vex is thinking…";
         Status.Visibility = Visibility.Visible;
         vex.SetThinking(true);
         try
         {
-            var raw = await brain.AskAsync(text, pending.Token);
+            var raw = await brain.AskAsync(text, images, pending.Token);
             var (reply, done, confirms) = Services.Hub.RunActions(raw);
             Add("vex", reply.Length > 0 ? reply : "...");
             foreach (var d in done) Add("note", d);
@@ -351,8 +526,9 @@ public partial class ChatWindow : Window
         awaitingConfirm.Add(c);
         go.Click += (_, _) => { buttons.IsEnabled = false; awaitingConfirm.Remove(c); Add("note", c.Go()); };
         no.Click += (_, _) => { buttons.IsEnabled = false; awaitingConfirm.Remove(c); Add("note", "✗ Left it."); };
+        bool follow = AtBottom;
         Messages.Children.Add(card);
-        Scroll.ScrollToEnd();
+        KeepInView(follow);
     }
 
     /// <summary>The outlined card that Build it / Restart prompts and Pending items sit in.</summary>
@@ -369,9 +545,11 @@ public partial class ChatWindow : Window
         Background = Theme.Brush(P.Button), Foreground = Theme.Brush(P.ButtonText), BorderThickness = new Thickness(0),
     };
 
-    void Render(string who, string text, DateTime at)
+    void Render(string who, string text, DateTime at, IReadOnlyList<ChatImage>? images = null)
     {
         shown.Add(new ChatLine(at, who, text));
+        // Ben's own messages always come into view; anything else only if he isn't scrolled up reading.
+        bool follow = who == "me" || AtBottom;
         if (who == "note")
         {
             Messages.Children.Add(new TextBlock
@@ -379,10 +557,25 @@ public partial class ChatWindow : Window
                 Text = text, Foreground = Theme.Brush(P.Note), FontSize = 11.5,
                 Margin = new Thickness(4, 1, 0, 3), TextWrapping = TextWrapping.Wrap,
             });
-            Scroll.ScrollToEnd();
+            KeepInView(follow);
             return;
         }
         bool me = who == "me";
+        // Wrap (not WrapWithOverflow) so long paths, URLs and code lines break rather than run off the side.
+        var body = new TextBox
+        {
+            Text = text, IsReadOnly = true, TextWrapping = TextWrapping.Wrap, BorderThickness = new Thickness(0),
+            HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
+            Background = Brushes.Transparent, Foreground = Theme.Brush(P.Text),
+            FontSize = 13,
+        };
+        UIElement content = body;
+        if (images is { Count: > 0 })
+        {
+            var pictures = new WrapPanel { Margin = new Thickness(0, 0, 0, 4) };
+            foreach (var img in images) pictures.Children.Add(new Border { Margin = new Thickness(0, 0, 4, 0), Child = Thumbnail(img, 64) });
+            content = new StackPanel { Children = { pictures, body } };
+        }
         var bubble = new Border
         {
             Background = Theme.Brush(me ? P.MeBubble : P.VexBubble),
@@ -390,14 +583,9 @@ public partial class ChatWindow : Window
             Padding = new Thickness(10, 6, 10, 6),
             Margin = new Thickness(me ? 40 : 0, 3, me ? 0 : 40, 3),
             HorizontalAlignment = me ? HorizontalAlignment.Right : HorizontalAlignment.Left,
-            Child = new TextBox
-            {
-                Text = text, IsReadOnly = true, TextWrapping = TextWrapping.Wrap, BorderThickness = new Thickness(0),
-                Background = Brushes.Transparent, Foreground = Theme.Brush(P.Text),
-                FontSize = 13,
-            },
+            Child = content,
         };
         Messages.Children.Add(bubble);
-        Scroll.ScrollToEnd();
+        KeepInView(follow);
     }
 }

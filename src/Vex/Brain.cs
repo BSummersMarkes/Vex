@@ -11,9 +11,14 @@ namespace Vex;
 
 public interface IBrain
 {
-    Task<string> AskAsync(string message, CancellationToken ct = default);
+    Task<string> AskAsync(string message, CancellationToken ct = default) => AskAsync(message, null, ct);
+    /// <summary>A message with pictures pasted into the chat (screenshots, diagrams) for the model to look at.</summary>
+    Task<string> AskAsync(string message, IReadOnlyList<ChatImage>? images, CancellationToken ct = default);
     void Forget();
 }
+
+/// <summary>A picture pasted into the chat, already scaled down and encoded, ready to send with a message.</summary>
+public record ChatImage(byte[] Data, string MediaType);
 
 /// <summary>
 /// Talks to Claude through the Claude Code CLI in headless mode, using the existing Claude login.
@@ -59,19 +64,19 @@ public class ClaudeCodeBrain : IBrain
 
     readonly string workDir = Path.Combine(Store.Dir, "brain");
 
-    public async Task<string> AskAsync(string message, CancellationToken ct = default)
+    public async Task<string> AskAsync(string message, IReadOnlyList<ChatImage>? images, CancellationToken ct = default)
     {
         var exe = FindClaude() ?? throw new InvalidOperationException(
             "I can't find Claude Code. Set ClaudePath in %LOCALAPPDATA%\\Vex\\config.json.");
         Directory.CreateDirectory(workDir);
 
-        var (ok, text) = await RunOnce(exe, message, ct);
+        var (ok, text) = await RunOnce(exe, message, images, ct);
         if (!ok && IsSignInOrNetwork(text))
         {
             // Common straight after login: Vex starts before Claude's sign-in has been refreshed or the
             // network/VPN is up. Give it a moment and try once more before giving up.
             await Task.Delay(TimeSpan.FromSeconds(6), ct);
-            (ok, text) = await RunOnce(exe, message, ct);
+            (ok, text) = await RunOnce(exe, message, images, ct);
         }
         if (ok) return text;
 
@@ -95,7 +100,7 @@ public class ClaudeCodeBrain : IBrain
             .Any(w => error.Contains(w, StringComparison.OrdinalIgnoreCase));
 
     /// <summary>One headless Claude Code call. Returns (true, reply) or (false, error text).</summary>
-    async Task<(bool Ok, string Text)> RunOnce(string exe, string message, CancellationToken ct)
+    async Task<(bool Ok, string Text)> RunOnce(string exe, string message, IReadOnlyList<ChatImage>? images, CancellationToken ct)
     {
         var psi = new ProcessStartInfo(exe)
         {
@@ -126,19 +131,26 @@ public class ClaudeCodeBrain : IBrain
         // Read the allowlisted window (if any) off the UI thread before building the context.
         var windowText = await Services.WindowText.ReadInFrontAsync();
 
-        foreach (var a in new[] { "-p", "--output-format", "json", "--tools", "", "--setting-sources", "",
-                                  "--strict-mcp-config", "--model", Store.Config.Model, "--system-prompt", persona })
-            psi.ArgumentList.Add(a);
+        // Plain text goes in as it is. Pictures can't, so then the message goes in as one stream-json user turn with
+        // image blocks (the format the Agent SDK uses), and the reply comes back as stream-json too.
+        bool withImages = images is { Count: > 0 };
+        var args = new List<string> { "-p", "--output-format", withImages ? "stream-json" : "json", "--tools", "", "--setting-sources", "",
+                                      "--strict-mcp-config", "--model", Store.Config.Model, "--system-prompt", persona };
+        if (withImages) args.AddRange(new[] { "--input-format", "stream-json", "--verbose" });
+        foreach (var a in args) psi.ArgumentList.Add(a);
         if (Store.State.ChatSessionId is { } sid) { psi.ArgumentList.Add("--resume"); psi.ArgumentList.Add(sid); }
 
+        var prompt = $"{recap}<context>\n{Services.Hub.Context(windowText)}</context>\n\n{message}";
         using var p = Process.Start(psi)!;
-        await p.StandardInput.WriteAsync($"{recap}<context>\n{Services.Hub.Context(windowText)}</context>\n\n{message}");
+        await p.StandardInput.WriteAsync(withImages ? ImageTurn(prompt, images!) : prompt);
         p.StandardInput.Close();
         var outTask = p.StandardOutput.ReadToEndAsync(ct);
         var errTask = p.StandardError.ReadToEndAsync(ct);
         try { await p.WaitForExitAsync(ct); }
         catch (OperationCanceledException) { try { p.Kill(true); } catch { } throw; }
         var stdout = await outTask;
+        // stream-json is one event per line; the final "result" event has the same fields as the plain json output.
+        if (withImages) stdout = stdout.Split('\n').Select(l => l.Trim()).LastOrDefault(IsResultEvent) ?? stdout;
 
         try
         {
@@ -153,6 +165,29 @@ public class ClaudeCodeBrain : IBrain
         {
             return (false, $"{stdout} {await errTask}".Trim());
         }
+    }
+
+    /// <summary>The message as a single stream-json user turn: the pictures first (Claude reads them better that way), then the text.</summary>
+    static string ImageTurn(string prompt, IReadOnlyList<ChatImage> images)
+    {
+        var content = images.Select(i => (object)new
+        {
+            type = "image",
+            source = new { type = "base64", media_type = i.MediaType, data = Convert.ToBase64String(i.Data) },
+        }).Append(new { type = "text", text = prompt });
+        return JsonSerializer.Serialize(new { type = "user", message = new { role = "user", content } }) + "\n";
+    }
+
+    /// <summary>Whether a stream-json line is the closing "result" event.</summary>
+    static bool IsResultEvent(string line)
+    {
+        if (!line.StartsWith('{')) return false;
+        try
+        {
+            using var doc = JsonDocument.Parse(line);
+            return doc.RootElement.TryGetProperty("type", out var t) && t.GetString() == "result";
+        }
+        catch (JsonException) { return false; }
     }
 
     /// <summary>The last stretch of the visible chat (minus the message being sent), to open a fresh session with.</summary>

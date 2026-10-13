@@ -61,6 +61,10 @@ public class VexConfig
     public bool ChatClosesOnClickAway { get; set; } = true;
     /// <summary>How long an unanswered nudge or card waits in the chat's Pending tab before it's cleared.</summary>
     public double PendingKeepDays { get; set; } = 7;
+    /// <summary>How many pictures can be pasted into one chat message.</summary>
+    public int ChatImagesPerMessage { get; set; } = 3;
+    /// <summary>Pasted pictures bigger than this (pixels, longest side) are scaled down before they're sent to Claude.</summary>
+    public int ChatImageMaxSide { get; set; } = 1568;
 
     // Memory and the daily diary.
     /// <summary>Vex's own pages (markdown). Null = %LOCALAPPDATA%\Vex\memory. The Lab Notebook mirrors this folder.</summary>

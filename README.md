@@ -33,6 +33,8 @@ For chat you need **[Claude Code](https://claude.com/claude-code) installed and 
 | Click the mug | "I've refilled my coffee" |
 | Right-click Vex | Menu: nap, hide, other screen, forget the chat… |
 | Tray icon | Setup…, Appearance (light/dark, hoodie colour), start with Windows, what Vex knows, show/hide, quit |
+| Typing in the chat | Enter sends; Shift+Enter or Shift+Space starts a new line |
+| Ctrl+V in the chat | Paste a picture (screenshot, diagram, error message) to send with your message; up to 3, ✕ on a thumbnail removes it |
 | Chat header | Copy the chat as text (Ctrl+Shift+C) or as a picture |
 | Pending (chat header) | Nudges and questions you didn't answer, with their original buttons, so you can pick one later. The badge shows how many are waiting; they're cleared after 7 days |
 
@@ -46,7 +48,7 @@ Vex's own pages (*About you*, *Remembered*, *Diary*, *Projects*, ...) are markdo
 
 - Everything Vex keeps stays on your PC: `%LOCALAPPDATA%\Vex` (settings, chat history, activity log) and your notes folder.
 - The optional activity log records which app and window title is in front. It never records password managers, private browsing, or windows with words like "password", "sign in" or "bank" in the title (editable in `config.json`). Turn it off in Setup.
-- When you chat, your message goes to Claude through your own Claude Code login, along with a short summary of your day (time at the desk, recent apps, window titles if the log is on, meetings, to-dos and his notes), plus the text of the window in front only for apps you've listed. The nightly diary and his occasional questions send the same kind of summary.
+- When you chat, your message goes to Claude through your own Claude Code login, along with a short summary of your day (time at the desk, recent apps, window titles if the log is on, meetings, to-dos and his notes), plus the text of the window in front only for apps you've listed, and any pictures you paste into the message (only those; he never takes screenshots). The nightly diary and his occasional questions send the same kind of summary.
 - If you set a TomTom key, your work and home addresses go to TomTom to work out the drive home.
 - Vex and his bubbles never appear in screenshots or screen shares.
 

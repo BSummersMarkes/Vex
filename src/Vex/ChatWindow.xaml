@@ -11,6 +11,7 @@
                 <RowDefinition Height="*"/>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
 
             <DockPanel x:Name="Header" Background="Transparent" Margin="0,0,0,8">
@@ -43,17 +44,25 @@
                 </StackPanel>
             </DockPanel>
 
-            <ScrollViewer x:Name="Scroll" Grid.Row="1" VerticalScrollBarVisibility="Auto">
+            <!-- Messages scroll inside the panel and wrap to its width; never sideways -->
+            <ScrollViewer x:Name="Scroll" Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                 <StackPanel x:Name="Messages"/>
             </ScrollViewer>
-            <ScrollViewer x:Name="PendingScroll" Grid.Row="1" VerticalScrollBarVisibility="Auto" Visibility="Collapsed">
+            <ScrollViewer x:Name="PendingScroll" Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Visibility="Collapsed">
                 <StackPanel x:Name="PendingList"/>
             </ScrollViewer>
+            <!-- Shown when something new arrives while scrolled up reading older messages -->
+            <Button x:Name="NewBelow" Grid.Row="1" Content="New ↓" HorizontalAlignment="Right" VerticalAlignment="Bottom"
+                    Margin="0,0,18,6" Padding="8,2" FontSize="11" BorderThickness="0" Cursor="Hand"
+                    Background="#3A4568" Foreground="#E8EAF2" Visibility="Collapsed" ToolTip="Jump to the newest message"/>
 
             <TextBlock x:Name="Status" Grid.Row="2" Foreground="#8790AD" FontSize="11" FontStyle="Italic"
                        Margin="2,6,0,0" Visibility="Collapsed" Text="Vex is thinking…"/>
 
-            <TextBox x:Name="Input" Grid.Row="3" Margin="0,8,0,0" MinHeight="34" MaxHeight="110"
+            <!-- Pictures pasted into the box (Ctrl+V), sent with the next message -->
+            <WrapPanel x:Name="Attachments" Grid.Row="3" Margin="0,8,0,0" Visibility="Collapsed"/>
+
+            <TextBox x:Name="Input" Grid.Row="4" Margin="0,8,0,0" MinHeight="34" MaxHeight="110"
                      Padding="8,6" TextWrapping="Wrap" AcceptsReturn="False" VerticalScrollBarVisibility="Auto"
                      Background="#232842" Foreground="#E8EAF2" CaretBrush="#E8EAF2" BorderBrush="#3A4568"
                      FontSize="13"/>

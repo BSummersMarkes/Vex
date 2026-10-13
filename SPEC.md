@@ -19,7 +19,7 @@ A small animated desktop companion that lives on top of the Windows desktop, kee
 
 ## 2. Principles
 
-1. **Local first.** Everything is stored on this laptop under `%LOCALAPPDATA%\Vex\`. Nothing leaves the machine except text sent to the AI model (chatting, the nightly diary, his questions) and, only if a TomTom key is set, the work and home addresses sent to TomTom for the traffic check.
+1. **Local first.** Everything is stored on this laptop under `%LOCALAPPDATA%\Vex\`. Nothing leaves the machine except text sent to the AI model (chatting, the nightly diary, his questions), pictures you paste into a chat message yourself and, only if a TomTom key is set, the work and home addresses sent to TomTom for the traffic check.
 2. **No secrets, ever.** He never records password fields, password managers, banking or private browsing windows, or anything on the exclusion list (see section 6).
 3. **Seeing a window is opt-in.** By default he only knows the active app name and window title. He reads a window's text only for apps you list (`WatchContentApps`, empty by default), never excluded windows, never password fields.
 4. **Out of the way.** He never covers what you're working on, never steals focus, never appears in Alt-Tab or the taskbar.
@@ -31,7 +31,10 @@ A small animated desktop companion that lives on top of the Windows desktop, kee
 
 - **Language/runtime:** C# / .NET 10 (`net10.0-windows`), matching Lab Notebook. Single-file exe via a `build.ps1`.
 - **Character:** WPF transparent, topmost, borderless tool window, drawn with vector shapes. Transparent pixels pass clicks through to whatever is underneath.
-- **Chat panel:** WPF window (WebView2 if it needs to get fancy). Header buttons copy the whole chat as text (also Ctrl+Shift+C) or as a picture. Closes on ✕, Esc, or a click anywhere outside it (another window, the desktop, Vex or his mug; `ChatClosesOnClickAway`, on by default, Setup → Behaviour), except while he's replying, a Build it / Restart card is waiting for a click, or a modal dialog is open. A half-written message is kept in memory and put back when the chat reopens.
+- **Chat panel:** WPF window (WebView2 if it needs to get fancy). Header buttons copy the whole chat as text (also Ctrl+Shift+C) or as a picture. Closes on ✕, Esc, or a click anywhere outside it (another window, the desktop, Vex or his mug; `ChatClosesOnClickAway`, on by default, Setup → Behaviour), except while he's replying, a Build it / Restart card is waiting for a click, or a modal dialog is open. A half-written message (and any pictures pasted into it) is kept in memory and put back when the chat reopens.
+  - **Fit:** messages scroll inside the panel and wrap to its width (long paths, URLs and code lines break rather than overflow); the box and header stay put. New messages scroll into view only if you're already at the bottom; scrolled up reading, a "New ↓" button appears instead.
+  - **Typing:** Enter sends; Shift+Enter or Shift+Space inserts a new line.
+  - **Pictures:** Ctrl+V (or Shift+Insert) with an image on the clipboard (a screenshot, a copied picture, or image files copied in Explorer) attaches it; text on the clipboard pastes as text. Thumbnails with ✕ sit above the box; up to `ChatImagesPerMessage` (3) per message, scaled down to `ChatImageMaxSide` (1568 px) on the longest side, flattened onto white, PNG (JPEG if too big). Sent with the message as image blocks (`--input-format stream-json`). The transcript records only "[n pictures]"; the pictures aren't kept.
 - **Pending tab:** next to Chat in the panel's header, with a count badge. A nudge with options goes there, with its text, time and original buttons, if none of them gets picked. That covers being replaced by another nudge, the bubble being hidden (he dozed off, was dragged, or the chat opened) and never being shown at all (he was hidden). Build it / Restart cards still waiting when the chat closes go there too. Picking an option does what it would have done then and removes the item; items without a ✕ get one that just clears them. ✕ on the original bubble counts as an answer. Answering the same nudge normally later clears the old copy. Meetings drop out when they end, Claude Code prompts after the hour they'd be re-nudged in, and everything else after `PendingKeepDays` (7). Kept in `state.json`, so items survive restarts (their buttons are rebuilt from the saved details). `Services/Pending.cs`.
 - **Appearance:** tray → Appearance: dark / light / match Windows for the chat and bubbles (`Theme`), and the hoodie colour (`HoodieColour`; presets or a custom colour). The hoodie's shades are all derived from the one colour, so folds and shadows keep working (`Theme.cs`).
 - **Brain:** a swappable `IBrain` interface.
@@ -211,6 +214,8 @@ Each job's log (prompts' results, git output, build errors, review) is in `%LOCA
 - [x] Light mode / match Windows; hoodie colour from the tray
 - [x] Chat closes when you click away (not mid-reply, with a Build it card waiting or a dialog open); drafts survive closing; on/off in Setup → Behaviour
 - [x] Pending tab in the chat: unanswered nudges and Build it / Restart cards, answerable later with their original options; count badge; survives restarts; cleared after 7 days
+- [x] Chat fits its window: scrolls inside, wraps long lines, doesn't jump while you read older messages ("New ↓"); Shift+Enter / Shift+Space for a new line
+- [x] Paste pictures into the chat (Ctrl+V): thumbnails above the box, up to 3 per message, scaled down and sent to Claude with the message
 
 ### He learns (2026-10-13)
 - [x] Build/restart from chat need a click (prompt-injection guard); context marked as data, not instructions
