@@ -1,6 +1,6 @@
 # Vex — Desktop Companion Spec
 
-*Living document. Last updated 2026-10-12.*
+*Living document. Last updated 2026-10-13.*
 
 ## 1. What Vex is
 
@@ -127,13 +127,26 @@ The notebook is the single place Ben manages things; Vex is a client of it.
 - **Schema read back:** `journal[] {id, date, body}`, `notes[] {id, title, body, project}` (pages), `projects[]`, `todos[]`.
 - **Memory migration:** on first run against v2, Vex moves `memory\about-me.md` and `notes.md` into *About Ben* / *Remembered* (send-once, ids kept in `state.json`).
 
-## 9. Voice (later)
+## 9. Workshop (Vex changing himself)
+
+Ask him in chat for a new ability or a change ("add a nudge that…", "make him wave when…") and he does it himself, in the background. Developer only: off unless `SourcePath` in `config.json` points at a git checkout of this repo, so shared copies never offer it. Code: `Services/Workshop.cs`.
+
+1. The chat brain writes the full request into a `[[build: …]]` action (the builder can't see the chat, so it asks first if the request is vague). One job at a time; refused if the repo has uncommitted changes.
+2. **Coder:** a headless Claude Code session (`WorkshopModel`, default opus) in the repo. `--restricted` (file tools confined to the repo, no user/project settings or hooks), edits auto-accepted, Bash limited to `dotnet build`/`restore` and read-only git, so no network and no git writes. Its rules: read SPEC.md first, match the style, comment the change for Ben, keep SPEC/README current, keep section 2's principles, never run `build.ps1`.
+3. **Build:** Vex publishes it himself into `%LOCALAPPDATA%\Vex\workshop\out` (same settings as `build.ps1`, without stopping the running Vex). Build errors go back to the coder.
+4. **Review:** a second, fresh, read-only Claude session (`WorkshopReviewModel`) checks the staged diff: does what was asked, bugs/threading, privacy principles, comments, no secrets. Objections go back to the coder. Up to 3 rounds.
+5. **Ship:** approved → commit to the current branch (normally `main`) and push (`WorkshopPush`). Not approved, failed or timed out (`WorkshopTimeoutMinutes`) → the attempt is parked on a `vex/<slug>-MMdd-HHmm` branch and the working branch is left clean.
+6. **Restart:** he knocks with the result. "Restart now" (or asking him to in chat) runs `workshop\swap.ps1`: waits for Vex to exit, keeps `Vex.exe.old`, copies the new exe in, starts it, and rolls back if it isn't still running after 15 s. The new Vex says whether the swap took.
+
+Each job's log (prompts' results, git output, build errors, review) is in `%LOCALAPPDATA%\Vex\workshop\*.log`. While a job runs, its stage is in the chat context, so "how's it going?" works.
+
+## 10. Voice (later)
 
 - Speech to text: Whisper (local, via whisper.cpp), push-to-talk.
 - Text to speech: Piper (local), a low, dry voice.
 - Text remains the default.
 
-## 10. Phases
+## 11. Phases
 
 ### v0.1: "He lives"
 *Prototype built 2026-10-12 (`build.ps1` → `Vex.exe`). Items marked (untested) are coded but not yet exercised on the real desktop.*
@@ -174,6 +187,10 @@ The notebook is the single place Ben manages things; Vex is a client of it.
 - [x] README for colleagues; share the single `Vex.exe`
 - [ ] Code signing (avoids the SmartScreen warning) / GitHub Releases
 
+### Workshop (2026-10-13)
+- [x] Ask in chat for a new ability → coder session writes it, Vex builds it, a second session reviews it, commit + push to main, knock, self-swap with rollback (section 9)
+- [ ] Capability review before sharing any build that has a workshop
+
 ### v0.4: "He talks"
 - [ ] Voice in and out
 - [ ] Try a local model via Ollama
@@ -183,7 +200,7 @@ The notebook is the single place Ben manages things; Vex is a client of it.
 - [ ] Perching on title bars, seasonal outfits
 - [ ] More context animations (ideas): tiny laptop while Claude works, foot-tap while it waits on you, blowing on fresh coffee, peeking round a window edge, legs dangling off a title bar, doodling during long meetings, wave when you're back, shiver when the mug's cold
 
-## 11. Open questions
+## 12. Open questions
 
 - Calendar: nothing connected yet. Classic Outlook arrives with the new laptop (works automatically when it's running); Power Automate `calendar.json` is the fallback if wanted sooner.
 - Memory use (~285 MB, mostly drawing effects in software rendering); slim down if it matters.

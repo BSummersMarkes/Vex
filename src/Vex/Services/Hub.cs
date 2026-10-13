@@ -60,6 +60,7 @@ public static class Hub
         Presence.BackFromBreak += WelcomeBack;
         if (Activity.Today.Count > 0) Presence.SeenSince(Activity.Today[0].Start);
         MigrateMemory();
+        Workshop.Started();
 
         fast = new DispatcherTimer(TimeSpan.FromSeconds(5), DispatcherPriority.Background, (_, _) => Fast(), Vex.Dispatcher);
         slow = new DispatcherTimer(TimeSpan.FromSeconds(15), DispatcherPriority.Background, (_, _) => Slow(), Vex.Dispatcher);
@@ -94,6 +95,7 @@ public static class Hub
         InCall = Activity.MicInUse();
         Calendar.Tick();
         Nudges.Tick();
+        Workshop.Tick();
         MigrateMemory();
     }
 
@@ -164,6 +166,7 @@ public static class Hub
             foreach (var s in sessions)
                 sb.AppendLine($"- {s.Project}: {s.State switch { ClaudeState.Working => "working", ClaudeState.NeedsYou => $"needs {Who} ({s.Message})", _ => $"finished, waiting for {Who}" }} since {s.Since:HH:mm}");
         }
+        if (Workshop.Status() is { } shop) sb.AppendLine(shop);
         if (Store.State.Reminders.Count > 0)
             sb.AppendLine("Pending reminders: " + string.Join("; ", Store.State.Reminders.OrderBy(r => r.At).Select(r => $"{r.At:HH:mm} {r.Text}")));
 
@@ -208,7 +211,17 @@ public static class Hub
         [[page: Page title | markdown]]  adds to one of your own pages (created if missing);
                                   use it to organise longer-lived information: people, projects, how-tos
         [[remind: HH:mm | text]]  or  [[remind: 20m | text]]
-        Only act when {who} asks or clearly implies it. Never mention this syntax; Vex's app hides it and confirms.
+        {(Workshop.Enabled ? WorkshopHelp(who) : "")}Only act when {who} asks or clearly implies it. Never mention this syntax; Vex's app hides it and confirms.
+        """;
+
+    static string WorkshopHelp(string who) => $"""
+        [[build: request]]        changes your OWN code: a new ability, behaviour, nudge, animation, setting or fix.
+                                  A separate Claude Code session writes it, a second one reviews it, then it's
+                                  committed and pushed and you knock when it's ready to restart into. Takes minutes.
+                                  It can't see this chat, so write the request in full: what, when, how it should
+                                  look or sound, and anything {who} said about it. If it's vague, ask first.
+        [[restart: now]]          restart into the newly built version (only when one is waiting and {who} says so)
+
         """;
 
     static readonly Regex ActionRx = new(@"\[\[\s*([a-z.]+)\s*:\s*(.*?)\s*\]\]", RegexOptions.Singleline);
@@ -254,6 +267,10 @@ public static class Hub
                 if (Notes.Linked && Notes.PageAppend("Remembered", fact) != null) return $"✓ Remembered: {arg}{Queued()}";
                 File.AppendAllText(NotesPath, fact + Environment.NewLine);
                 return $"✓ Remembered: {arg}";
+            case "build":
+                return Workshop.Start(arg);
+            case "restart":
+                return Workshop.Restart();
             default:
                 return $"✗ Unknown action: {action}";
         }

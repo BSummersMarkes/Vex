@@ -48,6 +48,15 @@ public class VexConfig
     /// <summary>A soft knock sound when Vex knocks on the screen for a nudge (never during calls).</summary>
     public bool KnockSound { get; set; } = true;
     public bool DebugEndpoints { get; set; } = false;
+
+    // Workshop: Vex changing his own code when asked in chat. Off unless SourcePath is a git checkout of Vex.
+    /// <summary>Vex's source repo (the folder with build.ps1). Null = no workshop.</summary>
+    public string? SourcePath { get; set; }
+    public string WorkshopModel { get; set; } = "opus";         // writes the code
+    public string WorkshopReviewModel { get; set; } = "opus";   // checks it before commit
+    /// <summary>Push to origin after an approved commit.</summary>
+    public bool WorkshopPush { get; set; } = true;
+    public double WorkshopTimeoutMinutes { get; set; } = 45;
     /// <summary>Full-screen apps that are just work (remote desktops, VMs): don't hide or go quiet for these.</summary>
     public List<string> FullScreenIsWork { get; set; } = new() { "mstsc", "msrdc", "vmconnect", "CDViewer", "wfica32", "vmware", "VirtualBoxVM" };
 
