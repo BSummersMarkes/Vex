@@ -16,6 +16,26 @@ public record Page(string Id, string Title, string Body, string Project);
 public record Check(string Date, string Text);
 
 /// <summary>
+/// A journal checkbox paired with an item on the notebook's To-Do list (one Vex copied there, or one that was already
+/// there with the same words), so ticking either ticks the other. Kept in state.json while the checkbox is in the
+/// 14-day window, which is also what stops a restart from copying the same item twice.
+/// </summary>
+public class TodoLink
+{
+    /// <summary>The journal day the checkbox is in, and its text.</summary>
+    public string Date { get; set; } = "";
+    public string Text { get; set; } = "";
+    /// <summary>The To-Do list item, once known (from the ack or found by its text).</summary>
+    public string? TodoId { get; set; }
+    /// <summary>The todo.add request, until the item shows up. The notebook may be closed for days; it's never re-sent meanwhile.</summary>
+    public string? AddId { get; set; }
+    /// <summary>The tick sent for this pair (either way). Set once and never re-sent, even after a restart or a refusal.</summary>
+    public string? TickId { get; set; }
+    /// <summary>Deleted in the notebook (or the copy was refused): leave it be and don't add it again.</summary>
+    public bool Gone { get; set; }
+}
+
+/// <summary>
 /// Lab Notebook integration. Reads the notebook's data file (read-only) and sends changes through
 /// its inbox file, which the notebook applies and acknowledges. Contract: SPEC.md section 8.
 /// </summary>
@@ -120,6 +140,7 @@ public class Notebook : INotes
 
             TodayJournal = "";
             var checks = new List<Check>();
+            var ticked = new List<Check>();   // only needed to tell "ticked" from "edited away" when mirroring
             var since = DateTime.Today.AddDays(-14).ToString("yyyy-MM-dd");
             if (root.TryGetProperty("journal", out var js) && js.ValueKind == JsonValueKind.Array)
                 foreach (var j in js.EnumerateArray())
@@ -134,6 +155,7 @@ public class Notebook : INotes
                         var line = raw.TrimEnd((char)13);
                         if (line.TrimStart().StartsWith("```")) { fenced = !fenced; continue; }
                         if (!fenced && OpenCheckRx.Match(line) is { Success: true } m) checks.Add(new Check(date, m.Groups["text"].Value.Trim()));
+                        else if (!fenced && INotes.AnyCheckRx.Match(line) is { Success: true } x) ticked.Add(new Check(date, x.Groups["text"].Value.Trim()));
                     }
                 }
             OpenChecks = checks.OrderByDescending(c => c.Date).ToList();
@@ -143,6 +165,8 @@ public class Notebook : INotes
                 foreach (var n in ns.EnumerateArray())
                     pages.Add(new Page(Str(n, "id") ?? "", Str(n, "title") ?? "", Str(n, "body") ?? "", Str(n, "project") ?? ""));
             Pages = pages;
+
+            Mirror(checks, ticked, since);
         }
         catch (Exception ex) { Store.Log($"Notebook load: {ex.Message}"); }
     }
@@ -158,7 +182,94 @@ public class Notebook : INotes
         return sr.ReadToEnd();
     }
 
-    public IEnumerable<Todo> Open => Todos.Where(t => !t.Done);
+    /// <summary>Open items on the To-Do list, minus the copies of journal checkboxes (those are already in <see cref="OpenChecks"/>).</summary>
+    public IEnumerable<Todo> Open => Todos.Where(t => !t.Done && !Store.State.TodoLinks.Any(l => l.TodoId == t.Id));
+
+    // ───────────── mirroring journal to-dos onto the To-Do list ─────────────
+    // The journal checkboxes are the real to-dos; the notebook's To-Do list gets a copy of each open one so Ben sees
+    // the same items in both places. Ticking either side ticks the other. Everything goes through the inbox like any
+    // other change, and existing To-Do items are never edited except to tick a copy Vex made (or one that matches).
+
+    static string Norm(string s) => System.Text.RegularExpressions.Regex.Replace(s.Trim(), @"\s+", " ").ToLowerInvariant();
+    static bool Same(Check c, TodoLink l) => c.Date == l.Date && Norm(c.Text) == Norm(l.Text);
+
+    /// <summary>Brings the To-Do list in line with the journal checkboxes (last 14 days). Runs after every load.</summary>
+    void Mirror(List<Check> open, List<Check> ticked, string since)
+    {
+        if (!Store.Config.TodoListMirror) return;
+        var links = Store.State.TodoLinks;
+        // Older than the window: both sides stay as they are, Vex just stops looking after them.
+        bool changed = links.RemoveAll(l => string.CompareOrdinal(l.Date, since) < 0) > 0;
+        var claimed = links.Where(l => l.TodoId != null).Select(l => l.TodoId!).ToHashSet();
+
+        foreach (var l in links.ToList())
+        {
+            bool isOpen = open.Any(c => Same(c, l));
+            // Reworded or removed in the journal: stop tracking, and leave the To-Do item alone rather than guess.
+            // Its To-Do item is freed too, so a checkbox moved to another day pairs with it again instead of adding a duplicate.
+            if (!isOpen && !ticked.Any(c => Same(c, l)))
+            {
+                links.Remove(l); changed = true;
+                if (l.TodoId != null) claimed.Remove(l.TodoId);
+                continue;
+            }
+            if (l.Gone) continue;
+
+            var todo = Todos.FirstOrDefault(t => t.Id == l.TodoId);
+            // The ack may not carry the new item's id, so look for it by text (open ones only, so an old finished
+            // item with the same words isn't mistaken for it).
+            if (todo == null && l.AddId != null)
+                todo = Todos.FirstOrDefault(t => !t.Done && !claimed.Contains(t.Id) && Norm(t.Text) == Norm(l.Text));
+            if (todo == null)
+            {
+                // Seen before and now missing: Ben deleted it in the notebook, so don't put it back.
+                if (l.AddId == null) { l.Gone = true; changed = true; }
+                continue;   // otherwise the add is still waiting for the notebook to apply it
+            }
+            if (l.TodoId != todo.Id || l.AddId != null) { l.TodoId = todo.Id; l.AddId = null; claimed.Add(todo.Id); changed = true; }
+
+            // One tick per pair, ever: unticking isn't mirrored, so a later mismatch means Ben unticked one side (leave it),
+            // or the notebook refused or ignored the tick (logged by Quiet). Re-sending would undo him or loop on every load.
+            if (l.TickId != null) continue;
+            if (!isOpen && !todo.Done)
+                { l.TickId = Quiet(new { cmd = "todo.done", todoId = todo.Id, source = "vex" }, $"tick To-Do copy of \"{l.Text}\""); changed = true; }
+            else if (isOpen && todo.Done)
+                { l.TickId = Quiet(new { cmd = "journal.done", text = l.Text, date = l.Date, source = "vex" }, $"tick journal \"{l.Text}\""); changed = true; }
+        }
+
+        foreach (var c in open)
+        {
+            if (links.Any(l => Same(c, l))) continue;
+            var link = new TodoLink { Date = c.Date, Text = c.Text };
+            // Already on the To-Do list (typed in both, or there from before): pair them up instead of adding a duplicate.
+            if (Todos.FirstOrDefault(t => !t.Done && !claimed.Contains(t.Id) && Norm(t.Text) == Norm(c.Text)) is { } same)
+            {
+                link.TodoId = same.Id;
+                claimed.Add(same.Id);
+            }
+            else
+            {
+                link.AddId = Quiet(new { cmd = "todo.add", text = c.Text, source = "vex" }, $"copy \"{c.Text}\" to the To-Do list", (ok, r) =>
+                {
+                    if (ok) { if (Str(r, "todoId") is { } id) link.TodoId = id; return; }
+                    // Rejected (e.g. the notebook doesn't take todo.add): give up on this one rather than retry on every load.
+                    link.Gone = true; link.AddId = null; Store.SaveState();
+                });
+                if (link.AddId == null) continue;   // inbox busy; try again next load
+            }
+            links.Add(link);
+            changed = true;
+        }
+        if (changed) Store.SaveState();
+    }
+
+    /// <summary>Sends a mirroring request without a "Noted." bubble: it's housekeeping Ben didn't ask for. Failures are only logged.</summary>
+    string? Quiet(object body, string description, Action<bool, JsonElement>? then = null) =>
+        Send(body, description, (ok, err, r) =>
+        {
+            if (!ok) Store.Log($"Notebook to-do mirror, couldn't {description}: {err ?? "unknown error"}");
+            then?.Invoke(ok, r);
+        });
 
     // ───────────── writing (via the inbox) ─────────────
 

@@ -125,7 +125,7 @@ The notebook is the single place Ben manages things; Vex is a client of it.
 
 | What | Where |
 |---|---|
-| To-dos | Journal checkboxes (`- [ ] item`), ticked in place for a permanent history. Open = unticked in the last 14 days. The old To-Do list is still read and can be ticked. |
+| To-dos | Journal checkboxes (`- [ ] item`), ticked in place for a permanent history. Open = unticked in the last 14 days. The old To-Do list is still read and can be ticked, and mirrors the checkboxes (below). |
 | Notes ("note this down") | Today's journal, timestamped |
 | Vex's memory | **Vex owns it**: `%LOCALAPPDATA%\Vex\memory\*.md`. The notebook mirrors it as project **"Vex"** (see below). |
 | Chat transcript, activity log, settings, nudge learning | Stay with Vex (local) |
@@ -145,6 +145,14 @@ The notebook is the single place Ben manages things; Vex is a client of it.
 - **Notebook** shows each file as a page in project "Vex" (watch the folder). If the notebook edits a page, it writes the whole file back atomically (write `*.tmp`, then replace). If the file changed underneath since it was loaded, reload rather than overwrite. Deleting a page in the notebook deletes the file.
 - `Diary.md` is written by Vex nightly (`## YYYY-MM-DD` entries); best shown read-only.
 - Old notebook "Vex" project pages created via `page.append` (if any) can be dropped; the files are the source of truth.
+
+**To-Do list mirror (from 2026-10-13; `TodoListMirror`, on):** the journal checkboxes stay the real to-dos; the notebook's To-Do list gets a copy of each open one so both show the same items. Unlike the memory pages this needs no new notebook feature: it's done through the inbox, after every load of the data file (`Notebook.Mirror`).
+
+- Each open checkbox in the 14-day window is paired with a To-Do item: an open one with the same words if there is one (no duplicate), else a new one via `todo.add {text}` (no project, so the notebook's default). Pairs are kept in `state.json` (`TodoLinks`) so a restart or a closed notebook never sends the same add twice.
+- Ticks go both ways: checkbox ticked → `todo.done {todoId}`; To-Do item ticked → `journal.done {text, date}`. At most one tick per pair, ever (`TickId`, kept in `state.json`): it isn't re-sent after a restart or a refusal, and unticking either side afterwards is left alone, not mirrored or undone.
+- Never deleted or reworded on either side. If the To-Do item is deleted, or the checkbox reworded/removed, the pair is dropped and left alone (its To-Do item is free to pair again, so a checkbox moved to another day re-pairs rather than duplicating); pairs older than the window are forgotten. Existing To-Do items (e.g. the older `[General]` ones) are only touched if they match an open checkbox, and then only ticked.
+- Vex hides the copies from his own "separate To-Do list" (`Open`) so he doesn't count them twice. Mirroring requests are quiet (no "Noted." bubble); refusals are logged in `vex.log` and that item isn't retried.
+- **Notebook side:** relies on legacy `todo.add` still being applied. Nice to have: its ack returning `todoId` (Vex falls back to matching by text).
 
 ## 9. Workshop (Vex changing himself)
 
@@ -229,6 +237,7 @@ Each job's log (prompts' results, git output, build errors, review) is in `%LOCA
 - [x] Morning brief, "Prep me" on meeting reminders, quick-chat hotkey (`QuickChatHotkey`, Ctrl+Alt+V)
 - [x] Stretch nudge held back while watching a remote session (TeamViewer / remote desktop) until you switch window, 30 min cap
 - [x] Breaks never assumed from time away: only confirmed on the stretch/lunch nudge ("Taking a break", "Had my break", "Had lunch") or in chat (`[[break]]`); context shows the last confirmed break, and time away separately as information
+- [x] Journal to-dos mirrored onto the notebook's To-Do list, ticks in step both ways, no duplicates (`TodoListMirror`; via the inbox)
 - [ ] Notebook mirror of the memory folder (Lab Notebook session)
 - [ ] Streamed chat replies; weekly review; workshop cancel/undo; Claude Code reaction animations
 

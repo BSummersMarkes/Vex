@@ -42,6 +42,7 @@ For chat you need **[Claude Code](https://claude.com/claude-code) installed and 
 **Notes and to-dos** go in a folder of plain markdown files (default `Documents\Vex Notes`), or the Lab Notebook if you have it:
 
 - `Journal\YYYY-MM-DD.md`: each day's log. To-dos are `- [ ] item`; Vex ticks them `- [x]` in place, so you keep the history.
+- With the Lab Notebook, open journal to-dos are also copied onto its To-Do list, and ticking one in either place ticks the other (`TodoListMirror` in `config.json` turns this off).
 
 Vex's own pages (*About you*, *Remembered*, *Diary*, *Projects*, ...) are markdown files in `%LOCALAPPDATA%\Vex\memory` (tray → *Memory*). Edit them freely; he reads them back. Each day's chat is kept in `%LOCALAPPDATA%\Vex\chats` (tray → *Chat history*); each morning starts a fresh conversation.
 

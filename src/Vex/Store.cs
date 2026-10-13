@@ -115,6 +115,11 @@ public class VexConfig
     public int HookPort { get; set; } = 47321;
     public string? CalendarJsonPath { get; set; }           // Power Automate export; default %OneDriveCommercial%\Vex\calendar.json
     public double ClaudeRenudgeMinutes { get; set; } = 5;
+    /// <summary>
+    /// Copy open journal to-dos onto the Lab Notebook's To-Do list and keep ticks in step both ways (via its inbox).
+    /// Off = the To-Do list is left alone, as before.
+    /// </summary>
+    public bool TodoListMirror { get; set; } = true;
     /// <summary>A soft knock sound when Vex knocks on the screen for a nudge (never during calls).</summary>
     public bool KnockSound { get; set; } = true;
     public bool DebugEndpoints { get; set; } = false;
@@ -185,6 +190,8 @@ public class VexState
     public Dictionary<string, string> GeoCache { get; set; } = new();
     /// <summary>Nudges and Build it / Restart cards that went unanswered, for the chat's Pending tab (Services/Pending.cs).</summary>
     public List<Services.PendingItem> Pending { get; set; } = new();
+    /// <summary>Journal checkboxes paired with items on the Lab Notebook's To-Do list (Services/Notebook.cs, TodoListMirror).</summary>
+    public List<Services.TodoLink> TodoLinks { get; set; } = new();
 }
 
 static class Store
