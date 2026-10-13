@@ -150,10 +150,21 @@ public class Nudges
 
     DateTime SinceSitting(string type) => Last(type) > Hub.Presence.SittingSince ? Last(type) : Hub.Presence.SittingSince;
 
+    /// <summary>When a due stretch nudge was first held back for a remote session (<see cref="VexConfig.StretchHoldApps"/>).</summary>
+    DateTime stretchHeldSince = DateTime.MinValue;
+
     Nudge? Stretch(DateTime now)
     {
         var since = SinceSitting("stretch");
-        if (now - since < Every("stretch", C.StretchEveryMinutes)) return null;
+        if (now - since < Every("stretch", C.StretchEveryMinutes)) { stretchHeldSince = DateTime.MinValue; return null; }
+        // Watching a remote test run (TeamViewer, remote desktop): don't barge in. It waits until you switch to
+        // another window, but only up to StretchHoldMaxMinutes, so it can't be put off forever.
+        if (C.StretchHoldApps.Any(a => a.Equals(Hub.Activity.CurrentApp, StringComparison.OrdinalIgnoreCase)))
+        {
+            if (stretchHeldSince == DateTime.MinValue) stretchHeldSince = now;
+            if (now - stretchHeldSince < TimeSpan.FromMinutes(C.StretchHoldMaxMinutes)) return null;
+        }
+        stretchHeldSince = DateTime.MinValue;
         var mins = (int)(now - Hub.Presence.SittingSince).TotalMinutes;
         return Wellbeing("stretch", $"You've been sat for {mins} minutes. Stand up, stretch. I'll guard the desk.",
                          onDone: () => last["eyes"] = DateTime.Now);

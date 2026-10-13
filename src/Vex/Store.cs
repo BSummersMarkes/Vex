@@ -40,6 +40,10 @@ public class VexConfig
     public double NudgeGapMinutes { get; set; } = 15;       // at most one wellbeing nudge per gap
     public double EyesEveryMinutes { get; set; } = 20;
     public double StretchEveryMinutes { get; set; } = 55;
+    /// <summary>Remote-session apps (process names) where a due stretch nudge waits until you switch to another window.</summary>
+    public List<string> StretchHoldApps { get; set; } = new() { "TeamViewer", "mstsc" };
+    /// <summary>Longest a stretch nudge is held back for those apps before it's shown anyway.</summary>
+    public double StretchHoldMaxMinutes { get; set; } = 30;
     public double WaterEveryMinutes { get; set; } = 120;
     public double FocusCheckMinutes { get; set; } = 120;
     public string LunchBy { get; set; } = "13:30";
