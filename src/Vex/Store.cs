@@ -175,6 +175,11 @@ public class VexState
     public string Date { get; set; } = "";
     public int Coffees { get; set; }
     public DateTime RefilledAt { get; set; } = DateTime.MinValue;
+    /// <summary>
+    /// For each of today's refills (newest last), when the mug had been filled before it, so "Undo last refill" on the
+    /// mug's menu can put the level back as it was. Cleared with the count each day.
+    /// </summary>
+    public List<DateTime> RefillUndo { get; set; } = new();
     public string? ChatSessionId { get; set; }
     /// <summary>Fingerprint of the system prompt the chat session started with; a change starts a new session.</summary>
     public string? ChatPersonaHash { get; set; }
@@ -223,6 +228,7 @@ static class Store
         if (State.Date == Today) return;
         State.Date = Today;
         State.Coffees = 0;
+        State.RefillUndo.Clear();
         State.DoneToday.Clear();
         State.AskedToday = 0;
         SaveState();

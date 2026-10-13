@@ -13,7 +13,7 @@ A small desktop companion for Windows. He lives on your taskbar in a dark red ho
 - **Learns your work:** every night he writes a short diary of the day and files what he picked up (projects, people, kit, terms) on his own pages. Now and then he asks about something he keeps seeing ("What's ChromSpace_2?"). You can let him read the text of windows from apps you choose.
 - **Claude Code alerts:** tells you when a Claude Code session needs you or has finished (optional). If you like, he also sits in the bottom-right corner typing on a little laptop while a session is working, and nods when it's done (Setup → Behaviour).
 - **Chat:** click him. He knows roughly what you've been doing today, your meetings and your to-dos, and can add to-dos, tick them off, take notes, set reminders and remember things about you.
-- **The mug** empties over time. Click it when you refill yours. He counts.
+- **The mug** empties over time. Click it when you refill yours. He counts. Clicked it by mistake? Right-click the mug → Undo last refill.
 
 ## Getting started
 
@@ -32,7 +32,8 @@ For chat you need **[Claude Code](https://claude.com/claude-code) installed and 
 | Ctrl+Alt+V | Open the chat from anywhere (`QuickChatHotkey` in config.json) |
 | Drag Vex | Pick him up and drop him (on the taskbar or on a window) |
 | Click the mug | "I've refilled my coffee" |
-| Right-click Vex or the tray icon | Setup…, What Vex knows…, Appearance (light/dark, hoodie colour), Quit. Left-click the tray icon to chat |
+| Right-click the mug | Today's coffee count and Undo last refill (count down one, mug back to its level before; repeat to step back further) |
+| Right-click Vex (not the mug) or the tray icon | Setup…, What Vex knows…, Appearance (light/dark, hoodie colour), Quit. Left-click the tray icon to chat |
 | Setup → Behaviour → Right now | Lunch break / End lunch, nap / wake up, I refilled my coffee, other screen, hide / show, chat, forget today's chat |
 | Setup → Privacy → Your data | Open his memory pages, chat history, config.json or the data folder |
 | Typing in the chat | Enter sends; Shift+Enter or Shift+Space starts a new line |

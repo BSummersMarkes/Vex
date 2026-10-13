@@ -99,8 +99,11 @@ public partial class VexWindow : Window
         Rig.MouseRightButtonUp += (_, e) => { ShowMenu(); e.Handled = true; };
         Mug.MouseLeftButtonDown += (_, e) => e.Handled = true;
         Mug.MouseLeftButtonUp += (_, e) => { Refill(); chat?.Dismiss(); e.Handled = true; };   // a click away from the chat
+        // Right-click on the mug gets its own coffee menu; handled here so it never reaches Rig's general menu.
+        // (Left-click on the mug already means "refilled", so the menu is right-click only.)
+        Mug.MouseRightButtonUp += (_, e) => { ShowMugMenu(); e.Handled = true; };
         Mug.ToolTip = "";
-        Mug.ToolTipOpening += (_, _) => Mug.ToolTip = $"Coffee #{Store.State.Coffees} today. Click when you refill yours.";
+        Mug.ToolTipOpening += (_, _) => Mug.ToolTip = $"Coffee #{Store.State.Coffees} today. Click when you refill yours; right-click to undo.";
         Bubble.MouseLeftButtonUp += (_, _) => { if (BubbleButtons.Children.Count == 0) HideBubble(); };
 
         nextWander = 6; nextBlink = 2;
@@ -341,6 +344,7 @@ public partial class VexWindow : Window
     {
         Store.RollDay();
         Store.State.Coffees++;
+        Store.State.RefillUndo.Add(Store.State.RefilledAt);
         Store.State.RefilledAt = DateTime.Now;
         Store.SaveState();
         mugMoaned = false;
@@ -354,6 +358,25 @@ public partial class VexWindow : Window
             4 => "Four. I'm not judging. I'm counting, which is worse.",
             _ => $"That's {n}. Your heart has filed a complaint.",
         }, 4);
+    }
+
+    /// <summary>
+    /// Takes back the most recent refill (a mis-click, or counted twice): one off today's count and the mug back to
+    /// the level it had just before. Repeated undos step back through today's refills.
+    /// </summary>
+    void UndoRefill()
+    {
+        Store.RollDay();
+        if (Store.State.Coffees <= 0) return;
+        Store.State.Coffees--;
+        // Refills from before undo was added have no saved level; the mug is then left as it is.
+        var undo = Store.State.RefillUndo;
+        if (undo.Count > 0) { Store.State.RefilledAt = undo[^1]; undo.RemoveAt(undo.Count - 1); }
+        Store.SaveState();
+        // Already empty again: it was empty before that refill too, so no fresh "Mug's empty" nudge.
+        mugMoaned = MugLevel() <= 0;
+        int n = Store.State.Coffees;
+        Say(n == 0 ? "Un-poured. Zero today, officially." : $"Fine. Back to {n}. I'll pretend I didn't see.", 3);
     }
 
     public void SetThinking(bool on) { thinking = on; if (on) HideBubble(); }
@@ -597,6 +620,24 @@ public partial class VexWindow : Window
         menu.Items.Add(App.AppearanceMenu());
         menu.Items.Add(new Separator());
         Add("Quit", app.Quit);
+        menu.IsOpen = true;
+    }
+
+    /// <summary>
+    /// The mug's own right-click menu: today's coffee count, and Undo last refill (greyed out when there's none today).
+    /// </summary>
+    void ShowMugMenu()
+    {
+        Store.RollDay();
+        var menu = new ContextMenu();
+        menu.Items.Add(new MenuItem
+        {
+            Header = $"Coffee: {Store.State.Coffees} today", IsHitTestVisible = false, Focusable = false, FontWeight = FontWeights.SemiBold,
+        });
+        menu.Items.Add(new Separator());
+        var undo = new MenuItem { Header = "Undo last refill", IsEnabled = Store.State.Coffees > 0 };
+        undo.Click += (_, _) => UndoRefill();
+        menu.Items.Add(undo);
         menu.IsOpen = true;
     }
 
