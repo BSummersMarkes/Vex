@@ -9,8 +9,11 @@ using System.Windows.Threading;
 
 namespace Vex.Services;
 
-/// <summary>An action from Vex's reply that needs a click before it happens (it changes or restarts Vex himself).</summary>
-public record Confirm(string Text, string GoLabel, Func<string> Go);
+/// <summary>
+/// An action from Vex's reply that needs a click before it happens (it changes or restarts Vex himself). Action and
+/// Arg are the original [[action: arg]], kept so an unanswered card can be remade from Pending (<see cref="Hub.ConfirmFor"/>).
+/// </summary>
+public record Confirm(string Text, string GoLabel, Func<string> Go, string Action = "", string Arg = "");
 
 /// <summary>
 /// Wires the senses together: runs the services on a timer, decides when to be quiet, builds the
@@ -107,6 +110,7 @@ public static class Hub
         InCall = Activity.MicInUse();
         Calendar.Tick();
         Nudges.Tick();
+        Pending.Prune();
         Workshop.Tick();
         Diary.Tick();
         Curiosity.Tick();
@@ -259,10 +263,10 @@ public static class Hub
             {
                 case "build":
                     if (!Workshop.Enabled) { done.Add("✗ My workshop isn't set up (SourcePath in config.json)."); break; }
-                    confirms.Add(new Confirm($"Build this into me?\n{arg}", "Build it", () => Workshop.Start(arg)));
+                    confirms.Add(ConfirmFor(action, arg));
                     break;
                 case "restart":
-                    confirms.Add(new Confirm("Restart into the new version?", "Restart now", Workshop.Restart));
+                    confirms.Add(ConfirmFor(action, arg));
                     break;
                 default:
                     done.Add(Do(action, arg));
@@ -271,6 +275,11 @@ public static class Hub
         }
         return (ActionRx.Replace(reply, "").Trim(), done.ToArray(), confirms.ToArray());
     }
+
+    /// <summary>The Build it / Restart card for a "build" or "restart" action; also remakes one from Pending after a restart.</summary>
+    public static Confirm ConfirmFor(string action, string arg) => action == "build"
+        ? new Confirm($"Build this into me?\n{arg}", "Build it", () => Workshop.Start(arg), action, arg)
+        : new Confirm("Restart into the new version?", "Restart now", Workshop.Restart, action, arg);
 
     static string Do(string action, string arg)
     {

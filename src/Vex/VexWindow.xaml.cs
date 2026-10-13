@@ -374,6 +374,7 @@ public partial class VexWindow : Window
         Zzz.Visibility = Visibility.Collapsed; // e.g. woken from his lunch nap for a meeting
         if (mode == Mode.Walking) mode = Mode.Idle;
         ShowBubble(n.Text, n.Persistent && n.Buttons.Count > 0 ? double.PositiveInfinity : n.Seconds, n.Buttons, n.OnTimeout);
+        if (hidden || autoHidden) Services.Pending.Park(n);   // never made it on screen: keep it for the chat's Pending tab
         currentNudge = n; reknocks = 0;
         Knock();
     }
@@ -385,7 +386,7 @@ public partial class VexWindow : Window
         if (currentNudge != null && Bubble.Visibility == Visibility.Visible && buttons == null) return;
         var replaced = bubbleTimeout; bubbleTimeout = onTimeout;
         if (replaced != null && replaced != onTimeout) replaced();
-        currentNudge = null;
+        ParkNudge();
         BubbleText.Text = text;
         BubbleButtons.Children.Clear();
         foreach (var (label, act) in buttons ?? new())
@@ -397,7 +398,15 @@ public partial class VexWindow : Window
                 Foreground = Theme.Brush(Theme.Current.ButtonText), BorderThickness = new Thickness(0), Cursor = Cursors.Hand,
                 FontSize = 12,
             };
-            b.Click += (_, e) => { e.Handled = true; bubbleTimeout = null; HideBubble(); act(); };
+            b.Click += (_, e) =>
+            {
+                e.Handled = true; bubbleTimeout = null;
+                // Answered: cleared first so hiding the bubble doesn't park it in Pending, and any older copy there goes.
+                var answered = currentNudge; currentNudge = null;
+                HideBubble();
+                if (answered != null) Services.Pending.Answered(answered);
+                act();
+            };
             BubbleButtons.Children.Add(b);
         }
         BubbleButtons.Visibility = BubbleButtons.Children.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
@@ -459,7 +468,17 @@ public partial class VexWindow : Window
         bubbleWin.Show();
     }
 
-    void HideBubble() { Bubble.Visibility = Visibility.Collapsed; bubbleUntil = 0; }
+    void HideBubble() { ParkNudge(); Bubble.Visibility = Visibility.Collapsed; bubbleUntil = 0; }
+
+    /// <summary>
+    /// The nudge in the bubble is going without a button being pressed (replaced, timed out, or hidden because he
+    /// dozed off, was dragged or the chat opened): keep it in the chat's Pending tab to answer later.
+    /// </summary>
+    void ParkNudge()
+    {
+        if (currentNudge is { } n && Bubble.Visibility == Visibility.Visible) Services.Pending.Park(n);
+        currentNudge = null;
+    }
 
     void BubbleExpired()
     {

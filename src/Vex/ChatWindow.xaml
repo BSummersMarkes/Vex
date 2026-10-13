@@ -24,11 +24,30 @@
                 <Button x:Name="CopyTextBtn" DockPanel.Dock="Right" Content="&#xE8C8;" FontFamily="Segoe MDL2 Assets"
                         Width="26" Height="26" Background="Transparent" Foreground="#9AA3BF" BorderThickness="0"
                         Cursor="Hand" ToolTip="Copy the chat as text (Ctrl+Shift+C)"/>
-                <TextBlock x:Name="TitleText" Text="Vex" Foreground="#E8EAF2" FontSize="15" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock x:Name="TitleText" Text="Vex" Foreground="#E8EAF2" FontSize="15" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                    <!-- Chat / Pending: nudges and cards that went unanswered, with a count badge (Services/Pending.cs) -->
+                    <Button x:Name="ChatTab" Content="Chat" Margin="12,0,0,0" Padding="4,2" FontSize="12"
+                            Background="Transparent" Foreground="#E8EAF2" BorderThickness="0" Cursor="Hand" VerticalAlignment="Center"/>
+                    <Button x:Name="PendingTab" Padding="4,2" FontSize="12" Background="Transparent" Foreground="#9AA3BF"
+                            BorderThickness="0" Cursor="Hand" VerticalAlignment="Center" ToolTip="Things I asked that you didn't answer">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="Pending" VerticalAlignment="Center"/>
+                            <Border x:Name="Badge" Margin="4,0,0,0" MinWidth="16" Height="16" CornerRadius="8" Padding="4,0"
+                                    Background="#82292F" Visibility="Collapsed" VerticalAlignment="Center">
+                                <TextBlock x:Name="BadgeText" FontSize="10" FontWeight="SemiBold" Foreground="White"
+                                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
             </DockPanel>
 
             <ScrollViewer x:Name="Scroll" Grid.Row="1" VerticalScrollBarVisibility="Auto">
                 <StackPanel x:Name="Messages"/>
+            </ScrollViewer>
+            <ScrollViewer x:Name="PendingScroll" Grid.Row="1" VerticalScrollBarVisibility="Auto" Visibility="Collapsed">
+                <StackPanel x:Name="PendingList"/>
             </ScrollViewer>
 
             <TextBlock x:Name="Status" Grid.Row="2" Foreground="#8790AD" FontSize="11" FontStyle="Italic"

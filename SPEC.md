@@ -32,6 +32,7 @@ A small animated desktop companion that lives on top of the Windows desktop, kee
 - **Language/runtime:** C# / .NET 10 (`net10.0-windows`), matching Lab Notebook. Single-file exe via a `build.ps1`.
 - **Character:** WPF transparent, topmost, borderless tool window, drawn with vector shapes. Transparent pixels pass clicks through to whatever is underneath.
 - **Chat panel:** WPF window (WebView2 if it needs to get fancy). Header buttons copy the whole chat as text (also Ctrl+Shift+C) or as a picture. Closes on ✕, Esc, or a click anywhere outside it (another window, the desktop, Vex or his mug; `ChatClosesOnClickAway`, on by default, Setup → Behaviour), except while he's replying, a Build it / Restart card is waiting for a click, or a modal dialog is open. A half-written message is kept in memory and put back when the chat reopens.
+- **Pending tab:** next to Chat in the panel's header, with a count badge. A nudge with options goes there, with its text, time and original buttons, if none of them gets picked. That covers being replaced by another nudge, the bubble being hidden (he dozed off, was dragged, or the chat opened) and never being shown at all (he was hidden). Build it / Restart cards still waiting when the chat closes go there too. Picking an option does what it would have done then and removes the item; items without a ✕ get one that just clears them. ✕ on the original bubble counts as an answer. Answering the same nudge normally later clears the old copy. Meetings drop out when they end, Claude Code prompts after the hour they'd be re-nudged in, and everything else after `PendingKeepDays` (7). Kept in `state.json`, so items survive restarts (their buttons are rebuilt from the saved details). `Services/Pending.cs`.
 - **Appearance:** tray → Appearance: dark / light / match Windows for the chat and bubbles (`Theme`), and the hoodie colour (`HoodieColour`; presets or a custom colour). The hoodie's shades are all derived from the one colour, so folds and shadows keep working (`Theme.cs`).
 - **Brain:** a swappable `IBrain` interface.
   - `ClaudeCodeBrain` (default): runs the Claude Code CLI headless (`claude -p --output-format stream-json`, resuming its session for continuity), using the existing Claude login. No API key needed.
@@ -40,7 +41,7 @@ A small animated desktop companion that lives on top of the Windows desktop, kee
 - **Local event bus:** a small localhost HTTP listener (127.0.0.1 only) that receives events from Claude Code hooks and any future integrations.
 - **Storage:** `%LOCALAPPDATA%\Vex\`
   - `config.json`: timings, exclusions, preferences
-  - `state.json`: today's counters (coffees, sitting time, last nudges)
+  - `state.json`: today's counters (coffees, sitting time, last nudges), reminders, the chat's Pending items
   - `chats\YYYY-MM-DD.jsonl`: each day's chat transcript, kept as an archive (tray → Chat history; "Forget today's chat" removes today's)
   - `memory\*.md`: his own pages (*About Ben*, *Remembered*, *Diary*, *Projects*, *People*, ...), the source of truth for what he knows; `MemoryFolder` moves it
   - `log\activity-YYYY-MM-DD.jsonl`: app/title timeline (exclusions already filtered out; stays local, never in OneDrive)
@@ -110,7 +111,7 @@ A small animated desktop companion that lives on top of the Windows desktop, kee
 | End of day | Summary of the day; carry over unfinished to-dos |
 | Curious | One of his own questions (see section 6), as a normal rate-limited nudge |
 
-**How:** he knocks on the screen (mitten looms toward you, three raps with a ripple, soft knock sound unless in a call; `KnockSound`), then a bubble that **stays until a button is pressed**. Unanswered: re-knocks every 90 s, up to 3 times, while you're at the desk. Stale bubbles clear themselves (Claude answered, meeting over). Each nudge can be acted on, snoozed ("Later") or dismissed (✕).
+**How:** he knocks on the screen (mitten looms toward you, three raps with a ripple, soft knock sound unless in a call; `KnockSound`), then a bubble that **stays until a button is pressed**. Unanswered: re-knocks every 90 s, up to 3 times, while you're at the desk. Stale bubbles clear themselves (Claude answered, meeting over). Each nudge can be acted on, snoozed ("Later") or dismissed (✕). If a nudge goes without an answer, it moves to the chat's Pending tab (section 3) so it can be answered later.
 
 **Learning:** he tracks which nudges you act on, snooze or dismiss, and adjusts timing and frequency per nudge type. Plus explicit feedback ("less of that"). Stored in readable memory, no model training.
 
@@ -209,6 +210,7 @@ Each job's log (prompts' results, git output, build errors, review) is in `%LOCA
 - [x] Copy the chat as text or a picture
 - [x] Light mode / match Windows; hoodie colour from the tray
 - [x] Chat closes when you click away (not mid-reply, with a Build it card waiting or a dialog open); drafts survive closing; on/off in Setup → Behaviour
+- [x] Pending tab in the chat: unanswered nudges and Build it / Restart cards, answerable later with their original options; count badge; survives restarts; cleared after 7 days
 
 ### He learns (2026-10-13)
 - [x] Build/restart from chat need a click (prompt-injection guard); context marked as data, not instructions

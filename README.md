@@ -34,6 +34,7 @@ For chat you need **[Claude Code](https://claude.com/claude-code) installed and 
 | Right-click Vex | Menu: nap, hide, other screen, forget the chat… |
 | Tray icon | Setup…, Appearance (light/dark, hoodie colour), start with Windows, what Vex knows, show/hide, quit |
 | Chat header | Copy the chat as text (Ctrl+Shift+C) or as a picture |
+| Pending (chat header) | Nudges and questions you didn't answer, with their original buttons, so you can pick one later. The badge shows how many are waiting; they're cleared after 7 days |
 
 **Notes and to-dos** go in a folder of plain markdown files (default `Documents\Vex Notes`), or the Lab Notebook if you have it:
 

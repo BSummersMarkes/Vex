@@ -59,6 +59,8 @@ public class VexConfig
     public string QuickChatHotkey { get; set; } = "Ctrl+Alt+V";
     /// <summary>Close the chat when you click somewhere else (unless he's replying or there's a half-written message).</summary>
     public bool ChatClosesOnClickAway { get; set; } = true;
+    /// <summary>How long an unanswered nudge or card waits in the chat's Pending tab before it's cleared.</summary>
+    public double PendingKeepDays { get; set; } = 7;
 
     // Memory and the daily diary.
     /// <summary>Vex's own pages (markdown). Null = %LOCALAPPDATA%\Vex\memory. The Lab Notebook mirrors this folder.</summary>
@@ -162,6 +164,8 @@ public class VexState
     public int AskedToday { get; set; }
     /// <summary>Address → "lat,lon" from TomTom, so addresses are looked up once.</summary>
     public Dictionary<string, string> GeoCache { get; set; } = new();
+    /// <summary>Nudges and Build it / Restart cards that went unanswered, for the chat's Pending tab (Services/Pending.cs).</summary>
+    public List<Services.PendingItem> Pending { get; set; } = new();
 }
 
 static class Store

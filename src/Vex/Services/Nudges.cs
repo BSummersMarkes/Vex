@@ -19,6 +19,15 @@ public class Nudge
     public bool Persistent { get; init; } = true;
     /// <summary>Checked continually; when it turns false the bubble quietly goes (e.g. Claude was answered).</summary>
     public Func<bool>? StillValid { get; init; }
+    /// <summary>
+    /// What's needed to remake the buttons if it goes unanswered and Vex restarts before it's picked from the chat's
+    /// Pending tab (the reminder's text, the meeting's subject and start...). See <see cref="Nudges.Rebuild"/>.
+    /// </summary>
+    public Dictionary<string, string> Args { get; init; } = new();
+    /// <summary>Unanswered nudges with the same key replace each other in Pending (one stretch, not five). Default: type + text.</summary>
+    public string? PendingKey { get; init; }
+    /// <summary>After this it's not worth offering from Pending any more (the meeting's over). Null = kept PendingKeepDays.</summary>
+    public DateTime? Until { get; init; }
 }
 
 /// <summary>
@@ -81,9 +90,9 @@ public class Nudges
 
     DateTime Last(string type) => last.TryGetValue(type, out var t) ? t : DateTime.MinValue;
 
-    Nudge Wellbeing(string type, string text, string doneLabel = "Done", double snoozeMinutes = 10, Action? onDone = null)
+    Nudge Wellbeing(string type, string text, string doneLabel = "Done", double snoozeMinutes = 10, Action? onDone = null, string? key = null)
     {
-        var n = new Nudge { Type = type, Text = text, OnTimeout = () => Ignored(type) };
+        var n = new Nudge { Type = type, Text = text, OnTimeout = () => Ignored(type), PendingKey = key ?? type };
         n.Buttons.Add((doneLabel, () => { Acted(type); onDone?.Invoke(); }));
         n.Buttons.Add(("Later", () => last[type] = DateTime.Now - Every(type, Interval(type)) + TimeSpan.FromMinutes(snoozeMinutes)));
         n.Buttons.Add(("✕", () => Dismissed(type)));
@@ -99,6 +108,34 @@ public class Nudges
         "curious" => C.CuriousEveryMinutes,
         _ => 60,
     };
+
+    /// <summary>
+    /// Remakes an unanswered nudge from the chat's Pending tab after a restart (the original's buttons went with the old
+    /// process), so picking an option still does what it would have done at the time. Null for a type it can't remake.
+    /// </summary>
+    public Nudge? Rebuild(PendingItem p)
+    {
+        string Arg(string k) => p.Args.TryGetValue(k, out var v) ? v : "";
+        DateTime When(string k) => DateTime.TryParse(Arg(k), null, System.Globalization.DateTimeStyles.RoundtripKind, out var t) ? t : DateTime.Now;
+        return p.Type switch
+        {
+            "eyes" => Wellbeing("eyes", p.Text),
+            "stretch" => StretchNudge(p.Text),
+            "water" => WaterNudge(p.Text),
+            "focus" => FocusNudge(p.Text),
+            "curious" => Curious(p.Text),
+            "morning" => MorningNudge(p.Text),
+            "lunch" => LunchNudge(p.Text),
+            "eod" => EndOfDayNudge(p.Text),
+            "reminder" => ReminderNudge(Arg("text")),
+            "meeting" when p.Options.Contains("On it") => LateNudge(Arg("subject"), When("start"), When("end")),
+            "meeting" => MeetingNudge(p.Text, Arg("subject"), When("start"), When("end"), prep: p.Options.Contains("Prep me")),
+            "packup" => PackUpNudge(p.Text),
+            "claude" => ClaudeNudge(Arg("project"), p.Text),
+            "workshop" => Workshop.Notice(p.Options.Contains("Restart now"), p.Text, Arg("log")),
+            _ => null,
+        };
+    }
 
     // ───────────── the rules ─────────────
 
@@ -137,7 +174,12 @@ public class Nudges
             parts.Add(meetings.Count == 0 ? "No meetings." : $"{meetings.Count} meeting{(meetings.Count == 1 ? "" : "s")}, first {meetings[0].Subject} at {meetings[0].Start:HH:mm}.");
         if (Hub.Notes.Linked)
             parts.Add(todos == 0 ? "Nothing open on the to-do front." : $"{todos} to-do{(todos == 1 ? "" : "s")} open{(carried > 0 ? $", {carried} carried over" : "")}.");
-        var n = new Nudge { Type = "morning", Text = "Morning. " + (parts.Count > 0 ? string.Join(" ", parts) : "Want the rundown?") };
+        return MorningNudge("Morning. " + (parts.Count > 0 ? string.Join(" ", parts) : "Want the rundown?"));
+    }
+
+    static Nudge MorningNudge(string text)
+    {
+        var n = new Nudge { Type = "morning", Text = text };
         n.Buttons.Add(("Rundown", () => Hub.Vex.OpenChat(
             "Morning rundown: what's on today, what carried over from yesterday (use your diary), and what should I start with? Keep it short.")));
         n.Buttons.Add(("✕", () => { }));
@@ -146,7 +188,7 @@ public class Nudges
 
     /// <summary>A question Vex came up with himself (<see cref="Curiosity"/>). "Tell you" opens the chat with it.</summary>
     public Nudge Curious(string question) =>
-        Wellbeing("curious", question, doneLabel: "Tell you", snoozeMinutes: 30, onDone: () => Hub.Vex.AskInChat(question));
+        Wellbeing("curious", question, doneLabel: "Tell you", snoozeMinutes: 30, onDone: () => Hub.Vex.AskInChat(question), key: $"curious|{question}");
 
     DateTime SinceSitting(string type) => Last(type) > Hub.Presence.SittingSince ? Last(type) : Hub.Presence.SittingSince;
 
@@ -166,9 +208,10 @@ public class Nudges
         }
         stretchHeldSince = DateTime.MinValue;
         var mins = (int)(now - Hub.Presence.SittingSince).TotalMinutes;
-        return Wellbeing("stretch", $"You've been sat for {mins} minutes. Stand up, stretch. I'll guard the desk.",
-                         onDone: () => last["eyes"] = DateTime.Now);
+        return StretchNudge($"You've been sat for {mins} minutes. Stand up, stretch. I'll guard the desk.");
     }
+
+    Nudge StretchNudge(string text) => Wellbeing("stretch", text, onDone: () => last["eyes"] = DateTime.Now);
 
     Nudge? Eyes(DateTime now)
     {
@@ -182,10 +225,12 @@ public class Nudges
     {
         var since = Last("water") > Hub.Presence.FirstSeenToday ? Last("water") : Hub.Presence.FirstSeenToday;
         if (now - since < Every("water", C.WaterEveryMinutes)) return null;
-        return Wellbeing("water", Store.State.Coffees >= 2
+        return WaterNudge(Store.State.Coffees >= 2
             ? $"{Store.State.Coffees} coffees and, I suspect, no water. Fix one of those."
-            : "Water. The boring drink. Have some.", doneLabel: "Drinking");
+            : "Water. The boring drink. Have some.");
     }
+
+    Nudge WaterNudge(string text) => Wellbeing("water", text, doneLabel: "Drinking");
 
     Nudge? Focus(DateTime now)
     {
@@ -196,20 +241,26 @@ public class Nudges
         if (now - Hub.Presence.FirstSeenToday < window) return null;
         if (Hub.Activity.MinutesIn(app, now - window) < window.TotalMinutes * 0.8) return null;
         var hours = window.TotalHours;
-        return Wellbeing("focus", $"That's {(hours == 2 ? "two hours" : $"{hours:0.#} hours")} mostly in {app}. Still the plan?",
-                         doneLabel: "Yes", snoozeMinutes: 30);
+        return FocusNudge($"That's {(hours == 2 ? "two hours" : $"{hours:0.#} hours")} mostly in {app}. Still the plan?");
     }
+
+    Nudge FocusNudge(string text) => Wellbeing("focus", text, doneLabel: "Yes", snoozeMinutes: 30);
 
     Nudge? Lunch(DateTime now)
     {
         if (Store.State.DoneToday.Contains("lunch")) return null;
         if (!TimeSpan.TryParse(C.LunchBy, out var by) || now.TimeOfDay < by) return null;
         if (Hub.Presence.HadBreakSince(now.Date.AddHours(11.5), TimeSpan.FromMinutes(20))) { MarkDone("lunch"); return null; }
-        var n = new Nudge { Type = "lunch", Text = "No lunch break yet. Food is a thing. Go and have some." };
+        return now - Last("lunch") < TimeSpan.FromMinutes(25) ? null : LunchNudge("No lunch break yet. Food is a thing. Go and have some.");
+    }
+
+    Nudge LunchNudge(string text)
+    {
+        var n = new Nudge { Type = "lunch", Text = text };
         n.Buttons.Add(("Going", () => { Acted("lunch"); MarkDone("lunch"); Hub.Vex.StartLunch(); }));
         n.Buttons.Add(("Later", () => last["lunch"] = DateTime.Now));
         n.Buttons.Add(("✕", () => { Dismissed("lunch"); MarkDone("lunch"); }));
-        return now - Last("lunch") < TimeSpan.FromMinutes(25) ? null : n;
+        return n;
     }
 
     Nudge? EndOfDay(DateTime now)
@@ -218,12 +269,13 @@ public class Nudges
         if (!TimeSpan.TryParse(C.EndOfDay, out var at) || now.TimeOfDay < at) return null;
         MarkDone("eod");
         int open = Hub.Notes.OpenChecks.Count(c => c.Date == Store.Today) + Hub.Notes.Open.Count();
-        var n = new Nudge
-        {
-            Type = "eod", Seconds = 60,
-            Text = open > 0 ? $"End of day-ish. {open} to-do{(open == 1 ? "" : "s")} still open. Want a summary?"
-                            : "End of day-ish. Want a summary of today?",
-        };
+        return EndOfDayNudge(open > 0 ? $"End of day-ish. {open} to-do{(open == 1 ? "" : "s")} still open. Want a summary?"
+                                      : "End of day-ish. Want a summary of today?");
+    }
+
+    static Nudge EndOfDayNudge(string text)
+    {
+        var n = new Nudge { Type = "eod", Seconds = 60, Text = text };
         n.Buttons.Add(("Summarise", () => Hub.Vex.OpenChat(
             "Summarise my day from what you've seen: what I worked on, meetings, and what's still open. " +
             "Then suggest the first thing for tomorrow. Offer to add the summary to my journal.")));
@@ -241,14 +293,19 @@ public class Nudges
         if (due.Count == 0) return;
         foreach (var r in due)
         {
-            var n = new Nudge { Type = "reminder", Exempt = true, Seconds = 120, Text = $"Reminder: {r.Text}" };
-            n.Buttons.Add(("OK", () => { }));
-            n.Buttons.Add(("10 min", () => { Store.State.Reminders.Add(new Reminder { At = DateTime.Now.AddMinutes(10), Text = r.Text }); Store.SaveState(); }));
             // Kept until it's actually on screen: while something's full screen it waits for the next tick.
-            if (!Offer(n)) return;
+            if (!Offer(ReminderNudge(r.Text))) return;
             Store.State.Reminders.Remove(r);
             Store.SaveState();
         }
+    }
+
+    static Nudge ReminderNudge(string text)
+    {
+        var n = new Nudge { Type = "reminder", Exempt = true, Seconds = 120, Text = $"Reminder: {text}", Args = { ["text"] = text } };
+        n.Buttons.Add(("OK", () => { }));
+        n.Buttons.Add(("10 min", () => { Store.State.Reminders.Add(new Reminder { At = DateTime.Now.AddMinutes(10), Text = text }); Store.SaveState(); }));
+        return n;
     }
 
     void Meetings(DateTime now)
@@ -264,14 +321,8 @@ public class Nudges
                 var w = warns.FirstOrDefault(x => until <= x);
                 if (w == 0 || meetingKeys.Contains($"{id}|{w}")) continue;
                 var where = string.IsNullOrWhiteSpace(m.Location) ? "" : $" ({m.Location})";
-                var n = new Nudge
-                {
-                    Type = "meeting", Exempt = true, Seconds = 90, StillValid = () => DateTime.Now < m.End,
-                    Text = until < 1.5 ? $"{m.Subject}{where} is starting now." : $"{m.Subject}{where} in {Math.Ceiling(until)} minutes.",
-                };
-                n.Buttons.Add(("OK", () => { }));
-                if (until >= 3) n.Buttons.Add(("Prep me", () => Hub.Vex.OpenChat(
-                    $"I've got \"{m.Subject}\" at {m.Start:HH:mm}. Anything I should know or have ready? Check your pages, my journal and to-dos. Brief.")));
+                var n = MeetingNudge(until < 1.5 ? $"{m.Subject}{where} is starting now." : $"{m.Subject}{where} in {Math.Ceiling(until)} minutes.",
+                                     m.Subject, m.Start, m.End, prep: until >= 3);
                 // Only counts as warned once it's on screen; until then it's retried (and stops when the meeting ends).
                 if (!Offer(n)) continue;
                 meetingKeys.Add($"{id}|{w}");
@@ -279,12 +330,37 @@ public class Nudges
             }
             else if (until <= -2 && until > -10 && Activity.MicInUse() == null && !Hub.Presence.Away && !meetingKeys.Contains($"{id}|late"))
             {
-                var n = new Nudge { Type = "meeting", Exempt = true, Seconds = 60, Text = $"Aren't you meant to be in {m.Subject}?" };
-                n.Buttons.Add(("On it", () => { }));
-                n.Buttons.Add(("Skipping it", () => { }));
-                if (Offer(n)) meetingKeys.Add($"{id}|late");
+                if (Offer(LateNudge(m.Subject, m.Start, m.End))) meetingKeys.Add($"{id}|late");
             }
         }
+    }
+
+    /// <summary>A meeting coming up. In Pending it replaces the earlier warning for the same meeting and goes when the meeting ends.</summary>
+    static Nudge MeetingNudge(string text, string subject, DateTime start, DateTime end, bool prep)
+    {
+        var n = new Nudge
+        {
+            Type = "meeting", Exempt = true, Seconds = 90, StillValid = () => DateTime.Now < end, Text = text,
+            Until = end, PendingKey = $"meeting|{start:HHmm}|{subject}",
+            Args = { ["subject"] = subject, ["start"] = start.ToString("o"), ["end"] = end.ToString("o") },
+        };
+        n.Buttons.Add(("OK", () => { }));
+        if (prep) n.Buttons.Add(("Prep me", () => Hub.Vex.OpenChat(
+            $"I've got \"{subject}\" at {start:HH:mm}. Anything I should know or have ready? Check your pages, my journal and to-dos. Brief.")));
+        return n;
+    }
+
+    static Nudge LateNudge(string subject, DateTime start, DateTime end)
+    {
+        var n = new Nudge
+        {
+            Type = "meeting", Exempt = true, Seconds = 60, Text = $"Aren't you meant to be in {subject}?",
+            Until = end, PendingKey = $"meeting|{start:HHmm}|{subject}",
+            Args = { ["subject"] = subject, ["start"] = start.ToString("o"), ["end"] = end.ToString("o") },
+        };
+        n.Buttons.Add(("On it", () => { }));
+        n.Buttons.Add(("Skipping it", () => { }));
+        return n;
     }
 
     public void OnClaude(ClaudeSession s)
@@ -337,28 +413,38 @@ public class Nudges
         try
         {
             var traffic = await Commute.Check(maxAge: TimeSpan.FromMinutes(5));   // retries reuse a fresh result
-            var n = new Nudge
-            {
-                Type = "packup", Exempt = true, Seconds = 90,
-                Text = $"Pack-up time, you're off at {leave:HH:mm}." + (traffic != null ? " " + traffic : ""),
-            };
-            n.Buttons.Add(("Packing up", () => Acted("packup")));
-            n.Buttons.Add(("Summarise day", () => Hub.Vex.OpenChat(
-                "I'm packing up. Summarise my day from what you've seen: what I worked on, meetings, and what's still open. " +
-                "Then suggest the first thing for tomorrow. Offer to add the summary to my journal.")));
-            n.Buttons.Add(("Map", Commute.OpenMap));
-            n.Buttons.Add(("10 min", () => { packUpSnooze = DateTime.Now.AddMinutes(10); Store.State.DoneToday.Remove("packup"); Store.SaveState(); }));
+            var n = PackUpNudge($"Pack-up time, you're off at {leave:HH:mm}." + (traffic != null ? " " + traffic : ""));
             if (Offer(n)) { MarkDone("packup"); if (!Store.State.DoneToday.Contains("eod")) MarkDone("eod"); }
         }
         catch (Exception ex) { Store.Log($"Pack-up: {ex.Message}"); }
         finally { packUpChecking = false; }
     }
 
-    static Nudge ClaudeNudge(ClaudeSession s, string text, ClaudeState shownFor)
+    Nudge PackUpNudge(string text)
     {
-        // Goes away by itself once the session moves on (e.g. you answered Claude in VS Code).
-        var n = new Nudge { Type = "claude", Exempt = true, Seconds = 45, Text = text, StillValid = () => s.State == shownFor };
-        n.Buttons.Add(("Show me", () => ClaudeWatch.FocusVsCode(s.Project)));
+        var n = new Nudge { Type = "packup", Exempt = true, Seconds = 90, Text = text, PendingKey = "packup" };
+        n.Buttons.Add(("Packing up", () => Acted("packup")));
+        n.Buttons.Add(("Summarise day", () => Hub.Vex.OpenChat(
+            "I'm packing up. Summarise my day from what you've seen: what I worked on, meetings, and what's still open. " +
+            "Then suggest the first thing for tomorrow. Offer to add the summary to my journal.")));
+        n.Buttons.Add(("Map", Commute.OpenMap));
+        n.Buttons.Add(("10 min", () => { packUpSnooze = DateTime.Now.AddMinutes(10); Store.State.DoneToday.Remove("packup"); Store.SaveState(); }));
+        return n;
+    }
+
+    // Goes away by itself once the session moves on (e.g. you answered Claude in VS Code). In Pending, the latest
+    // nudge per project stands, and only for the hour it would have been re-nudged in.
+    static Nudge ClaudeNudge(ClaudeSession s, string text, ClaudeState shownFor) =>
+        ClaudeNudge(s.Project, text, () => s.State == shownFor, s.Since.AddHours(1));
+
+    static Nudge ClaudeNudge(string project, string text, Func<bool>? stillValid = null, DateTime? until = null)
+    {
+        var n = new Nudge
+        {
+            Type = "claude", Exempt = true, Seconds = 45, Text = text, StillValid = stillValid,
+            Until = until, PendingKey = $"claude|{project}", Args = { ["project"] = project },
+        };
+        n.Buttons.Add(("Show me", () => ClaudeWatch.FocusVsCode(project)));
         n.Buttons.Add(("✕", () => { }));
         return n;
     }

@@ -26,8 +26,13 @@ public partial class ChatWindow : Window
     /// <summary>Whether a half-written message is being kept for next time (read once the chat has closed).</summary>
     internal static bool HasDraft => !string.IsNullOrWhiteSpace(draft);
     bool closing;
-    /// <summary>Build it / Restart cards still waiting for a click; the chat won't close on a click away while any are.</summary>
-    int awaitingConfirm;
+    /// <summary>
+    /// Build it / Restart cards still waiting for a click; the chat won't close on a click away while any are, and
+    /// closing it anyway moves them to the Pending tab.
+    /// </summary>
+    readonly List<Services.Confirm> awaitingConfirm = new();
+    /// <summary>Showing the Pending tab rather than the conversation.</summary>
+    bool showingPending;
 
     public ChatWindow(VexWindow vex)
     {
@@ -44,6 +49,8 @@ public partial class ChatWindow : Window
         CloseBtn.Click += (_, _) => Close();
         CopyTextBtn.Click += (_, _) => CopyText();
         CopyImageBtn.Click += (_, _) => CopyImage();
+        ChatTab.Click += (_, _) => ShowTab(pending: false);
+        PendingTab.Click += (_, _) => ShowTab(pending: true);
         Input.KeyDown += InputKey;
         PreviewKeyDown += (_, e) =>
         {
@@ -51,7 +58,13 @@ public partial class ChatWindow : Window
             else if (e.Key == Key.C && Keyboard.Modifiers == (ModifierKeys.Control | ModifierKeys.Shift)) { CopyText(); e.Handled = true; }
         };
         Theme.Changed += Restyle;
-        Closed += (_, _) => { draft = Input.Text; Theme.Changed -= Restyle; pending?.Cancel(); vex.SetThinking(false); vex.ChatClosed(); };
+        Services.Pending.Changed += RenderPending;
+        Closed += (_, _) =>
+        {
+            draft = Input.Text; Theme.Changed -= Restyle; Services.Pending.Changed -= RenderPending;
+            foreach (var c in awaitingConfirm) Services.Pending.Park(c);
+            pending?.Cancel(); vex.SetThinking(false); vex.ChatClosed();
+        };
         SourceInitialized += (_, _) =>
         {
             if (Store.Config.HideFromScreenCapture)
@@ -74,7 +87,76 @@ public partial class ChatWindow : Window
         Input.Background = Theme.Brush(P.Input);
         Input.Foreground = Input.CaretBrush = Theme.Brush(P.Text);
         Input.BorderBrush = Theme.Brush(P.InputBorder);
+        Badge.Background = Theme.Brush(Theme.Hoodie);
         LoadHistory();
+        ShowTab(showingPending);
+    }
+
+    // ───────────── pending ─────────────
+
+    /// <summary>Switches between the conversation and the Pending tab.</summary>
+    void ShowTab(bool pending)
+    {
+        showingPending = pending;
+        Scroll.Visibility = pending ? Visibility.Collapsed : Visibility.Visible;
+        PendingScroll.Visibility = pending ? Visibility.Visible : Visibility.Collapsed;
+        ChatTab.Foreground = Theme.Brush(pending ? P.SubText : P.Text);
+        PendingTab.Foreground = Theme.Brush(pending ? P.Text : P.SubText);
+        RenderPending();
+        if (!pending) Scroll.ScrollToEnd();
+    }
+
+    /// <summary>Redraws the Pending list and the count on its tab. Raised by <see cref="Services.Pending.Changed"/> too.</summary>
+    void RenderPending()
+    {
+        var items = Services.Pending.All;
+        BadgeText.Text = items.Count.ToString();
+        Badge.Visibility = items.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+        PendingList.Children.Clear();
+        if (items.Count == 0)
+        {
+            PendingList.Children.Add(new TextBlock
+            {
+                Text = "Nothing waiting on you.", Foreground = Theme.Brush(P.Divider), FontSize = 11,
+                HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 8, 0, 4),
+            });
+            return;
+        }
+        foreach (var item in items)
+        {
+            // Its original options, plus a plain ✕ to clear it if it didn't come with one.
+            var options = item.Options.Contains(Services.Pending.Drop) ? item.Options : item.Options.Append(Services.Pending.Drop);
+            var buttons = new WrapPanel();
+            foreach (var label in options)
+            {
+                var b = CardButton(label);
+                b.Click += (_, _) => ChoosePending(item, label);
+                buttons.Children.Add(b);
+            }
+            var when = item.At.Date == DateTime.Today ? item.At.ToString("HH:mm") : item.At.ToString("ddd d MMM, HH:mm");
+            PendingList.Children.Add(Card(new StackPanel
+            {
+                Children =
+                {
+                    new TextBlock { Text = when, Foreground = Theme.Brush(P.SubText), FontSize = 11 },
+                    new TextBlock { Text = item.Text, TextWrapping = TextWrapping.Wrap, Foreground = Theme.Brush(P.Text), FontSize = 13 },
+                    buttons,
+                },
+            }));
+        }
+    }
+
+    /// <summary>
+    /// An option picked from Pending: it does what the button would have done (which may start a chat, e.g. "Prep me";
+    /// if so, the conversation comes back into view). Not while he's mid-reply, since a prompt sent then would be lost.
+    /// </summary>
+    void ChoosePending(Services.PendingItem item, string option)
+    {
+        if (pending != null) return;
+        int before = Messages.Children.Count;
+        var note = Services.Pending.Choose(item.Id, option);
+        if (note != null) Add("note", note);
+        if (Messages.Children.Count != before && showingPending) ShowTab(pending: false);
     }
 
     /// <summary>Pick up where we left off; a fresh "What." only when there's no history.</summary>
@@ -163,13 +245,13 @@ public partial class ChatWindow : Window
     /// <summary>
     /// Closes the panel after a click elsewhere, the same as ✕. A half-typed message is safe (it's kept in
     /// <see cref="draft"/>) and the conversation is on disk, but it stays open while Vex is mid-reply, while a
-    /// Build it / Restart card is waiting (those lapse on close), or while a modal dialog is up, since none of those
+    /// Build it / Restart card is waiting (closing moves those to Pending), or while a modal dialog is up, since none of those
     /// should be thrown away by a stray click. Returns whether it closed.
     /// </summary>
     public bool Dismiss()
     {
         if (closing || !IsVisible || !Store.Config.ChatClosesOnClickAway) return false;
-        if (pending != null || awaitingConfirm > 0) return false;
+        if (pending != null || awaitingConfirm.Count > 0) return false;
         // A dialog shown with ShowDialog (ours or a WinForms one) takes focus from the chat; that isn't a click away.
         if (ComponentDispatcher.IsThreadModal || OwnedWindows.Cast<Window>().Any(w => w.IsVisible)) return false;
         Close();
@@ -215,6 +297,7 @@ public partial class ChatWindow : Window
     public async void Send(string text)
     {
         if (pending != null) return;
+        if (showingPending) ShowTab(pending: false);   // the reply should be in view
         Add("me", text);
         pending = new CancellationTokenSource();
         Status.Text = "Vex is thinking…";
@@ -248,6 +331,7 @@ public partial class ChatWindow : Window
     /// </summary>
     public void Ask(string question)
     {
+        if (showingPending) ShowTab(pending: false);
         Add("vex", question);
         Services.Hub.PendingQuestion = question;
         Input.Focus();
@@ -256,27 +340,34 @@ public partial class ChatWindow : Window
     /// <summary>
     /// An action that changes Vex himself (build, restart), waiting for a click. Only a person at the keyboard can press
     /// it, so text planted in a window title or meeting invite can't get a build started on its own. Not kept on disk:
-    /// close the chat and it lapses.
+    /// close the chat and it moves to the Pending tab (in state.json), still needing that click.
     /// </summary>
     void ConfirmCard(Services.Confirm c)
     {
-        var go = new Button { Content = c.GoLabel, Padding = new Thickness(10, 3, 10, 3), Margin = new Thickness(0, 6, 6, 0), Cursor = Cursors.Hand };
-        var no = new Button { Content = "No", Padding = new Thickness(10, 3, 10, 3), Margin = new Thickness(0, 6, 0, 0), Cursor = Cursors.Hand };
-        foreach (var b in new[] { go, no }) { b.Background = Theme.Brush(P.Button); b.Foreground = Theme.Brush(P.ButtonText); b.BorderThickness = new Thickness(0); }
+        var go = CardButton(c.GoLabel);
+        var no = CardButton("No");
         var buttons = new StackPanel { Orientation = Orientation.Horizontal, Children = { go, no } };
-        var card = new Border
-        {
-            Background = Theme.Brush(P.VexBubble), BorderBrush = Theme.Brush(P.Note), BorderThickness = new Thickness(1),
-            CornerRadius = new CornerRadius(10), Padding = new Thickness(10, 6, 10, 8), Margin = new Thickness(0, 3, 40, 3),
-            HorizontalAlignment = HorizontalAlignment.Left,
-            Child = new StackPanel { Children = { new TextBlock { Text = c.Text, TextWrapping = TextWrapping.Wrap, Foreground = Theme.Brush(P.Text), FontSize = 13 }, buttons } },
-        };
-        awaitingConfirm++;
-        go.Click += (_, _) => { buttons.IsEnabled = false; awaitingConfirm--; Add("note", c.Go()); };
-        no.Click += (_, _) => { buttons.IsEnabled = false; awaitingConfirm--; Add("note", "✗ Left it."); };
+        var card = Card(new StackPanel { Children = { new TextBlock { Text = c.Text, TextWrapping = TextWrapping.Wrap, Foreground = Theme.Brush(P.Text), FontSize = 13 }, buttons } });
+        awaitingConfirm.Add(c);
+        go.Click += (_, _) => { buttons.IsEnabled = false; awaitingConfirm.Remove(c); Add("note", c.Go()); };
+        no.Click += (_, _) => { buttons.IsEnabled = false; awaitingConfirm.Remove(c); Add("note", "✗ Left it."); };
         Messages.Children.Add(card);
         Scroll.ScrollToEnd();
     }
+
+    /// <summary>The outlined card that Build it / Restart prompts and Pending items sit in.</summary>
+    Border Card(UIElement content) => new()
+    {
+        Background = Theme.Brush(P.VexBubble), BorderBrush = Theme.Brush(P.Note), BorderThickness = new Thickness(1),
+        CornerRadius = new CornerRadius(10), Padding = new Thickness(10, 6, 10, 8), Margin = new Thickness(0, 3, 40, 3),
+        HorizontalAlignment = HorizontalAlignment.Left, Child = content,
+    };
+
+    Button CardButton(string label) => new()
+    {
+        Content = label, Padding = new Thickness(10, 3, 10, 3), Margin = new Thickness(0, 6, 6, 0), Cursor = Cursors.Hand,
+        Background = Theme.Brush(P.Button), Foreground = Theme.Brush(P.ButtonText), BorderThickness = new Thickness(0),
+    };
 
     void Render(string who, string text, DateTime at)
     {

@@ -217,10 +217,17 @@ public static class Workshop
         Job = null;
         stage = "";
         ChatLog.Append("vex", text);
-        var n = new Nudge { Type = "workshop", Exempt = true, Seconds = 60, Text = text };
-        if (ok) { n.Buttons.Add(("Restart now", () => Restart())); n.Buttons.Add(("Later", () => { })); }
-        else { n.Buttons.Add(("Show log", () => Open(log))); n.Buttons.Add(("✕", () => { })); }
+        var n = Notice(ok, text, log);
         if (!Hub.Nudges.Offer(n)) notice = n;
+    }
+
+    /// <summary>The knock with a job's result; also remade from the chat's Pending tab after a restart.</summary>
+    internal static Nudge Notice(bool ok, string text, string logPath)
+    {
+        var n = new Nudge { Type = "workshop", Exempt = true, Seconds = 60, Text = text, PendingKey = "workshop", Args = { ["log"] = logPath } };
+        if (ok) { n.Buttons.Add(("Restart now", () => Restart())); n.Buttons.Add(("Later", () => { })); }
+        else { n.Buttons.Add(("Show log", () => Open(logPath))); n.Buttons.Add(("✕", () => { })); }
+        return n;
     }
 
     // ───────────── the restart ─────────────
