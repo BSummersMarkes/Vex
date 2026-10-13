@@ -66,6 +66,18 @@ public class VexConfig
     /// <summary>Pasted pictures bigger than this (pixels, longest side) are scaled down before they're sent to Claude.</summary>
     public int ChatImageMaxSide { get; set; } = 1568;
 
+    // Coding at the laptop (VexCoding.cs).
+    /// <summary>While his workshop is building, he sits in a corner and types on a laptop. Setup → Behaviour.</summary>
+    public bool CodingAtLaptop { get; set; } = true;
+    /// <summary>Also sit at the laptop while one of your Claude Code sessions is working (needs the Claude Code hooks).</summary>
+    public bool CodingForClaude { get; set; } = false;
+    /// <summary>"right" or "left": the bottom corner of his screen he works in.</summary>
+    public string CodingCorner { get; set; } = "right";
+    /// <summary>A Claude Code turn has to run this long (seconds) before he fetches the laptop, so quick answers don't send him off.</summary>
+    public double CodingClaudeAfterSeconds { get; set; } = 20;
+    /// <summary>A session still "working" after this many minutes is assumed stuck (its Stop hook never came), so he packs up.</summary>
+    public double CodingClaudeMaxMinutes { get; set; } = 120;
+
     // Memory and the daily diary.
     /// <summary>Vex's own pages (markdown). Null = %LOCALAPPDATA%\Vex\memory. The Lab Notebook mirrors this folder.</summary>
     public string? MemoryFolder { get; set; }

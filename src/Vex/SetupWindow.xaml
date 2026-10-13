@@ -121,6 +121,11 @@
                     <CheckBox x:Name="ChatClickAway" Content="Close the chat when you click outside it"/>
                     <TextBlock Style="{StaticResource Note}" Margin="20,0,0,0"
                                Text="Not while I'm replying or a Build it button is waiting. Anything half-typed is kept for next time."/>
+                    <CheckBox x:Name="CodingAtLaptop" Content="Sit in a corner and type on a laptop while I'm changing my own code"/>
+                    <CheckBox x:Name="CodingForClaude" Content="…and while one of your Claude Code sessions is working" Margin="20,5,0,0"
+                              IsEnabled="{Binding IsChecked, ElementName=CodingAtLaptop}"/>
+                    <TextBlock Style="{StaticResource Note}" Margin="20,0,0,0"
+                               Text="Bottom-right corner (CodingCorner in config.json). Drag me somewhere and I'll type there instead."/>
                 </StackPanel>
             </TabItem>
 

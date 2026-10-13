@@ -177,7 +177,7 @@ public partial class VexWindow : Window
             default: // Idle
                 Settle(floor, dt);
                 if (!peeking && !thinking && !hovering && chat == null && currentNudge == null && act == Act.None && pendingAct == Act.None && now >= nextWander) Wander(scr); // no strolling off mid-conversation
-                if (!peeking && !AtLunch && Native.IdleTime().TotalMinutes >= Store.Config.SleepAfterMinutes) Sleep();
+                if (!peeking && !AtLunch && !Coding && Native.IdleTime().TotalMinutes >= Store.Config.SleepAfterMinutes) Sleep();
                 break;
         }
 
@@ -370,7 +370,8 @@ public partial class VexWindow : Window
     public void ShowNudge(Services.Nudge n)
     {
         if (mode == Mode.Sleeping) Wake(quiet: true);
-        act = Act.None; pendingAct = Act.None;
+        if (act != Act.Code) act = Act.None;   // at the laptop he knocks from his seat (and packs up first if he's done)
+        pendingAct = Act.None;
         Zzz.Visibility = Visibility.Collapsed; // e.g. woken from his lunch nap for a meeting
         if (mode == Mode.Walking) mode = Mode.Idle;
         ShowBubble(n.Text, n.Persistent && n.Buttons.Count > 0 ? double.PositiveInfinity : n.Seconds, n.Buttons, n.OnTimeout);
@@ -417,7 +418,7 @@ public partial class VexWindow : Window
     }
 
     /// <summary>Parts drawn in reds that aren't his hoodie (props, mug, eyes): left alone when it's recoloured.</summary>
-    static readonly HashSet<string> NotHoodie = new() { "Book", "Sandwich", "Phone", "Mug", "LunchBox", "Eyes", "Ripple" };
+    static readonly HashSet<string> NotHoodie = new() { "Book", "Sandwich", "Phone", "Mug", "LunchBox", "Laptop", "Eyes", "Ripple" };
 
     /// <summary>Hoodie colour (and the matching bubble rim and Zzz), plus the speech bubble's light/dark colours.</summary>
     void ApplyAppearance()

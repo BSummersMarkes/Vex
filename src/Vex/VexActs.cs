@@ -6,7 +6,7 @@ using Forms = System.Windows.Forms;
 namespace Vex;
 
 /// <summary>Little things Vex does while he's just standing about.</summary>
-enum Act { None, Sip, Phone, Read, Sit, Stretch, Watch, Lunch }
+enum Act { None, Sip, Phone, Read, Sit, Stretch, Watch, Lunch, Code }
 
 /// <summary>
 /// Idle activities. One at a time: ease in, hold, ease out. Anything that needs him to move
@@ -32,14 +32,19 @@ public partial class VexWindow
             nextAct = now + 12 + rng.NextDouble() * 25;
         }
         if (mode is Mode.Dragging or Mode.Hopping or Mode.Sleeping or Mode.Falling) pendingAct = Act.None;
+        UpdateCoding(scr);   // off to the laptop while code is being written (VexCoding.cs)
         if (mode != Mode.Idle || act != Act.None || peeking || thinking || hovering || hidden || autoHidden || currentNudge != null) return;
 
-        // Arrived at the screen edge to sit down (or have lunch)?
-        if (pendingAct is Act.Sit or Act.Lunch)
+        // Arrived at the screen edge to sit down (or have lunch, or code)?
+        if (pendingAct is Act.Sit or Act.Lunch or Act.Code)
         {
             var was = pendingAct;
             pendingAct = Act.None;
-            if (Math.Abs(x - pendingX) < 3 * S) { if (was == Act.Lunch) BeginLunch(scr); else StartSit(scr); return; }
+            if (Math.Abs(x - pendingX) < 3 * S)
+            {
+                if (was == Act.Lunch) BeginLunch(scr); else if (was == Act.Code) BeginCode(scr, againstEdge: true); else StartSit(scr);
+                return;
+            }
         }
         if (now < nextAct) return;
 
@@ -76,6 +81,7 @@ public partial class VexWindow
         {
             case Act.Sit: GoSit(ScreenAt(x)); break;
             case Act.Lunch: StartLunch(); break;
+            case Act.Code: codeDebugUntil = now + 15; break;   // pretends a job runs for 15 s, then nods
             case Act.Read: Begin(a, 20); nextFlip = now + 2; break;
             default: Begin(a, a is Act.Sip or Act.Stretch or Act.Watch ? 3 : 15); break;
         }
@@ -118,10 +124,11 @@ public partial class VexWindow
     void ActPose(ref double eyeCap, ref double? turnOverride, ref double? lookY)
     {
         // Reset the parts only activities move.
-        MugT.X = 0; RightGloveT.X = 0; MugR.Angle = 0; Lean.Angle = 0;
-        Book.Opacity = 0; Phone.Opacity = 0; Sandwich.Opacity = 0; LunchBox.Opacity = 0;
+        MugT.X = 0; RightGloveT.X = 0; MugR.Angle = 0; Lean.Angle = 0; HoodT.Y = 0;
+        Book.Opacity = 0; Phone.Opacity = 0; Sandwich.Opacity = 0; LunchBox.Opacity = 0; Laptop.Opacity = 0;
         if (act == Act.None) return;
         if (act == Act.Lunch) { LunchPose(ref eyeCap, ref turnOverride, ref lookY); return; }
+        if (act == Act.Code) { CodePose(ref eyeCap, ref turnOverride, ref lookY); return; }
 
         if (act == Act.Sit)
         {

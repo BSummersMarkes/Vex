@@ -39,6 +39,8 @@ public static class Workshop
     static DateTime started;
     /// <summary>One line on how the last job went, for the brain's context.</summary>
     static string? lastOutcome;
+    /// <summary>Whether the last job succeeded (null before the first), so Vex can nod or shrug as he shuts the laptop.</summary>
+    public static bool? LastOk { get; private set; }
     /// <summary>A finished build waiting for a restart.</summary>
     static bool staged;
     /// <summary>A finish/fail notice not shown yet (e.g. something was full screen); retried from <see cref="Tick"/>.</summary>
@@ -214,6 +216,7 @@ public static class Workshop
     {
         Note(text);
         lastOutcome = $"\"{Job}\" {(ok ? "succeeded" : "failed")} at {DateTime.Now:HH:mm}: {text}";
+        LastOk = ok;   // before Job clears: that's what tells Vex the job is over
         Job = null;
         stage = "";
         ChatLog.Append("vex", text);

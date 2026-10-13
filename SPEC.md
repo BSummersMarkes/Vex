@@ -61,6 +61,7 @@ A small animated desktop companion that lives on top of the Windows desktop, kee
 - **Bubble and chat:** the speech bubble and chat panel follow him in step and always sit wholly on his monitor (dragging the chat parks it; clicking Vex re-attaches; clicking him with it attached closes it).
 - **Drag and drop:** pick him up and drop him; he falls to the floor (and is mildly annoyed).
 - **Sleeping:** after a few idle minutes he sits and dozes (Zzz). Wakes when you're back.
+- **Coding:** while the workshop is building (section 9), and optionally while a Claude Code session has been working for `CodingClaudeAfterSeconds` (20), he walks to a bottom corner of his screen (`CodingCorner`, right), puts his mug down beside him, sits and types on a small laptop whose screen lights his face, pausing now and then to think. When it ends he shuts the lid, stands, nods (success) or shrugs (failure), then walks back to where he was once nothing's waiting on him. If the corner is covered he works where he stands; dragged mid-job, he types where he's dropped. He still dodges, can be clicked, right-clicked and dragged, doesn't doze off, and knocks for nudges from his seat (the workshop's result knock waits until he's stood up). Setup → Behaviour: `CodingAtLaptop` (on), `CodingForClaude` (off). Sessions "working" past `CodingClaudeMaxMinutes` (120) are ignored as stuck. `VexCoding.cs`.
 - **Hidden:** never appears in screen shares or screenshots (`HideFromScreenCapture`); vanishes for full-screen presentations/video. Remote desktop and VMs count as ordinary windows.
 - **Later:** perch on window title bars.
 
@@ -156,7 +157,7 @@ Ask him in chat for a new ability or a change ("add a nudge that…", "make him 
 5. **Ship:** approved → commit to the current branch (normally `main`) and push (`WorkshopPush`). Not approved, failed or timed out (`WorkshopTimeoutMinutes`) → the attempt is parked on a `vex/<slug>-MMdd-HHmm` branch and the working branch is left clean.
 6. **Restart:** he knocks with the result. "Restart now" (or asking him to in chat) runs `workshop\swap.ps1`: waits for Vex to exit, keeps `Vex.exe.old`, copies the new exe in, starts it, and rolls back if it isn't still running after 15 s. The new Vex says whether the swap took.
 
-Each job's log (prompts' results, git output, build errors, review) is in `%LOCALAPPDATA%\Vex\workshop\*.log`. While a job runs, its stage is in the chat context, so "how's it going?" works.
+Each job's log (prompts' results, git output, build errors, review) is in `%LOCALAPPDATA%\Vex\workshop\*.log`. While a job runs, its stage is in the chat context, so "how's it going?" works, and he sits in a corner typing on a laptop (section 4, Coding).
 
 ## 10. Voice (later)
 
@@ -216,6 +217,7 @@ Each job's log (prompts' results, git output, build errors, review) is in `%LOCA
 - [x] Pending tab in the chat: unanswered nudges and Build it / Restart cards, answerable later with their original options; count badge; survives restarts; cleared after 7 days
 - [x] Chat fits its window: scrolls inside, wraps long lines, doesn't jump while you read older messages ("New ↓"); Shift+Enter / Shift+Space for a new line
 - [x] Paste pictures into the chat (Ctrl+V): thumbnails above the box, up to 3 per message, scaled down and sent to Claude with the message
+- [x] Coding animation: sits in a corner typing on a laptop while the workshop builds (optionally while Claude Code works), then nods or shrugs and walks back; on/off in Setup → Behaviour
 
 ### He learns (2026-10-13)
 - [x] Build/restart from chat need a click (prompt-injection guard); context marked as data, not instructions
@@ -236,7 +238,7 @@ Each job's log (prompts' results, git output, build errors, review) is in `%LOCA
 ### Later: "He follows"
 - [ ] Android companion (shared memory over OneDrive or Bluetooth)
 - [ ] Perching on title bars, seasonal outfits
-- [ ] More context animations (ideas): tiny laptop while Claude works, foot-tap while it waits on you, blowing on fresh coffee, peeking round a window edge, legs dangling off a title bar, doodling during long meetings, wave when you're back, shiver when the mug's cold
+- [ ] More context animations (ideas): foot-tap while it waits on you, blowing on fresh coffee, peeking round a window edge, legs dangling off a title bar, doodling during long meetings, wave when you're back, shiver when the mug's cold
 
 ## 12. Open questions
 

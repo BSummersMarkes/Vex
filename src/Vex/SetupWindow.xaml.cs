@@ -40,6 +40,8 @@ public partial class SetupWindow : Window
         ClaudeHooks.IsEnabled = claude;
         ClaudeHooks.IsChecked = claude && (Services.ClaudeWatch.Installed() || !c.SetupDone);
         ChatClickAway.IsChecked = c.ChatClosesOnClickAway;
+        CodingAtLaptop.IsChecked = c.CodingAtLaptop;
+        CodingForClaude.IsChecked = c.CodingForClaude;
         ActivityLog.IsChecked = c.ActivityLog;
         Curious.IsChecked = c.Curious;
         WatchApps.Text = string.Join(", ", c.WatchContentApps);
@@ -89,6 +91,8 @@ public partial class SetupWindow : Window
         c.NotesFolder = UseLocal.IsChecked == true ? FolderBox.Text.Trim() : c.NotesFolder;
         c.KnockSound = Knock.IsChecked == true;
         c.ChatClosesOnClickAway = ChatClickAway.IsChecked == true;
+        c.CodingAtLaptop = CodingAtLaptop.IsChecked == true;
+        c.CodingForClaude = CodingForClaude.IsChecked == true;
         c.ActivityLog = ActivityLog.IsChecked == true;
         c.Curious = Curious.IsChecked == true;
         c.WatchContentApps = WatchApps.Text.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)

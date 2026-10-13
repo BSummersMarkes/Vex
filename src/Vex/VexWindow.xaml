@@ -162,6 +162,34 @@
                     </Canvas>
                 </Canvas>
 
+                <!-- Laptop on his lap while he codes (VexCoding.cs). We see the back of the lid; the screen faces him
+                     and lights his chin and front. Under the mittens so they rest on it while he types. -->
+                <Canvas x:Name="Laptop" Opacity="0" IsHitTestVisible="False">
+                    <Ellipse x:Name="LaptopGlow" Canvas.Left="37" Canvas.Top="64" Width="46" Height="44" Opacity="0">
+                        <Ellipse.Fill>
+                            <RadialGradientBrush Center="0.5,0.85" GradientOrigin="0.5,0.85" RadiusX="0.55" RadiusY="0.6">
+                                <GradientStop Offset="0" Color="#70B8DCFF"/><GradientStop Offset="1" Color="#00B8DCFF"/>
+                            </RadialGradientBrush>
+                        </Ellipse.Fill>
+                    </Ellipse>
+                    <Path Fill="#5E6372" Stroke="#2A2D36" StrokeThickness="0.7" Data="M 39,124 L 81,124 L 83.5,127.6 L 36.5,127.6 Z"/>
+                    <Path Stroke="#8A90A2" StrokeThickness="0.5" Data="M 38,126.9 L 82,126.9"/>
+                    <Canvas>
+                        <Canvas.RenderTransform><ScaleTransform x:Name="LidS" CenterY="124"/></Canvas.RenderTransform>
+                        <Rectangle Canvas.Left="42" Canvas.Top="104" Width="36" Height="20.4" RadiusX="2" RadiusY="2"
+                                   Stroke="#2A2D36" StrokeThickness="0.7">
+                            <Rectangle.Fill>
+                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                    <GradientStop Offset="0" Color="#6A7080"/><GradientStop Offset="1" Color="#3C404C"/>
+                                </LinearGradientBrush>
+                            </Rectangle.Fill>
+                        </Rectangle>
+                        <!-- Light from the screen catching the lid's top edge -->
+                        <Path Stroke="#B0BFE3FF" StrokeThickness="0.9" StrokeStartLineCap="Round" StrokeEndLineCap="Round" Data="M 43.6,104.4 L 76.4,104.4"/>
+                        <Ellipse Canvas.Left="58.2" Canvas.Top="112.4" Width="3.6" Height="3.6" Fill="#8A90A2"/>
+                    </Canvas>
+                </Canvas>
+
                 <!-- ── Front: mittens, mug, (boots are below, outside the breathing group) ── -->
                 <Canvas>
                     <Canvas.RenderTransform>

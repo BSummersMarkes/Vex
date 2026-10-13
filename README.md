@@ -10,7 +10,7 @@ A small desktop companion for Windows. He lives on your taskbar in a dark red ho
 - **Meeting reminders** from classic Outlook (if it's running), with a "Prep me" button. A short **morning brief** when you first sit down.
 - **Going home:** tell him when you leave (Setup) and he says when to pack up, with the drive home. Live traffic needs a free TomTom key; without one you get a Google Maps button.
 - **Learns your work:** every night he writes a short diary of the day and files what he picked up (projects, people, kit, terms) on his own pages. Now and then he asks about something he keeps seeing ("What's ChromSpace_2?"). You can let him read the text of windows from apps you choose.
-- **Claude Code alerts:** tells you when a Claude Code session needs you or has finished (optional).
+- **Claude Code alerts:** tells you when a Claude Code session needs you or has finished (optional). If you like, he also sits in the bottom-right corner typing on a little laptop while a session is working, and nods when it's done (Setup → Behaviour).
 - **Chat:** click him. He knows roughly what you've been doing today, your meetings and your to-dos, and can add to-dos, tick them off, take notes, set reminders and remember things about you.
 - **The mug** empties over time. Click it when you refill yours. He counts.
 

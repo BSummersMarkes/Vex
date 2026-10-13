@@ -12,13 +12,16 @@ namespace Vex;
 public partial class VexWindow
 {
     const double KnockLength = 1.35;
-    double knockStart = -99, rippleStart = -99, lastKnock;
+    double knockStart = -99, rippleStart = -99, lastKnock, knockAt;
     int lastTap = -1, reknocks;
     Services.Nudge? currentNudge;
     static byte[]? knockWav;
 
     void Knock()
     {
+        // Packing the laptop away (e.g. the workshop's result just came in): stand up and react first, then knock.
+        if (CodingWrapEnd() is var until && until > now) { knockAt = until; lastKnock = now; return; }
+        knockAt = 0;
         knockStart = now; lastTap = -1; lastKnock = now;
         if (Store.Config.KnockSound && Services.Hub.InCall == null) PlayKnock();
     }
@@ -31,6 +34,7 @@ public partial class VexWindow
         if (currentNudge == null) return;
         if (Bubble.Visibility != System.Windows.Visibility.Visible) { currentNudge = null; return; }
         if (currentNudge.StillValid is { } valid && !valid()) { bubbleTimeout = null; HideBubble(); return; }
+        if (knockAt > 0 && now >= knockAt) { Knock(); return; }   // a knock held back while he put the laptop away
         if (reknocks < 3 && now - lastKnock > 90 && !Services.Hub.Presence.Away && mode != Mode.Dragging)
         {
             reknocks++;
