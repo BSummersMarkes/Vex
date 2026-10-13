@@ -14,7 +14,8 @@ public partial class SetupWindow : Window
 {
     readonly string? notebookPath = Services.Notebook.Detect();
 
-    public SetupWindow()
+    /// <param name="vex">The running Vex, for the "Right now" buttons. Null on first run, before he exists, which hides them.</param>
+    public SetupWindow(VexWindow? vex = null)
     {
         InitializeComponent();
         var c = Store.Config;
@@ -59,12 +60,49 @@ public partial class SetupWindow : Window
             "log is on), meetings, to-dos and my notes, plus the text of the window in front only for apps you list above. " +
             "Please check that using Claude this way is OK where you work.";
         ClaudeNote.Text = claude
-            ? "Claude Code found: chat uses your own Claude login."
+            // The tray used to show "connected ✓"; this checkbox is where connecting lives now, so say it here.
+            ? "Claude Code found: chat uses your own Claude login." + (Services.ClaudeWatch.Installed() ? " Alerts connected ✓" : "")
             : "Claude Code isn't installed, so I can't chat yet. Everything else works. Install Claude Code and sign in, then I'll pick it up.";
+
+        OpenMemory.Click += (_, _) => App.Open(Services.Memory.Folder);
+        OpenChats.Click += (_, _) => App.Open(ChatLog.Folder);
+        OpenConfig.Click += (_, _) => App.Open(Path.Combine(Store.Dir, "config.json"));
+        OpenData.Click += (_, _) => App.Open(Store.Dir);
+
+        if (vex != null) WireRightNow(vex);
+        else RightNow.Visibility = Visibility.Collapsed;
 
         // First run walks in with "Off we go"; afterwards it's just a settings window.
         if (c.SetupDone) { Done.Content = "Save"; Title = "Vex settings"; }
         Done.Click += (_, _) => Save();
+    }
+
+    /// <summary>
+    /// Behaviour → Right now: the actions that used to be on the right-click and tray menus, doing exactly what
+    /// they did there. Labels flip (Lunch break / End lunch, nap / wake, hide / show) after each click.
+    /// </summary>
+    void WireRightNow(VexWindow vex)
+    {
+        void Refresh()
+        {
+            // As on the old menu: End lunch while at lunch, Lunch break only with the routine on (as saved), no nap at lunch.
+            LunchNow.Content = vex.OnLunch ? "End lunch" : "Lunch break";
+            LunchNow.Visibility = vex.OnLunch || Store.Config.LunchRoutine ? Visibility.Visible : Visibility.Collapsed;
+            NapNow.Content = vex.Asleep ? "Wake up" : "Have a nap";
+            NapNow.Visibility = vex.OnLunch ? Visibility.Collapsed : Visibility.Visible;
+            HideNow.Content = vex.IsHidden ? "Show Vex" : "Hide Vex";
+        }
+        void On(System.Windows.Controls.Button b, Action a) => b.Click += (_, _) => { a(); Refresh(); };
+
+        On(LunchNow, () => { if (vex.OnLunch) vex.LunchBack(); else vex.StartLunch(); });
+        On(NapNow, vex.ToggleNap);
+        On(CoffeeNow, vex.RefillCoffee);
+        On(OtherScreen, vex.GoToOtherScreen);
+        On(HideNow, vex.ToggleHidden);
+        On(ForgetNow, vex.ForgetChat);
+        // The chat can't be used while this modal window is up, so close first and open it once we're gone.
+        ChatNow.Click += (_, _) => { Closed += (_, _) => vex.OpenChat(); Close(); };
+        Refresh();
     }
 
     [System.Runtime.InteropServices.DllImport("secur32.dll", CharSet = System.Runtime.InteropServices.CharSet.Unicode)]

@@ -583,27 +583,46 @@ public partial class VexWindow : Window
 
     string Pick(params string[] lines) => lines[rng.Next(lines.Length)];
 
+    /// <summary>
+    /// Right-click menu, kept to the same short list as the tray's. Everything that used to be here
+    /// (chat, coffee, lunch, other screen, nap, forget, hide) is now under Setup → Behaviour → Right now.
+    /// </summary>
     void ShowMenu()
     {
+        var app = (App)Application.Current;
         var menu = new ContextMenu();
         void Add(string header, Action a) { var mi = new MenuItem { Header = header }; mi.Click += (_, _) => a(); menu.Items.Add(mi); }
-        Add("Chat", () => OpenChat());
-        Add("I refilled my coffee", Refill);
-        if (AtLunch) Add("End lunch", LunchBack);
-        else if (Store.Config.LunchRoutine) Add("Lunch break", StartLunch);
-        Add("Go to the other screen", () =>
-        {
-            var other = screens.FirstOrDefault(s => !s.Equals(ScreenAt(x)));
-            if (other != null) HopTo(other.WorkingArea.Right - 320 * S, false);
-        });
-        if (!AtLunch)   // he naps at lunch anyway
-            Add(mode == Mode.Sleeping ? "Wake up" : "Have a nap", () => { if (mode == Mode.Sleeping) Wake(); else Sleep(requested: true); });
-        Add("Forget today's chat", () => { chat?.Close(); new ClaudeCodeBrain().Forget(); Say("Forgotten. Mostly.", 3, important: true); });
-        Add("Hide", ToggleHidden);
+        Add("Setup…", app.OpenSetup);
+        Add("What Vex knows…", app.ShowStatus);
+        menu.Items.Add(App.AppearanceMenu());
         menu.Items.Add(new Separator());
-        Add("Quit", () => ((App)Application.Current).Quit());
+        Add("Quit", app.Quit);
         menu.IsOpen = true;
     }
+
+    // The actions below were on the right-click menu; Setup's "Right now" buttons call them, and do exactly what the menu did.
+
+    /// <summary>At lunch: Setup offers End lunch instead of Lunch break, and no nap.</summary>
+    public bool OnLunch => AtLunch;
+
+    /// <summary>Dozing (asked to or on his own): Setup's nap button says Wake up.</summary>
+    public bool Asleep => mode == Mode.Sleeping;
+
+    /// <summary>"I refilled my coffee", same as clicking the mug.</summary>
+    public void RefillCoffee() => Refill();
+
+    /// <summary>Have a nap, or wake him if he's dozing.</summary>
+    public void ToggleNap() { if (mode == Mode.Sleeping) Wake(); else Sleep(requested: true); }
+
+    /// <summary>Walk over to the other monitor, if there is one.</summary>
+    public void GoToOtherScreen()
+    {
+        var other = screens.FirstOrDefault(s => !s.Equals(ScreenAt(x)));
+        if (other != null) HopTo(other.WorkingArea.Right - 320 * S, false);
+    }
+
+    /// <summary>Close the chat and start a fresh conversation (today's archive goes too).</summary>
+    public void ForgetChat() { chat?.Close(); new ClaudeCodeBrain().Forget(); Say("Forgotten. Mostly.", 3, important: true); }
 
     // ───────────────────────────── animation ─────────────────────────────
 

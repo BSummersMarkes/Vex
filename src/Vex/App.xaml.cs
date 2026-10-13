@@ -27,41 +27,36 @@ public partial class App : Application
         vex = new VexWindow();
         vex.Show();
 
+        // Just the essentials, same as right-clicking Vex. Everything else lives in Setup
+        // (Behaviour → Right now, Privacy → Your data).
         var menu = new Forms.ContextMenuStrip();
-        menu.Items.Add("Chat", null, (_, _) => vex.OpenChat());
-        var showHide = menu.Items.Add("Hide Vex", null, (_, _) => vex.ToggleHidden());
-        menu.Opening += (_, _) => showHide.Text = vex.IsHidden ? "Show Vex" : "Hide Vex";
-        menu.Items.Add("What Vex knows…", null, (_, _) => vex.Say(Status(), 20, important: true));
-        var connect = menu.Items.Add("Connect Claude Code", null, (_, _) =>
-        {
-            try { vex.Say(Services.ClaudeWatch.Install() + " New Claude Code sessions will report in.", 8, important: true); }
-            catch (Exception ex) { Store.Log($"Hook install: {ex}"); vex.Say("Couldn't edit Claude Code's settings. It's in the log.", 6, important: true); }
-        });
-        menu.Opening += (_, _) => connect.Text = Services.ClaudeWatch.Installed() ? "Claude Code: connected ✓" : "Connect Claude Code";
-        var startup = new Forms.ToolStripMenuItem("Start with Windows") { CheckOnClick = true };
-        startup.Click += (_, _) => SetStartup(startup.Checked);
-        menu.Items.Add(startup);
-        menu.Opening += (_, _) => startup.Checked = StartsWithWindows();
+        menu.Items.Add("Setup…", null, (_, _) => OpenSetup());
+        menu.Items.Add("What Vex knows…", null, (_, _) => ShowStatus());
         menu.Items.Add(AppearanceMenu(menu));
-        menu.Items.Add("Setup…", null, (_, _) =>
-        {
-            if (new SetupWindow().ShowDialog() == true) { Services.Hub.ApplySettings(); vex.Say("Settings saved.", 3, important: true); }
-        });
-        menu.Items.Add("Memory (Vex's pages)", null, (_, _) => Open(Services.Memory.Folder));
-        menu.Items.Add("Chat history", null, (_, _) => Open(ChatLog.Folder));
-        menu.Items.Add("Settings (config.json)", null, (_, _) => Open(System.IO.Path.Combine(Store.Dir, "config.json")));
-        menu.Items.Add("Open data folder", null, (_, _) => Open(Store.Dir));
         menu.Items.Add(new Forms.ToolStripSeparator());
         menu.Items.Add("Quit", null, (_, _) => Quit());
         tray = new Forms.NotifyIcon { Icon = MakeIcon(), Text = "Vex", Visible = true, ContextMenuStrip = menu };
         tray.MouseClick += (_, me) => { if (me.Button == Forms.MouseButtons.Left) vex.OpenChat(); };
     }
 
+    /// <summary>Tray or right-click → Setup…: the settings window, with Vex's "Right now" actions in it.</summary>
+    public void OpenSetup()
+    {
+        if (vex == null) return;
+        if (new SetupWindow(vex).ShowDialog() == true) { Services.Hub.ApplySettings(); vex.Say("Settings saved.", 3, important: true); }
+    }
+
+    /// <summary>Tray or right-click → What Vex knows…: a line per source (sitting, notes, calendar, Claude Code, quiet mode) in a bubble.</summary>
+    public void ShowStatus() => vex?.Say(Status(), 20, important: true);
+
+    /// <summary>The theme choices, shared by the tray's and Vex's own Appearance menus.</summary>
+    static readonly (string Name, string Value)[] Themes = { ("Dark", "dark"), ("Light", "light"), ("Match Windows", "system") };
+
     /// <summary>Tray → Appearance: dark/light/follow Windows for the chat and bubbles, and the hoodie colour.</summary>
     static Forms.ToolStripMenuItem AppearanceMenu(Forms.ContextMenuStrip menu)
     {
         var root = new Forms.ToolStripMenuItem("Appearance");
-        var themes = new[] { ("Dark", "dark"), ("Light", "light"), ("Match Windows", "system") }
+        var themes = Themes
             .Select(t => new Forms.ToolStripMenuItem(t.Item1, null, (_, _) => Theme.SetTheme(t.Item2)) { Tag = t.Item2 }).ToList();
         root.DropDownItems.AddRange(themes.ToArray());
         root.DropDownItems.Add(new Forms.ToolStripSeparator());
@@ -73,13 +68,7 @@ public partial class App : Application
             hoodie.DropDownItems.Add(new Forms.ToolStripMenuItem(name, Swatch(c), (_, _) => Theme.SetHoodie(c)) { Tag = hex });
         }
         hoodie.DropDownItems.Add(new Forms.ToolStripSeparator());
-        hoodie.DropDownItems.Add("Custom…", null, (_, _) =>
-        {
-            var cur = Theme.Hoodie;
-            using var dlg = new Forms.ColorDialog { FullOpen = true, Color = System.Drawing.Color.FromArgb(cur.R, cur.G, cur.B) };
-            if (dlg.ShowDialog() == Forms.DialogResult.OK)
-                Theme.SetHoodie(System.Windows.Media.Color.FromRgb(dlg.Color.R, dlg.Color.G, dlg.Color.B));
-        });
+        hoodie.DropDownItems.Add("Custom…", null, (_, _) => PickCustomHoodie());
         root.DropDownItems.Add(hoodie);
 
         // Tick the current choices each time the menu opens.
@@ -91,6 +80,46 @@ public partial class App : Application
                 item.Checked = item.Tag is string hex && string.Equals(hex, current, StringComparison.OrdinalIgnoreCase);
         };
         return root;
+    }
+
+    /// <summary>
+    /// Right-click Vex → Appearance: the same choices as the tray's, as a WPF menu (his own menu isn't a WinForms one).
+    /// Built fresh each time his menu opens, so the ticks are always current.
+    /// </summary>
+    internal static System.Windows.Controls.MenuItem AppearanceMenu()
+    {
+        static System.Windows.Controls.MenuItem Item(string header, bool ticked, Action a)
+        {
+            var mi = new System.Windows.Controls.MenuItem { Header = header, IsChecked = ticked };
+            mi.Click += (_, _) => a();
+            return mi;
+        }
+        var root = new System.Windows.Controls.MenuItem { Header = "Appearance" };
+        foreach (var (name, value) in Themes) root.Items.Add(Item(name, value == Store.Config.Theme, () => Theme.SetTheme(value)));
+        root.Items.Add(new System.Windows.Controls.Separator());
+
+        var hoodie = new System.Windows.Controls.MenuItem { Header = "Hoodie colour" };
+        var current = Theme.Hex(Theme.Hoodie);
+        foreach (var (name, hex) in Theme.Hoodies)
+        {
+            var c = (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(hex);
+            var mi = Item(name, string.Equals(hex, current, StringComparison.OrdinalIgnoreCase), () => Theme.SetHoodie(c));
+            mi.Icon = new System.Windows.Shapes.Rectangle { Width = 14, Height = 14, Fill = Theme.Brush(c) };
+            hoodie.Items.Add(mi);
+        }
+        hoodie.Items.Add(new System.Windows.Controls.Separator());
+        hoodie.Items.Add(Item("Custom…", false, PickCustomHoodie));
+        root.Items.Add(hoodie);
+        return root;
+    }
+
+    /// <summary>Appearance → Hoodie colour → Custom…: the Windows colour picker, starting from the current colour.</summary>
+    static void PickCustomHoodie()
+    {
+        var cur = Theme.Hoodie;
+        using var dlg = new Forms.ColorDialog { FullOpen = true, Color = System.Drawing.Color.FromArgb(cur.R, cur.G, cur.B) };
+        if (dlg.ShowDialog() == Forms.DialogResult.OK)
+            Theme.SetHoodie(System.Windows.Media.Color.FromRgb(dlg.Color.R, dlg.Color.G, dlg.Color.B));
     }
 
     /// <summary>A little colour square for the hoodie menu.</summary>
@@ -119,7 +148,8 @@ public partial class App : Application
         else k.DeleteValue("Vex", throwOnMissingValue: false);
     }
 
-    static void Open(string path) =>
+    /// <summary>Opens a file or folder in its usual app. Setup → Privacy → Your data uses it.</summary>
+    internal static void Open(string path) =>
         System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(path) { UseShellExecute = true });
 
     static string Status()

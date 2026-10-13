@@ -76,7 +76,7 @@
             <DockPanel>
                 <Button x:Name="Done" DockPanel.Dock="Right" Content="Off we go" Padding="16,4" IsDefault="True"/>
                 <TextBlock Style="{StaticResource Note}" VerticalAlignment="Center" Margin="0"
-                           Text="Change any of this later from my tray icon (Setup…)."/>
+                           Text="Change any of this later: right-click me or my tray icon → Setup…"/>
             </DockPanel>
         </Border>
 
@@ -105,7 +105,7 @@
                         <TextBox x:Name="FolderBox"/>
                     </DockPanel>
                     <TextBlock Style="{StaticResource Note}" Margin="0,12,0,0"
-                               Text="My own pages (what I've learned about you and your work) stay in my memory folder either way: tray → Memory."/>
+                               Text="My own pages (what I've learned about you and your work) stay in my memory folder either way: Privacy → Memory."/>
                 </StackPanel>
             </TabItem>
 
@@ -134,6 +134,25 @@
                     </StackPanel>
                     <TextBlock Style="{StaticResource Note}" Margin="20,0,0,0"
                                Text="Starts when you press Going on the lunch nudge or tell me you're off. Come back early and I'll wake up."/>
+
+                    <!-- What used to be on the right-click menu. Happens straight away; nothing here waits for Save. -->
+                    <StackPanel x:Name="RightNow">
+                        <TextBlock Style="{StaticResource Heading}" Text="Right now"/>
+                        <WrapPanel>
+                            <WrapPanel.Resources>
+                                <Style TargetType="Button"><Setter Property="Padding" Value="8,2"/><Setter Property="Margin" Value="0,4,6,0"/></Style>
+                            </WrapPanel.Resources>
+                            <Button x:Name="LunchNow"/>
+                            <Button x:Name="NapNow"/>
+                            <Button x:Name="CoffeeNow" Content="I refilled my coffee"/>
+                            <Button x:Name="OtherScreen" Content="Go to the other screen"/>
+                            <Button x:Name="HideNow"/>
+                            <Button x:Name="ChatNow" Content="Chat"/>
+                            <Button x:Name="ForgetNow" Content="Forget today's chat"/>
+                        </WrapPanel>
+                        <TextBlock Style="{StaticResource Note}"
+                                   Text="These happen straight away. Chat closes this window first (without saving)."/>
+                    </StackPanel>
                 </StackPanel>
             </TabItem>
 
@@ -177,6 +196,18 @@
                 <StackPanel>
                     <TextBlock Style="{StaticResource Title}" Text="Privacy"/>
                     <TextBlock x:Name="PrivacyText" Style="{StaticResource Note}" FontSize="11.5"/>
+
+                    <!-- The folders and files that used to be on the tray menu: everything I keep, one click away. -->
+                    <TextBlock Style="{StaticResource Heading}" Text="Your data"/>
+                    <WrapPanel>
+                        <WrapPanel.Resources>
+                            <Style TargetType="Button"><Setter Property="Padding" Value="8,2"/><Setter Property="Margin" Value="0,4,6,0"/></Style>
+                        </WrapPanel.Resources>
+                        <Button x:Name="OpenMemory" Content="Memory (my pages)"/>
+                        <Button x:Name="OpenChats" Content="Chat history"/>
+                        <Button x:Name="OpenConfig" Content="Settings (config.json)"/>
+                        <Button x:Name="OpenData" Content="Data folder"/>
+                    </WrapPanel>
                 </StackPanel>
             </TabItem>
         </TabControl>

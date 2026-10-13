@@ -7,7 +7,7 @@ A small desktop companion for Windows. He lives on your taskbar in a dark red ho
 - **Wanders the taskbar** on any monitor, gets out of the way of the window you're using, and sits, reads or checks his phone when he's bored. Drag him around; drop him on top of a window and he'll stand on it.
 - **Nudges** you about eye breaks, stretching, water, lunch and long stretches on one thing. At most one every 15 minutes, never while you're in a call. The stretch nudge waits while TeamViewer or remote desktop is in front, until you switch window (30 minutes at most). He knocks on the screen and waits until you answer.
 - **Breaks are never assumed:** being away from your desk doesn't count (you might be in the lab or a meeting). Tell him on the stretch nudge ("Taking a break" / "Had my break"), the lunch nudge ("Going" / "Had lunch"), or in the chat ("had lunch at 12:30"), and the sitting timer restarts. "Not now" puts the nudge off; unanswered ones wait in the chat's Pending tab.
-- **Lunch:** when you head off (the lunch nudge's "Going", telling him in the chat, or right-click → Lunch break) a lunch timer starts and he has his own: sits in a corner with his mug beside him, eats a sandwich for 5–10 minutes, then naps for the rest (30 minutes by default). When time's up he wakes with a start and says so; come back early and he wakes up, groggily. While he naps he only pipes up for important things (meetings, reminders, Claude Code). On/off and the length are in Setup → Behaviour.
+- **Lunch:** when you head off (the lunch nudge's "Going", telling him in the chat, or Setup → Behaviour → Lunch break) a lunch timer starts and he has his own: sits in a corner with his mug beside him, eats a sandwich for 5–10 minutes, then naps for the rest (30 minutes by default). When time's up he wakes with a start and says so; come back early and he wakes up, groggily. While he naps he only pipes up for important things (meetings, reminders, Claude Code). On/off and the length are in Setup → Behaviour.
 - **Meeting reminders** from classic Outlook (if it's running), with a "Prep me" button. A short **morning brief** when you first sit down.
 - **Going home:** tell him when you leave (Setup) and he says when to pack up, with the drive home. Live traffic needs a free TomTom key; without one you get a Google Maps button.
 - **Learns your work:** every night he writes a short diary of the day and files what he picked up (projects, people, kit, terms) on his own pages. Now and then he asks about something he keeps seeing ("What's ChromSpace_2?"). You can let him read the text of windows from apps you choose.
@@ -32,8 +32,9 @@ For chat you need **[Claude Code](https://claude.com/claude-code) installed and 
 | Ctrl+Alt+V | Open the chat from anywhere (`QuickChatHotkey` in config.json) |
 | Drag Vex | Pick him up and drop him (on the taskbar or on a window) |
 | Click the mug | "I've refilled my coffee" |
-| Right-click Vex | Menu: nap, hide, other screen, forget the chat… |
-| Tray icon | Setup…, Appearance (light/dark, hoodie colour), start with Windows, what Vex knows, show/hide, quit |
+| Right-click Vex or the tray icon | Setup…, What Vex knows…, Appearance (light/dark, hoodie colour), Quit. Left-click the tray icon to chat |
+| Setup → Behaviour → Right now | Lunch break / End lunch, nap / wake up, I refilled my coffee, other screen, hide / show, chat, forget today's chat |
+| Setup → Privacy → Your data | Open his memory pages, chat history, config.json or the data folder |
 | Typing in the chat | Enter sends; Shift+Enter or Shift+Space starts a new line |
 | Ctrl+V in the chat | Paste a picture (screenshot, diagram, error message) to send with your message; up to 3, ✕ on a thumbnail removes it |
 | Chat header | Copy the chat as text (Ctrl+Shift+C) or as a picture |
@@ -44,7 +45,7 @@ For chat you need **[Claude Code](https://claude.com/claude-code) installed and 
 - `Journal\YYYY-MM-DD.md`: each day's log. To-dos are `- [ ] item`; Vex ticks them `- [x]` in place, so you keep the history.
 - With the Lab Notebook, open journal to-dos are also copied onto its To-Do list, and ticking one in either place ticks the other (`TodoListMirror` in `config.json` turns this off).
 
-Vex's own pages (*About you*, *Remembered*, *Diary*, *Projects*, ...) are markdown files in `%LOCALAPPDATA%\Vex\memory` (tray → *Memory*). Edit them freely; he reads them back. Each day's chat is kept in `%LOCALAPPDATA%\Vex\chats` (tray → *Chat history*); each morning starts a fresh conversation.
+Vex's own pages (*About you*, *Remembered*, *Diary*, *Projects*, ...) are markdown files in `%LOCALAPPDATA%\Vex\memory` (Setup → Privacy → *Memory*). Edit them freely; he reads them back. Each day's chat is kept in `%LOCALAPPDATA%\Vex\chats` (Setup → Privacy → *Chat history*); each morning starts a fresh conversation.
 
 ## Privacy
 
@@ -56,7 +57,7 @@ Vex's own pages (*About you*, *Remembered*, *Diary*, *Projects*, ...) are markdo
 
 ## Settings
 
-Tray → **Setup…** for the main choices. Everything else (timings, nudge intervals, exclusion lists, knock sound) is in `%LOCALAPPDATA%\Vex\config.json`; tray → *Settings (config.json)* opens it.
+Tray or right-click Vex → **Setup…** for the main choices. Everything else (timings, nudge intervals, exclusion lists, knock sound) is in `%LOCALAPPDATA%\Vex\config.json`; Setup → Privacy → *Settings (config.json)* opens it.
 
 ## Removing him
 

@@ -16,7 +16,7 @@ public sealed record Palette(
 
 /// <summary>
 /// Appearance: dark or light chat and bubbles (or follow Windows), and the hoodie colour.
-/// Both are set from the tray (Appearance) and kept in config.json as Theme and HoodieColour.
+/// Both are set from the tray or Vex's right-click menu (Appearance) and kept in config.json as Theme and HoodieColour.
 /// </summary>
 public static class Theme
 {
