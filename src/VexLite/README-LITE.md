@@ -1,6 +1,6 @@
 # Vex Lite
 
-A little character in a red hoodie who lives on your taskbar. He keeps out of the way of whatever you're working on, reminds you to take breaks, drink water and have lunch, and reminds you about anything you ask him to.
+A little character in a teal hoodie who lives on your taskbar. He keeps out of the way of whatever you're working on, reminds you to take breaks, drink water and have lunch, and reminds you about anything you ask him to.
 
 ## Getting him going
 
@@ -20,7 +20,7 @@ If your work computer won't let you run it, ask your IT team. Some workplaces on
 | **Ctrl+Alt+V** | Opens his panel from anywhere |
 | **Drag him** | Pick him up and put him somewhere else, even on top of a window |
 | **Click his mug** | When you refill your own coffee. He keeps count. Right-click the mug to undo |
-| **Right-click him** | Setup, light or dark look, hoodie colour, Quit |
+| **Right-click him** | Setup, Theme (light or dark look, hoodie colour), Quit. Hoodie lightness is in Setup → Theme |
 
 He only nudges you about one thing every 15 minutes or so, and keeps quiet while you're on a call or something is full screen. A nudge you didn't answer waits in the panel's **Pending** tab.
 

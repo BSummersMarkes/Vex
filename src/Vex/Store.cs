@@ -27,10 +27,12 @@ public class VexConfig
     /// <summary>First-run setup has been completed.</summary>
     public bool SetupDone { get; set; }
 
-    /// <summary>Chat panel and speech bubble: "dark", "light" or "system" (follow Windows). Tray → Appearance.</summary>
+    /// <summary>Chat panel and speech bubble: "dark", "light" or "system" (follow Windows). Tray → Theme.</summary>
     public string Theme { get; set; } = "dark";
-    /// <summary>Hoodie colour as #RRGGBB; empty = the original dark red. Tray → Appearance.</summary>
+    /// <summary>Hoodie colour as #RRGGBB; empty = the default deep teal ("Original" is #82292F, the first dark red). Tray → Theme.</summary>
     public string HoodieColour { get; set; } = "";
+    /// <summary>Lightness shift on the hoodie colour, in HSL points (−10 darker to +15 lighter; 0 = as chosen). Setup → Theme.</summary>
+    public double HoodieLightness { get; set; }
 
     /// <summary>Keep Vex (and his chat) out of screenshots and screen shares.</summary>
     public bool HideFromScreenCapture { get; set; } = true;

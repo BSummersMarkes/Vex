@@ -58,6 +58,7 @@ public partial class SetupWindow : Window
             {
                 Content = a.Name, Tag = a.Id, IsChecked = IdleActs.Enabled(a.Act), Width = 200,
             });
+        WireLightness();
         ActivityLog.IsChecked = c.ActivityLog;
         Curious.IsChecked = c.Curious;
         WatchApps.Text = string.Join(", ", c.WatchContentApps);
@@ -121,6 +122,26 @@ public partial class SetupWindow : Window
         // The chat can't be used while this modal window is up, so close first and open it once we're gone.
         ChatNow.Click += (_, _) => { Closed += (_, _) => vex.OpenChat(); Close(); };
         Refresh();
+    }
+
+    /// <summary>
+    /// Theme → Hoodie lightness: Vex (and the swatch) repaint as the slider moves, as a live preview. Only Save keeps
+    /// it; closing any other way puts back the lightness he had when the window opened.
+    /// </summary>
+    void WireLightness()
+    {
+        double before = Store.Config.HoodieLightness;
+        void Show()
+        {
+            HoodieSwatch.Background = Theme.Brush(Theme.Hoodie);
+            LightnessValue.Text = Lightness.Value == 0 ? "0" : Lightness.Value.ToString("+0;−0", CultureInfo.CurrentCulture);
+        }
+        Lightness.Minimum = Theme.MinLightness;
+        Lightness.Maximum = Theme.MaxLightness;
+        Lightness.Value = Math.Clamp(Math.Round(before), Theme.MinLightness, Theme.MaxLightness);
+        Show();
+        Lightness.ValueChanged += (_, e) => { Theme.PreviewLightness(e.NewValue); Show(); };
+        Closed += (_, _) => { if (DialogResult != true && Store.Config.HoodieLightness != before) Theme.PreviewLightness(before); };
     }
 
 #if LITE
@@ -191,6 +212,7 @@ public partial class SetupWindow : Window
         // Every activity written out, on or off, so config.json shows the full list to edit.
         foreach (var box in IdleActsList.Children.OfType<System.Windows.Controls.CheckBox>())
             c.IdleActivities[(string)box.Tag] = box.IsChecked == true;
+        c.HoodieLightness = Lightness.Value;   // already previewing; this makes it stick
 #if !LITE
         c.ActivityLog = ActivityLog.IsChecked == true;
         c.Curious = Curious.IsChecked == true;

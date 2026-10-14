@@ -628,7 +628,7 @@ public partial class VexWindow : Window
         void Add(string header, Action a) { var mi = new MenuItem { Header = header }; mi.Click += (_, _) => a(); menu.Items.Add(mi); }
         Add("Setup…", app.OpenSetup);
         Add("What Vex knows…", app.ShowStatus);
-        menu.Items.Add(App.AppearanceMenu());
+        menu.Items.Add(App.ThemeMenu());
         menu.Items.Add(new Separator());
         Add("Quit", app.Quit);
         menu.IsOpen = true;

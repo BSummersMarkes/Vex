@@ -15,8 +15,9 @@ public sealed record Palette(
     Color MeBubble, Color VexBubble, Color Note, Color Divider, Color Speech, Color Button, Color ButtonText);
 
 /// <summary>
-/// Appearance: dark or light chat and bubbles (or follow Windows), and the hoodie colour.
-/// Both are set from the tray or Vex's right-click menu (Appearance) and kept in config.json as Theme and HoodieColour.
+/// Theme: dark or light chat and bubbles (or follow Windows), and the hoodie colour and lightness.
+/// Theme and colour are set from the tray or Vex's right-click menu (Theme), the lightness from Setup → Theme; all kept
+/// in config.json as Theme, HoodieColour and HoodieLightness.
 /// </summary>
 public static class Theme
 {
@@ -30,15 +31,37 @@ public static class Theme
         Input: C("#FFFFFF"), InputBorder: C("#C5CCE0"), MeBubble: C("#D7E0F7"), VexBubble: C("#ECEEF4"),
         Note: C("#2F7A45"), Divider: C("#8A91A6"), Speech: C("#F7FAFBFE"), Button: C("#E1E6F2"), ButtonText: C("#1E2333"));
 
-    /// <summary>Hoodie choices in the tray menu; anything else comes from "Custom…".</summary>
+    /// <summary>
+    /// Hoodie choices in the Theme menus; anything else comes from "Custom…". Deep teal is the default (an empty
+    /// HoodieColour); "Original" is exactly the dark red he was first drawn in, to flip back to.
+    /// </summary>
     public static readonly (string Name, string Hex)[] Hoodies =
     {
-        ("Dark red (original)", "#82292F"), ("Navy", "#2B3F6B"), ("Forest green", "#2F5A3A"), ("Teal", "#1F5F63"),
-        ("Purple", "#55306E"), ("Mustard", "#B08A2A"), ("Charcoal", "#3A3A40"), ("Pink", "#C26A8A"),
+        ("Deep teal", "#236D70"), ("Original", "#82292F"), ("Dark teal", "#1F5F63"), ("Navy", "#2B3F6B"),
+        ("Forest green", "#2F5A3A"), ("Purple", "#55306E"), ("Mustard", "#B08A2A"), ("Charcoal", "#3A3A40"), ("Pink", "#C26A8A"),
     };
 
-    /// <summary>The colour the hoodie is drawn in (its mid tone); every other shade is worked out from this.</summary>
+    /// <summary>The colour the hoodie is drawn in in the XAML (its mid tone); every other shade is worked out from this.</summary>
     static readonly Color Original = C("#82292F");
+
+    /// <summary>
+    /// The hoodie when nothing's been picked: a deep teal that's calm beside the white eyes and mittens, a touch
+    /// lighter than the plain "Dark teal" preset.
+    /// </summary>
+    static readonly Color DefaultHoodie = C("#236D70");
+
+    /// <summary>
+    /// Range of the Setup → Theme lightness slider, in HSL lightness points (−10 = 10% darker). These are safety
+    /// bounds rather than tweakables: lighter and the hoodie washes into the white mittens and loses its folds,
+    /// darker and it merges with the black face void. HoodieLightness in config.json is clamped to them.
+    /// </summary>
+    public const double MinLightness = -10, MaxLightness = 15;
+
+    /// <summary>
+    /// However the slider is set, the shifted hoodie stays within these lightnesses (0–1), so it never gets close to
+    /// black or white. A preset or custom colour already outside them is left where it is rather than pulled in.
+    /// </summary>
+    const double FloorL = 0.15, CeilingL = 0.60;
 
     /// <summary>Raised when the theme or hoodie colour changes (including Windows switching light/dark).</summary>
     public static event Action? Changed;
@@ -61,12 +84,40 @@ public static class Theme
 
     public static Palette Current => IsLight ? Light : Dark;
 
-    public static Color Hoodie => TryC(Store.Config.HoodieColour) ?? Original;
+    /// <summary>The chosen hoodie colour before the lightness slider: what the menu ticks against.</summary>
+    public static Color HoodieChoice => TryC(Store.Config.HoodieColour) ?? DefaultHoodie;
+
+    /// <summary>The hoodie as drawn: the chosen colour with the Setup lightness shift applied.</summary>
+    public static Color Hoodie => Lighten(HoodieChoice, Store.Config.HoodieLightness);
 
     /// <summary>"dark", "light" or "system".</summary>
     public static void SetTheme(string theme) { Store.Config.Theme = theme; Store.SaveConfig(); Changed?.Invoke(); }
 
     public static void SetHoodie(Color c) { Store.Config.HoodieColour = Hex(c); Store.SaveConfig(); Changed?.Invoke(); }
+
+    /// <summary>
+    /// Setup → Theme's slider: repaints him at once as it moves, so it previews live. Saving to config.json is left
+    /// to Setup's Save; closing without saving sets it back.
+    /// </summary>
+    public static void PreviewLightness(double points)
+    {
+        Store.Config.HoodieLightness = Math.Clamp(points, MinLightness, MaxLightness);
+        Changed?.Invoke();
+    }
+
+    /// <summary>
+    /// Shifts a colour's HSL lightness by <paramref name="points"/> (clamped to the slider's range), keeping hue and
+    /// saturation, and never past <see cref="FloorL"/>/<see cref="CeilingL"/>. Zero returns it untouched, so a preset
+    /// (Original especially) comes back exactly, without a round trip through HSL.
+    /// </summary>
+    static Color Lighten(Color c, double points)
+    {
+        points = Math.Clamp(points, MinLightness, MaxLightness);
+        if (points == 0) return c;
+        var (h, s, l) = Hsl(c);
+        double nl = Math.Clamp(l + points / 100, Math.Min(l, FloorL), Math.Max(l, CeilingL));
+        return FromHsl(h, s, nl, c.A);
+    }
 
     public static SolidColorBrush Brush(Color c) { var b = new SolidColorBrush(c); b.Freeze(); return b; }
 

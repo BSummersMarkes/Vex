@@ -38,7 +38,7 @@ public partial class App : Application
         var menu = new Forms.ContextMenuStrip();
         menu.Items.Add("Setup…", null, (_, _) => OpenSetup());
         menu.Items.Add("What Vex knows…", null, (_, _) => ShowStatus());
-        menu.Items.Add(AppearanceMenu(menu));
+        menu.Items.Add(ThemeMenu(menu));
         menu.Items.Add(new Forms.ToolStripSeparator());
         menu.Items.Add("Quit", null, (_, _) => Quit());
         tray = new Forms.NotifyIcon { Icon = MakeIcon(), Text = "Vex", Visible = true, ContextMenuStrip = menu };
@@ -55,13 +55,16 @@ public partial class App : Application
     /// <summary>Tray or right-click → What Vex knows…: a line per source (sitting, notes, calendar, Claude Code, quiet mode) in a bubble.</summary>
     public void ShowStatus() => vex?.Say(Status(), 20, important: true);
 
-    /// <summary>The theme choices, shared by the tray's and Vex's own Appearance menus.</summary>
+    /// <summary>The theme choices, shared by the tray's and Vex's own Theme menus.</summary>
     static readonly (string Name, string Value)[] Themes = { ("Dark", "dark"), ("Light", "light"), ("Match Windows", "system") };
 
-    /// <summary>Tray → Appearance: dark/light/follow Windows for the chat and bubbles, and the hoodie colour.</summary>
-    static Forms.ToolStripMenuItem AppearanceMenu(Forms.ContextMenuStrip menu)
+    /// <summary>
+    /// Tray → Theme: dark/light/follow Windows for the chat and bubbles, and the hoodie colour. The hoodie's
+    /// lightness is a slider in Setup → Theme, so this stays a short list.
+    /// </summary>
+    static Forms.ToolStripMenuItem ThemeMenu(Forms.ContextMenuStrip menu)
     {
-        var root = new Forms.ToolStripMenuItem("Appearance");
+        var root = new Forms.ToolStripMenuItem("Theme");
         var themes = Themes
             .Select(t => new Forms.ToolStripMenuItem(t.Item1, null, (_, _) => Theme.SetTheme(t.Item2)) { Tag = t.Item2 }).ToList();
         root.DropDownItems.AddRange(themes.ToArray());
@@ -81,7 +84,7 @@ public partial class App : Application
         menu.Opening += (_, _) =>
         {
             foreach (var t in themes) t.Checked = (string)t.Tag! == Store.Config.Theme;
-            var current = Theme.Hex(Theme.Hoodie);
+            var current = Theme.Hex(Theme.HoodieChoice);   // the preset as picked, whatever the lightness slider says
             foreach (var item in hoodie.DropDownItems.OfType<Forms.ToolStripMenuItem>())
                 item.Checked = item.Tag is string hex && string.Equals(hex, current, StringComparison.OrdinalIgnoreCase);
         };
@@ -89,10 +92,10 @@ public partial class App : Application
     }
 
     /// <summary>
-    /// Right-click Vex → Appearance: the same choices as the tray's, as a WPF menu (his own menu isn't a WinForms one).
+    /// Right-click Vex → Theme: the same choices as the tray's, as a WPF menu (his own menu isn't a WinForms one).
     /// Built fresh each time his menu opens, so the ticks are always current.
     /// </summary>
-    internal static System.Windows.Controls.MenuItem AppearanceMenu()
+    internal static System.Windows.Controls.MenuItem ThemeMenu()
     {
         static System.Windows.Controls.MenuItem Item(string header, bool ticked, Action a)
         {
@@ -100,12 +103,12 @@ public partial class App : Application
             mi.Click += (_, _) => a();
             return mi;
         }
-        var root = new System.Windows.Controls.MenuItem { Header = "Appearance" };
+        var root = new System.Windows.Controls.MenuItem { Header = "Theme" };
         foreach (var (name, value) in Themes) root.Items.Add(Item(name, value == Store.Config.Theme, () => Theme.SetTheme(value)));
         root.Items.Add(new System.Windows.Controls.Separator());
 
         var hoodie = new System.Windows.Controls.MenuItem { Header = "Hoodie colour" };
-        var current = Theme.Hex(Theme.Hoodie);
+        var current = Theme.Hex(Theme.HoodieChoice);
         foreach (var (name, hex) in Theme.Hoodies)
         {
             var c = (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(hex);
@@ -119,10 +122,10 @@ public partial class App : Application
         return root;
     }
 
-    /// <summary>Appearance → Hoodie colour → Custom…: the Windows colour picker, starting from the current colour.</summary>
+    /// <summary>Theme → Hoodie colour → Custom…: the Windows colour picker, starting from the current colour.</summary>
     static void PickCustomHoodie()
     {
-        var cur = Theme.Hoodie;
+        var cur = Theme.HoodieChoice;
         using var dlg = new Forms.ColorDialog { FullOpen = true, Color = System.Drawing.Color.FromArgb(cur.R, cur.G, cur.B) };
         if (dlg.ShowDialog() == Forms.DialogResult.OK)
             Theme.SetHoodie(System.Windows.Media.Color.FromRgb(dlg.Color.R, dlg.Color.G, dlg.Color.B));

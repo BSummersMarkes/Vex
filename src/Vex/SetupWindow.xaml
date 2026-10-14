@@ -163,6 +163,24 @@
                 </StackPanel>
             </TabItem>
 
+            <!-- The hoodie colour itself is on the right-click menu (Theme → Hoodie colour); only the lightness lives here. -->
+            <TabItem Header="Theme">
+                <StackPanel>
+                    <TextBlock Style="{StaticResource Title}" Text="Theme"/>
+                    <TextBlock Style="{StaticResource Heading}" Text="Hoodie lightness"/>
+                    <DockPanel>
+                        <Border x:Name="HoodieSwatch" DockPanel.Dock="Left" Width="22" Height="22" CornerRadius="4" Margin="0,0,10,0"
+                                BorderBrush="#3A4568" BorderThickness="1"/>
+                        <TextBlock x:Name="LightnessValue" DockPanel.Dock="Right" Width="40" Margin="10,0,0,0" VerticalAlignment="Center"
+                                   TextAlignment="Right"/>
+                        <Slider x:Name="Lightness" VerticalAlignment="Center" SmallChange="1" LargeChange="5"
+                                IsSnapToTickEnabled="True" TickFrequency="1"/>
+                    </DockPanel>
+                    <TextBlock Style="{StaticResource Note}"
+                               Text="Darker or lighter than the colour you picked; I change as you slide. Save keeps it, closing without saving puts it back. The colour itself: right-click me → Theme → Hoodie colour."/>
+                </StackPanel>
+            </TabItem>
+
             <TabItem x:Name="WatchTab" Header="Watching">
                 <StackPanel>
                     <TextBlock Style="{StaticResource Title}" Text="Watching and learning"/>

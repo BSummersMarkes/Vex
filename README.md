@@ -1,6 +1,6 @@
 # Vex
 
-A small desktop companion for Windows. He lives on your taskbar in a dark red hoodie, keeps out of the way of whatever you're working on, reminds you about breaks and meetings, keeps your to-dos, and chats when you click him. Dry sense of humour; means well.
+A small desktop companion for Windows. He lives on your taskbar in a deep teal hoodie, keeps out of the way of whatever you're working on, reminds you about breaks and meetings, keeps your to-dos, and chats when you click him. Dry sense of humour; means well.
 
 ## What he does
 
@@ -33,7 +33,8 @@ For chat you need **[Claude Code](https://claude.com/claude-code) installed and 
 | Drag Vex | Pick him up and drop him (on the taskbar or on a window) |
 | Click the mug | "I've refilled my coffee" |
 | Right-click the mug | Today's coffee count and Undo last refill (count down one, mug back to its level before; repeat to step back further) |
-| Right-click Vex (not the mug) or the tray icon | Setup…, What Vex knows…, Appearance (light/dark, hoodie colour), Quit. Left-click the tray icon to chat |
+| Right-click Vex (not the mug) or the tray icon | Setup…, What Vex knows…, Theme (light/dark, hoodie colour; Original brings back the dark red), Quit. Left-click the tray icon to chat |
+| Setup → Theme | Hoodie lightness: slide it darker or lighter and watch him change; Save keeps it |
 | Setup → Behaviour → Right now | Lunch break / End lunch, nap / wake up, I refilled my coffee, other screen, hide / show, chat, forget today's chat |
 | Setup → Privacy → Your data | Open his memory pages, chat history, config.json or the data folder |
 | Typing in the chat | Enter sends; Shift+Enter or Shift+Space starts a new line |
