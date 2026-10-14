@@ -4,6 +4,10 @@ src/Vex/obj/
 src/Vex/publish/
 Vex.exe
 Vex.exe.old
+src/VexLite/bin/
+src/VexLite/obj/
+src/VexLite/publish/
+Vex Lite.exe
 
 # Editor / OS
 .vs/

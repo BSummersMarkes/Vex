@@ -66,6 +66,9 @@ public class Calendar
         catch (Exception ex) { Store.Log($"Outlook calendar: {ex.Message}"); return null; }
     }
 
+#if LITE
+    List<Meeting>? FromJson() => null;   // lite: classic Outlook only, no Power Automate export
+#else
     /// <summary>
     /// Accepts the Power Automate "Get calendar view of events (V3)" output (or its "value" array).
     /// Times with an offset are honoured; bare times are treated as UTC, which is what that action returns.
@@ -118,4 +121,5 @@ public class Calendar
         }
         return null;
     }
+#endif
 }

@@ -25,6 +25,10 @@ public partial class VexWindow
 
     bool Coding => act == Act.Code || pendingAct == Act.Code;
 
+#if LITE
+    static bool ClaudeWorking() => false;
+    bool CodingWanted() => false;
+#else
     static bool ClaudeWorking()
     {
         var c = Store.Config;
@@ -35,13 +39,16 @@ public partial class VexWindow
     }
 
     bool CodingWanted() => Store.Config.CodingAtLaptop && (Services.Workshop.Job != null || ClaudeWorking() || now < codeDebugUntil);
+#endif
 
     /// <summary>Called every frame from UpdateActs: heads off to the laptop, packs up, and walks home again.</summary>
     void UpdateCoding(Forms.Screen scr)
     {
         bool want = CodingWanted();
         if (mode is Mode.Dragging or Mode.Hopping) { codeHomeX = null; codeHere = want; }   // you put him somewhere: that's his spot now
+#if !LITE
         if (want) { codeShop |= Services.Workshop.Job != null; codeClaude |= ClaudeWorking(); }
+#endif
 
         if (!want)
         {
@@ -93,9 +100,13 @@ public partial class VexWindow
         if (act != Act.Code || codeWrap >= 0) return;
         codeWrap = now;
         var t = DateTime.Now;
+#if LITE
+        codeReact = now < codeDebugUntil + 1 ? 1 : 0;
+#else
         codeReact = codeShop && Services.Workshop.Job == null && Services.Workshop.LastOk is { } ok ? (ok ? 1 : -1)
                   : codeClaude && Services.Hub.Claude.Sessions.Values.Any(s => s.State == Services.ClaudeState.Finished && (t - s.Since).TotalSeconds < 15) ? 1
                   : now < codeDebugUntil + 1 ? 1 : 0;
+#endif
         codeShop = codeClaude = false;
         actEnd = Math.Min(actEnd, now + StandUp + (codeReact != 0 ? ReactLength : 0));
     }

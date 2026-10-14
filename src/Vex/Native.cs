@@ -6,6 +6,16 @@ namespace Vex;
 
 static class Native
 {
+    /// <summary>This process's id, to tell Vex's own windows from everyone else's.</summary>
+    public static readonly uint OwnPid = (uint)System.Diagnostics.Process.GetCurrentProcess().Id;
+
+    /// <summary>The running exe, for the start-with-Windows entry.</summary>
+#if LITE
+    public static string ExePath => System.Diagnostics.Process.GetCurrentProcess().MainModule!.FileName;
+#else
+    public static string ExePath => Environment.ProcessPath!;
+#endif
+
     [StructLayout(LayoutKind.Sequential)]
     public struct RECT { public int Left, Top, Right, Bottom; }
 

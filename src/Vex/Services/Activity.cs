@@ -30,7 +30,7 @@ public class Activity
     /// <summary>The window you were last working in (never Vex's own), for reading allowlisted window text.</summary>
     public IntPtr CurrentHwnd { get; private set; }
 
-    readonly uint ownPid = (uint)Environment.ProcessId;
+    readonly uint ownPid = Native.OwnPid;
     readonly Dictionary<uint, string> names = new();
     string day = Store.Today;
 
@@ -194,7 +194,7 @@ public class Activity
         try
         {
             var name = Process.GetProcessById((int)pid).ProcessName;
-            if (pid == Environment.ProcessId || Store.Config.FullScreenIsWork.Any(a => a.Equals(name, StringComparison.OrdinalIgnoreCase))) return false;
+            if (pid == Native.OwnPid || Store.Config.FullScreenIsWork.Any(a => a.Equals(name, StringComparison.OrdinalIgnoreCase))) return false;
         }
         catch { }
         Native.GetWindowRect(h, out var r);

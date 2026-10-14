@@ -99,7 +99,7 @@ public static class ReminderTimes
         if (r.Repeat is { Length: > 0 } rep)
         {
             var days = rep.Split(',');   // "Mon,Wed,Fri" → "Mon, Wed and Fri"
-            var list = days.Length == 1 ? days[0] : string.Join(", ", days[..^1]) + " and " + days[^1];
+            var list = days.Length == 1 ? days[0] : string.Join(", ", days.Take(days.Length - 1)) + " and " + days[^1];
             return $"{(rep == "daily" ? "every day" : rep == "weekdays" ? "every weekday" : rep == "weekends" ? "weekends" : "every " + list)} at {r.At:HH:mm}";
         }
         if (r.At.Date == now.Date) return $"{r.At:HH:mm}";

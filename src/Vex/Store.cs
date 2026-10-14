@@ -223,14 +223,20 @@ public class VexState
     /// <summary>Nudges and Build it / Restart cards that went unanswered, for the chat's Pending tab (Services/Pending.cs).</summary>
     public List<Services.PendingItem> Pending { get; set; } = new();
     /// <summary>Journal checkboxes paired with items on the Lab Notebook's To-Do list (Services/Notebook.cs, TodoListMirror).</summary>
+#if !LITE
     public List<Services.TodoLink> TodoLinks { get; set; } = new();
+#endif
 }
 
 static class Store
 {
     /// <summary>%LOCALAPPDATA%\Vex, or VEX_DATA_DIR if set (testing a fresh install side by side).</summary>
     public static readonly string Dir = Environment.GetEnvironmentVariable("VEX_DATA_DIR") is { Length: > 0 } d ? d : DefaultDir;
+#if LITE
+    public static string DefaultDir => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Vex Lite");
+#else
     public static string DefaultDir => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Vex");
+#endif
     static readonly string ConfigPath = Path.Combine(Dir, "config.json");
     static readonly string StatePath = Path.Combine(Dir, "state.json");
     static readonly JsonSerializerOptions Json = new() { WriteIndented = true };
@@ -282,7 +288,11 @@ static class Store
             Directory.CreateDirectory(Dir);
             var tmp = path + ".tmp";
             File.WriteAllText(tmp, JsonSerializer.Serialize(value, Json));
+#if LITE
+            if (File.Exists(path)) File.Replace(tmp, path, null); else File.Move(tmp, path);
+#else
             File.Move(tmp, path, overwrite: true);
+#endif
         }
         catch (Exception ex) { Log($"Couldn't write {path}: {ex.Message}"); }
     }

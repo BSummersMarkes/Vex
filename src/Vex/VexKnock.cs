@@ -109,9 +109,10 @@ public partial class VexWindow
         }
         using var ms = new MemoryStream();
         using var w = new BinaryWriter(ms);
-        w.Write("RIFF"u8.ToArray()); w.Write(36 + n * 2); w.Write("WAVE"u8.ToArray());
-        w.Write("fmt "u8.ToArray()); w.Write(16); w.Write((short)1); w.Write((short)1); w.Write(rate); w.Write(rate * 2); w.Write((short)2); w.Write((short)16);
-        w.Write("data"u8.ToArray()); w.Write(n * 2);
+        static byte[] Tag(string s) => System.Text.Encoding.ASCII.GetBytes(s);   // (not "RIFF"u8: the lite build's .NET Framework lacks it)
+        w.Write(Tag("RIFF")); w.Write(36 + n * 2); w.Write(Tag("WAVE"));
+        w.Write(Tag("fmt ")); w.Write(16); w.Write((short)1); w.Write((short)1); w.Write(rate); w.Write(rate * 2); w.Write((short)2); w.Write((short)16);
+        w.Write(Tag("data")); w.Write(n * 2);
         foreach (var s in samples) w.Write(s);
         return ms.ToArray();
     }

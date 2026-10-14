@@ -176,6 +176,19 @@ Ask him in chat for a new ability or a change ("add a nudge that…", "make him 
 
 Each job's log (prompts' results, git output, build errors, review) is in `%LOCALAPPDATA%\Vex\workshop\*.log`. While a job runs, its stage is in the chat context, so "how's it going?" works, and he sits in a corner typing on a laptop (section 4, Coding).
 
+## 9a. Vex Lite (sharing without Claude)
+
+For people without a Claude login (Ben's sister and wife, on work PCs). Same source, built by `src/VexLite/VexLite.csproj` with `LITE` defined; `build-lite.ps1` writes `Vex Lite.exe` (~230 KB).
+
+- **Keeps:** the character and everything he does (wandering, dodging, perching, climbing, idle acts, lunch, the mug, knocking), wellbeing nudges with the quiet rules (calls, full screen), Pending, reminders (one-off and repeating), meetings from classic Outlook (no Power Automate), going home (map only, no TomTom), Setup, themes.
+- **Drops:** chat and brain, diary, curiosity, memory pages, workshop, Claude Code alerts and the coding laptop, Lab Notebook and notes/to-dos, window reading, the activity log on disk. Nothing leaves the PC.
+- **Clicking him** opens `LitePanel` instead of the chat: Remind me (when/what, read by `ReminderTimes`), Coming up (with ✕), Right now (break, lunch, coffee), and the Pending tab. In `VexWindow` it's aliased as `ChatWindow`, so the shared open/follow/dismiss code is unchanged.
+- **Own data folder** `%LOCALAPPDATA%\Vex Lite`, mutex `Vex.Lite` and start-with-Windows entry "Vex Lite", so it runs beside the full Vex.
+- **.NET Framework 4.8** (part of Windows 10/11): no runtime to bundle. The lite-only files supply what the shared code needs from newer .NET: `Hub.cs` (the lite wiring), `MiniJson.cs` (the `System.Text.Json` calls Store and Activity use), `Polyfills.cs` (`Math.Clamp` via a `Vex.Math` that shadows `System.Math`, `Index`/`Range` for `[..n]`, a few string/LINQ helpers).
+- **Shared code rules:** anything Claude-only is fenced with `#if !LITE`; avoid .NET-Core-only APIs in shared files unless `Polyfills.cs` covers them (or fence them). The Workshop builds only the full Vex, so after it changes shared files, run `build-lite.ps1` to check the lite build still compiles.
+- **Testing:** `VEX_DATA_DIR` for a separate data folder; `VEX_OPEN_PANEL=1` opens the panel on start.
+- The guide for recipients is `src/VexLite/README-LITE.md`.
+
 ## 10. Voice (later)
 
 - Speech to text: Whisper (local, via whisper.cpp), push-to-talk.
@@ -256,6 +269,7 @@ Each job's log (prompts' results, git output, build errors, review) is in `%LOCA
 - [x] Repeating reminders (daily, weekdays, weekends, chosen days) with Stop these; `[[unremind]]`; reminder times read locally
 - [x] Going home by car, train or bus, bike or on foot (map in that mode; traffic check only by car)
 - [x] Frame pacing and cached blurs: about a tenth of the CPU
+- [x] Vex Lite: a ~230 KB .NET Framework build without Claude, reminders panel, for sharing (section 9a)
 - [ ] Notebook mirror of the memory folder (Lab Notebook session)
 - [ ] Streamed chat replies; weekly review; workshop cancel/undo; Claude Code reaction animations
 

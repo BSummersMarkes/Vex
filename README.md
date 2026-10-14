@@ -65,6 +65,12 @@ Tray or right-click Vex → **Setup…** for the main choices. Everything else (
 1. Tray → Setup…: untick *Start me with Windows* and *Tell me when Claude Code needs you*, then **Quit**.
 2. Delete `Vex.exe` and `%LOCALAPPDATA%\Vex`. Your notes folder is yours to keep.
 
+## Vex Lite (for sharing)
+
+A cut-down Vex for people without Claude: the character, nudges, lunch, the mug, going home, meetings from classic Outlook and **reminders** (one-off and repeating), set from a small panel when you click him. No chat, diary, memory pages, workshop, Claude Code alerts, Lab Notebook or window reading, and nothing ever leaves the PC. It's a single ~230 KB file on .NET Framework 4.8 (part of Windows 10/11), so it can go on an email, though many work mail systems block .exe attachments. Its settings live in `%LOCALAPPDATA%\Vex Lite`, so it can run beside the full Vex. The guide for the people you share it with is [src/VexLite/README-LITE.md](src/VexLite/README-LITE.md).
+
+Build it with `powershell -ExecutionPolicy Bypass -File .uild-lite.ps1`, which writes `Vex Lite.exe` to the repo root.
+
 ## Building from source
 
-Needs the .NET 10 SDK. Run `powershell -ExecutionPolicy Bypass -File .\build.ps1`; it produces a self-contained `Vex.exe` in the repo root. Design notes are in [SPEC.md](SPEC.md).
+Needs the .NET 10 SDK (Vex Lite also needs the .NET Framework 4.8 targeting pack, which the SDK fetches by itself). Run `powershell -ExecutionPolicy Bypass -File .\build.ps1`; it produces a self-contained `Vex.exe` in the repo root. Design notes are in [SPEC.md](SPEC.md).

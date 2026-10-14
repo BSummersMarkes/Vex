@@ -1,0 +1,48 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Vex Lite: the same Vex, built from the shared source in ..\Vex with LITE defined, minus everything that needs
+    Claude (chat, brain, diary, memory pages, workshop, Claude Code alerts, Lab Notebook, window reading).
+    Targets .NET Framework 4.8, which is part of Windows 10/11, so the exe is small and needs nothing installed.
+    Lite-only files live here: Hub.cs (the lite wiring), LitePanel (stands in for the chat), Polyfills.cs, MiniJson.cs.
+  -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net48</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <DefineConstants>$(DefineConstants);LITE</DefineConstants>
+    <AssemblyName>VexLite</AssemblyName>
+    <RootNamespace>Vex</RootNamespace>
+    <ApplicationManifest>..\Vex\app.manifest</ApplicationManifest>
+    <Product>Vex Lite</Product>
+    <Version>0.1.0</Version>
+    <EnableDefaultItems>false</EnableDefaultItems>
+    <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
+    <!-- Nullable annotations on a framework without them: warnings only, and noisy. -->
+    <NoWarn>$(NoWarn);CS8600;CS8601;CS8602;CS8603;CS8604;CS8618;CS8619;CS8620;CS8625;CS8714;CS8767</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ApplicationDefinition Include="..\Vex\App.xaml" Link="App.xaml" />
+    <Compile Include="..\Vex\App.xaml.cs" Link="App.xaml.cs" DependentUpon="App.xaml" />
+    <Page Include="..\Vex\VexWindow.xaml" Link="VexWindow.xaml" />
+    <Compile Include="..\Vex\VexWindow.xaml.cs" Link="VexWindow.xaml.cs" DependentUpon="VexWindow.xaml" />
+    <Page Include="..\Vex\SetupWindow.xaml" Link="SetupWindow.xaml" />
+    <Compile Include="..\Vex\SetupWindow.xaml.cs" Link="SetupWindow.xaml.cs" DependentUpon="SetupWindow.xaml" />
+    <Compile Include="..\Vex\Native.cs;..\Vex\Theme.cs;..\Vex\Store.cs" />
+    <Compile Include="..\Vex\VexActs.cs;..\Vex\VexClimb.cs;..\Vex\VexCoding.cs;..\Vex\VexJuggle.cs;..\Vex\VexKnock.cs;..\Vex\VexLunch.cs;..\Vex\VexPace.cs;..\Vex\VexPerch.cs" />
+    <Compile Include="..\Vex\Services\Activity.cs;..\Vex\Services\Calendar.cs;..\Vex\Services\Commute.cs;..\Vex\Services\Nudges.cs;..\Vex\Services\Pending.cs;..\Vex\Services\Presence.cs;..\Vex\Services\ReminderTimes.cs" />
+    <Compile Include="*.cs" />
+    <Page Include="*.xaml" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="Microsoft.CSharp" />
+    <Reference Include="System.Net.Http" />
+  </ItemGroup>
+
+</Project>

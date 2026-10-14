@@ -84,17 +84,19 @@
             <TabItem Header="You">
                 <StackPanel>
                     <TextBlock Style="{StaticResource Title}" Text="Hello. I'm Vex."/>
-                    <TextBlock Style="{StaticResource Note}"
+                    <TextBlock x:Name="IntroNote" Style="{StaticResource Note}"
                                Text="I live on your taskbar, keep out of the way, nudge you about breaks and meetings, and chat when you click me."/>
                     <TextBlock Style="{StaticResource Heading}" Text="What should I call you?"/>
                     <TextBox x:Name="NameBox"/>
-                    <TextBlock Style="{StaticResource Heading}" Text="Where do you work? (optional)"/>
-                    <TextBox x:Name="WorkBox"/>
-                    <TextBlock Style="{StaticResource Note}" Text="Just gives me a little context when we chat."/>
+                    <StackPanel x:Name="WorkPart">
+                        <TextBlock Style="{StaticResource Heading}" Text="Where do you work? (optional)"/>
+                        <TextBox x:Name="WorkBox"/>
+                        <TextBlock Style="{StaticResource Note}" Text="Just gives me a little context when we chat."/>
+                    </StackPanel>
                 </StackPanel>
             </TabItem>
 
-            <TabItem Header="Notes">
+            <TabItem x:Name="NotesTab" Header="Notes">
                 <StackPanel>
                     <TextBlock Style="{StaticResource Title}" Text="Where should I keep your to-dos and notes?"/>
                     <RadioButton x:Name="UseNotebook" GroupName="Notes" Content="Lab Notebook"/>
@@ -119,12 +121,12 @@
                     </CheckBox>
                     <TextBlock x:Name="ClaudeNote" Style="{StaticResource Note}" Margin="20,0,0,0"/>
                     <CheckBox x:Name="ChatClickAway" Content="Close the chat when you click outside it"/>
-                    <TextBlock Style="{StaticResource Note}" Margin="20,0,0,0"
+                    <TextBlock x:Name="ChatClickAwayNote" Style="{StaticResource Note}" Margin="20,0,0,0"
                                Text="Not while I'm replying or a Build it button is waiting. Anything half-typed is kept for next time."/>
                     <CheckBox x:Name="CodingAtLaptop" Content="Sit in a corner and type on a laptop while I'm changing my own code"/>
                     <CheckBox x:Name="CodingForClaude" Content="…and while one of your Claude Code sessions is working" Margin="20,5,0,0"
                               IsEnabled="{Binding IsChecked, ElementName=CodingAtLaptop}"/>
-                    <TextBlock Style="{StaticResource Note}" Margin="20,0,0,0"
+                    <TextBlock x:Name="CodingNote" Style="{StaticResource Note}" Margin="20,0,0,0"
                                Text="Bottom-right corner (CodingCorner in config.json). Drag me somewhere and I'll type there instead."/>
                     <CheckBox x:Name="LunchRoutine" Content="Have my own lunch when you go for yours (a sandwich, then a nap)"/>
                     <StackPanel Orientation="Horizontal" Margin="20,5,0,0" IsEnabled="{Binding IsChecked, ElementName=LunchRoutine}">
@@ -132,7 +134,7 @@
                         <TextBox x:Name="LunchMinutes" Width="45" Margin="8,0,6,0"/>
                         <TextBlock Text="minutes" VerticalAlignment="Center"/>
                     </StackPanel>
-                    <TextBlock Style="{StaticResource Note}" Margin="20,0,0,0"
+                    <TextBlock x:Name="LunchNote" Style="{StaticResource Note}" Margin="20,0,0,0"
                                Text="Starts when you press Going on the lunch nudge or tell me you're off. Come back early and I'll wake up."/>
 
                     <!-- One checkbox per idle activity, made in code from IdleActs.All so new ones show up here by themselves. -->
@@ -155,13 +157,13 @@
                             <Button x:Name="ChatNow" Content="Chat"/>
                             <Button x:Name="ForgetNow" Content="Forget today's chat"/>
                         </WrapPanel>
-                        <TextBlock Style="{StaticResource Note}"
+                        <TextBlock x:Name="RightNowNote" Style="{StaticResource Note}"
                                    Text="These happen straight away. Chat closes this window first (without saving)."/>
                     </StackPanel>
                 </StackPanel>
             </TabItem>
 
-            <TabItem Header="Watching">
+            <TabItem x:Name="WatchTab" Header="Watching">
                 <StackPanel>
                     <TextBlock Style="{StaticResource Title}" Text="Watching and learning"/>
                     <CheckBox x:Name="ActivityLog" Content="Keep a log of which app and window title is in front"/>
@@ -196,10 +198,10 @@
                         <TextBox x:Name="WorkAddress" Grid.Row="2" Grid.Column="1" Margin="0,2"/>
                         <TextBlock Grid.Row="3" Text="Home address" VerticalAlignment="Center"/>
                         <TextBox x:Name="HomeAddress" Grid.Row="3" Grid.Column="1" Margin="0,2"/>
-                        <TextBlock Grid.Row="4" Text="TomTom key" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="TomTomLabel" Grid.Row="4" Text="TomTom key" VerticalAlignment="Center"/>
                         <TextBox x:Name="TomTomKey" Grid.Row="4" Grid.Column="1" Margin="0,2"/>
                     </Grid>
-                    <TextBlock Style="{StaticResource Note}" Margin="0,8,0,0"
+                    <TextBlock x:Name="HomeNote" Style="{StaticResource Note}" Margin="0,8,0,0"
                                Text="15 minutes before you leave I'll tell you to pack up, with a Google Maps button for the way home (by train or bus it lists the next departures). Driving, a free TomTom key (developer.tomtom.com) lets me check the live traffic; that sends the two addresses to TomTom. Postcodes are fine."/>
                 </StackPanel>
             </TabItem>

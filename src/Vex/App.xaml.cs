@@ -18,7 +18,11 @@ public partial class App : Application
         base.OnStartup(e);
         // One Vex per data folder: a test copy with its own VEX_DATA_DIR can run beside the real one.
         var instance = Store.Dir == Store.DefaultDir ? "" : "." + Store.Dir.ToLowerInvariant().Replace('\\', '/');   // no backslashes in a mutex name
+#if LITE
+        single = new Mutex(true, @"Local\Vex.Lite" + instance, out bool first);   // can run beside the full Vex
+#else
         single = new Mutex(true, @"Local\Vex.Companion" + instance, out bool first);
+#endif
         if (!first) { Shutdown(); return; }
 
         DispatcherUnhandledException += (_, ex) => { Store.Log($"Unhandled: {ex.Exception}"); ex.Handled = true; };
@@ -135,19 +139,24 @@ public partial class App : Application
     }
 
     const string RunKey = @"Software\Microsoft\Windows\CurrentVersion\Run";
+#if LITE
+    const string RunName = "Vex Lite";
+#else
+    const string RunName = "Vex";
+#endif
 
     internal static bool StartsWithWindows()
     {
         using var k = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(RunKey);
-        return k?.GetValue("Vex") is string;
+        return k?.GetValue(RunName) is string;
     }
 
     /// <summary>Per-user startup entry (no admin needed). Points at whichever Vex.exe is running.</summary>
     internal static void SetStartup(bool on)
     {
         using var k = Microsoft.Win32.Registry.CurrentUser.CreateSubKey(RunKey);
-        if (on) k.SetValue("Vex", $"\"{Environment.ProcessPath}\"");
-        else k.DeleteValue("Vex", throwOnMissingValue: false);
+        if (on) k.SetValue(RunName, $"\"{Native.ExePath}\"");
+        else k.DeleteValue(RunName, throwOnMissingValue: false);
     }
 
     /// <summary>Opens a file or folder in its usual app. Setup → Privacy → Your data uses it.</summary>
@@ -156,6 +165,17 @@ public partial class App : Application
 
     static string Status()
     {
+#if LITE
+        var cal = Services.Hub.Calendar;
+        var next = Store.State.Reminders.OrderBy(r => r.At).FirstOrDefault();
+        return string.Join("\n", new[]
+        {
+            $"Sitting: {(int)Services.Hub.Presence.Sitting.TotalMinutes} min. Coffees: {Store.State.Coffees}.",
+            $"Reminders: {(next == null ? "none set" : $"{Store.State.Reminders.Count}, next {Services.ReminderTimes.Describe(next, DateTime.Now)}: {next.Text}")}.",
+            $"Calendar: {(cal.Source == "none" ? "not connected (needs classic Outlook running)" : $"{cal.Today.Count} today via {cal.Source}")}.",
+            $"Quiet mode: {(Services.Hub.InCall != null ? $"in a call ({Services.Hub.InCall})" : Services.Hub.FullScreen ? "full screen" : "off")}.",
+        });
+#else
         var nb = Services.Hub.Notes;
         var cal = Services.Hub.Calendar;
         return string.Join("\n", new[]
@@ -166,6 +186,7 @@ public partial class App : Application
             $"Claude Code: {(Services.ClaudeWatch.Installed() ? $"{Services.Hub.Claude.Sessions.Count} session(s) seen" : "not connected")}{(Services.Hub.Claude.Listening ? "" : ", listener down")}.",
             $"Quiet mode: {(Services.Hub.InCall != null ? $"in a call ({Services.Hub.InCall})" : Services.Hub.FullScreen ? "full screen" : "off")}.",
         });
+#endif
     }
 
     public void Quit()

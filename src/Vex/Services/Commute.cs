@@ -26,7 +26,11 @@ public static class Commute
 
     public static bool Enabled => TryLeave(out _);
     /// <summary>Live traffic is possible: driving, with a key and both addresses set.</summary>
+#if LITE
+    public static bool CanCheck => false;   // the lite build never sends addresses anywhere
+#else
     public static bool CanCheck => Driving && C.TomTomKey.Length > 0 && C.HomeAddress.Length > 0 && C.WorkAddress.Length > 0;
+#endif
 
     static bool Driving => By == "driving";
 
@@ -76,6 +80,11 @@ public static class Commute
 
     public static DateTime? LeaveTime() => TryLeave(out var leave) ? leave : null;
 
+#if LITE
+    /// <summary>Lite: no live traffic, so never anything to add to the pack-up nudge.</summary>
+    public static Task<string?> Check(TimeSpan? maxAge = null) => Task.FromResult<string?>(null);
+
+#else
     /// <summary>"Home's 34 min right now, 9 slower than usual. …", or null if there's no live traffic.</summary>
     /// <param name="maxAge">Reuse the last result if it's at least this fresh (saves calls when a nudge is retried).</param>
     public static async Task<string?> Check(TimeSpan? maxAge = null)
@@ -117,6 +126,7 @@ public static class Commute
         }
     }
 
+#endif
     /// <summary>For the [[traffic]] chat action: checks, then says it in a bubble.</summary>
     public static async Task SayNow()
     {
@@ -125,6 +135,8 @@ public static class Commute
         if (!CanCheck) OpenMap();
     }
 
+#if LITE
+#else
     /// <summary>
     /// "lat,lon" for an address, looked up once and kept in state as "lat,lon|type/entityType" (TomTom's match kind,
     /// e.g. "Point Address/" or "Geography/PostalCodeArea"). Rough means TomTom only matched a street, area or town.
@@ -151,6 +163,7 @@ public static class Commute
         return (ll, IsRough(kind));
     }
 
+#endif
     /// <summary>
     /// Match kinds that don't pin down a building: a street's midpoint, a junction, or an area/town. A postcode also
     /// comes back as Geography, but a full UK one covers a handful of buildings, so it counts as precise; otherwise

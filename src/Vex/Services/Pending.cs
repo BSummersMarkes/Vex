@@ -33,7 +33,9 @@ public static class Pending
     /// <summary>The original nudges and cards behind this session's items, so picking one runs the very same action.
     /// After a restart they're gone and the buttons are remade from the item instead.</summary>
     static readonly Dictionary<string, Nudge> liveNudges = new();
+#if !LITE
     static readonly Dictionary<string, Confirm> liveCards = new();
+#endif
 
     /// <summary>Label of the extra button on items with no ✕ of their own: drops the item without doing anything.</summary>
     public const string Drop = "✕";
@@ -61,6 +63,7 @@ public static class Pending
         liveNudges[item.Id] = n;
     }
 
+#if !LITE
     /// <summary>A Build it / Restart card was still waiting when the chat closed.</summary>
     public static void Park(Confirm c)
     {
@@ -72,6 +75,7 @@ public static class Pending
         Add(item);
         liveCards[item.Id] = c;
     }
+#endif
 
     /// <summary>A nudge was answered from its bubble: an older unanswered copy of it (yesterday's stretch, say) is moot.</summary>
     public static void Answered(Nudge n)
@@ -88,16 +92,18 @@ public static class Pending
         var item = Items.FirstOrDefault(i => i.Id == id);
         if (item == null) return null;
         liveNudges.TryGetValue(id, out var nudge);
-        liveCards.TryGetValue(id, out var card);
         Remove(i => i.Id == id);
         Save();
 
+#if !LITE
+        liveCards.TryGetValue(id, out var card);
         if (item.Type == "confirm")
         {
             // Still a click from Ben, so building and restarting stay his call (SPEC section 2, rule 7).
             card ??= Hub.ConfirmFor(item.Args.GetValueOrDefault("action", ""), item.Args.GetValueOrDefault("arg", ""));
             return option == card.GoLabel ? card.Go() : "✗ Left it.";
         }
+#endif
         nudge ??= Hub.Nudges.Rebuild(item);
         var act = nudge?.Buttons.FirstOrDefault(b => b.Label == option).Act;
         if (act != null) act();
@@ -126,7 +132,13 @@ public static class Pending
     static bool Remove(Func<PendingItem, bool> match)
     {
         var gone = Items.Where(match).ToList();
-        foreach (var i in gone) { Items.Remove(i); liveNudges.Remove(i.Id); liveCards.Remove(i.Id); }
+        foreach (var i in gone)
+        {
+            Items.Remove(i); liveNudges.Remove(i.Id);
+#if !LITE
+            liveCards.Remove(i.Id);
+#endif
+        }
         return gone.Count > 0;
     }
 

@@ -9,6 +9,9 @@ using System.Windows.Interop;
 using System.Windows.Threading;
 using Microsoft.Win32;
 using Forms = System.Windows.Forms;
+#if LITE
+using ChatWindow = Vex.LitePanel;   // the lite build's reminders panel stands in for the chat
+#endif
 
 namespace Vex;
 
@@ -38,7 +41,7 @@ public partial class VexWindow : Window
     readonly Random rng = new();
     readonly Stopwatch clock = Stopwatch.StartNew();
     readonly DispatcherTimer timer;
-    readonly uint ownPid = (uint)Environment.ProcessId;
+    readonly uint ownPid = Native.OwnPid;
     IntPtr hwnd;
     Forms.Screen[] screens = Forms.Screen.AllScreens;
     ChatWindow? chat;
@@ -591,7 +594,7 @@ public partial class VexWindow : Window
         if (string.IsNullOrWhiteSpace(spec)) return;
         uint mods = Native.MOD_NOREPEAT;
         Key key = Key.None;
-        foreach (var part in spec.Split('+', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries))
+        foreach (var part in spec.Split('+').Select(p => p.Trim()).Where(p => p.Length > 0))
             switch (part.ToLowerInvariant())
             {
                 case "ctrl" or "control": mods |= Native.MOD_CONTROL; break;
@@ -671,7 +674,9 @@ public partial class VexWindow : Window
     }
 
     /// <summary>Close the chat and start a fresh conversation (today's archive goes too).</summary>
+#if !LITE
     public void ForgetChat() { chat?.Close(); new ClaudeCodeBrain().Forget(); Say("Forgotten. Mostly.", 3, important: true); }
+#endif
 
     // ───────────────────────────── animation ─────────────────────────────
 
