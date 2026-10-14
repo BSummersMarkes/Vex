@@ -189,6 +189,16 @@ For people without a Claude login (Ben's sister and wife, on work PCs). Same sou
 - **Testing:** `VEX_DATA_DIR` for a separate data folder; `VEX_OPEN_PANEL=1` opens the panel on start.
 - The guide for recipients is `src/VexLite/README-LITE.md`.
 
+## 9b. Vex for Mac (early)
+
+For Ben's wife's Mac. A separate project (`src/VexMac`), not the shared source: WPF and the Win32 calls don't exist on macOS, so it's a port onto Avalonia (.NET 10, cross-platform), starting small and growing.
+
+- **Has:** the figure (ported from VexWindow.xaml; gradient points as percentages, moving parts' transforms made in code since Avalonia's scale transforms have no centre), walking along the bottom of the work area (above the Dock), blink, breath, head turn while walking, dozing after 5 idle minutes, drag and drop with a fall, the mug (click to refill), a stretch nudge (55 min sitting) and water (2 h) in a bubble window with buttons, one nudge per 15 min. 15+ minutes away counts as a break (unlike the Windows Vex). Right-click or the menu-bar icon: break, coffee, nap, start at login (a LaunchAgent), Quit. 10 fps when nothing moves.
+- **Not yet:** dodging and perching on windows, climbing, idle activities, lunch, reminders, meetings, eyes following the cursor, appearing on every Space, sounds.
+- **Mac specifics:** idle time from CoreGraphics (`CGEventSourceSecondsSinceLastEventType`); data in `~/Library/Application Support/Vex`; `LSUIElement` and `ShowInDock = false`, so no Dock icon.
+- **Packaging:** `build-mac.ps1` publishes osx-x64 self-contained and `src/VexMac/pack.py` makes Vex.app (Info.plist, an .icns of his hood) and zips it with Unix permissions (the executable bit matters). Intel code needs no signature (Apple Silicon code must be signed, which can't be done from Windows), so it runs under Rosetta. Unsigned, so first launch needs Privacy & Security → Open Anyway. Minimum macOS 14 (what .NET 10 supports).
+- **Testing:** `dotnet run` (or the built Vex.exe) on Windows shows the same figure and behaviour; `VEX_DATA_DIR` for a separate data folder. Nothing can be tried on a real Mac from here.
+
 ## 10. Voice (later)
 
 - Speech to text: Whisper (local, via whisper.cpp), push-to-talk.

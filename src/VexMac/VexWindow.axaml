@@ -1,0 +1,167 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="VexMac.VexWindow"
+        Title="Vex" Width="260" Height="260"
+        SystemDecorations="None" TransparencyLevelHint="Transparent" Background="Transparent"
+        Topmost="True" ShowInTaskbar="False" CanResize="False" ShowActivated="False">
+    <!--
+        Vex's figure, ported from the Windows version (src/Vex/VexWindow.xaml, from the design handoff). Coordinates
+        match the SVG's 120 x 150 viewBox. Differences from WPF: gradient points are written as percentages, and the
+        moving parts' transforms are made in code (VexWindow.axaml.cs), since Avalonia's scale transforms have no
+        centre and can't be named here. Props for idle activities (book, phone, laptop...) aren't ported yet.
+    -->
+    <Window.Resources>
+        <StreamGeometry x:Key="BodyShape">M 40,74 C 35,96 32,116 30,135 Q 60,141 90,135 C 88,116 85,96 80,74 Z</StreamGeometry>
+        <StreamGeometry x:Key="HoodShape">M 30,55 C 30,33 43,21 60,21 C 77,21 90,33 90,55 C 90,72 78,81 60,81 C 42,81 30,72 30,55 Z</StreamGeometry>
+        <RadialGradientBrush x:Key="Glove" Center="38%,32%" GradientOrigin="38%,32%" Radius="0.85">
+            <GradientStop Offset="0" Color="#F4F2EE"/><GradientStop Offset="0.65" Color="#E0DDD7"/><GradientStop Offset="1" Color="#B3AFA8"/>
+        </RadialGradientBrush>
+        <RadialGradientBrush x:Key="Boot" Center="40%,30%" GradientOrigin="40%,30%" Radius="0.95">
+            <GradientStop Offset="0" Color="#6E5244"/><GradientStop Offset="1" Color="#2E2018"/>
+        </RadialGradientBrush>
+        <BlurEffect x:Key="Crease" Radius="3"/>
+        <BlurEffect x:Key="SoftShadow" Radius="6.5"/>
+    </Window.Resources>
+
+    <Canvas Width="260" Height="260">
+        <TextBlock x:Name="Zzz" Canvas.Left="158" Canvas.Top="122" Text="z Z" FontSize="16" FontWeight="Bold"
+                   Foreground="#E0B8BC" IsVisible="False" IsHitTestVisible="False"/>
+
+        <!-- The character. 120 x 150, centred on x=60, feet on the bottom edge of the window. -->
+        <Canvas x:Name="Rig" Canvas.Left="70" Canvas.Top="110" Width="120" Height="150"
+                RenderTransformOrigin="50%,100%" Cursor="Hand">
+
+            <!-- Ground shadow -->
+            <Ellipse x:Name="Shadow" Canvas.Left="30" Canvas.Top="145.3" Width="60" Height="6.4" Fill="Black" Opacity="0.5"
+                     Effect="{StaticResource SoftShadow}" IsHitTestVisible="False"/>
+
+            <Canvas x:Name="Upper">
+                <!-- ── Torso ── -->
+                <Path x:Name="Body" Data="{StaticResource BodyShape}">
+                    <Path.Fill>
+                        <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,0%">
+                            <GradientStop Offset="0" Color="#4E171C"/><GradientStop Offset="0.3" Color="#82292F"/>
+                            <GradientStop Offset="0.6" Color="#76242A"/><GradientStop Offset="1" Color="#4A161A"/>
+                        </LinearGradientBrush>
+                    </Path.Fill>
+                </Path>
+                <Path Data="{StaticResource BodyShape}" Fill="{DynamicResource Weave}" Opacity="0.75" IsHitTestVisible="False"/>
+                <Canvas Clip="{StaticResource BodyShape}" IsHitTestVisible="False">
+                    <Ellipse Canvas.Left="34" Canvas.Top="73" Width="52" Height="14" Fill="Black" Opacity="0.42" Effect="{StaticResource SoftShadow}"/>
+                    <Canvas Effect="{StaticResource Crease}">
+                        <Path Stroke="#47000000" StrokeThickness="1.4" Data="M 44,82 Q 38,94 33,106 M 76,82 Q 82,94 87,103"/>
+                        <Path Stroke="#40A84850" StrokeThickness="1" Data="M 46,84 Q 41,95 36,107"/>
+                        <Path Stroke="#33000000" StrokeThickness="1.8" Data="M 47,86 C 46,100 45,114 46,130 M 73,86 C 74,100 75,114 74,130"/>
+                    </Canvas>
+                    <!-- Ribbed hem -->
+                    <Path Fill="#4E171B" Data="M 29,129 Q 60,134.5 91,129 L 92,142 Q 60,147 28,142 Z"/>
+                    <Path Stroke="#CC38100F" StrokeThickness="0.6"
+                          Data="M 36,131 L 35.6,139 M 42,132 L 41.8,140 M 48,132.6 L 47.9,140.6 M 54,133 L 54,141 M 60,133.2 L 60,141.2 M 66,133 L 66,141 M 72,132.6 L 72.1,140.6 M 78,132 L 78.2,140 M 84,131 L 84.4,139"/>
+                    <Path Stroke="#4D000000" StrokeThickness="1.2" Effect="{StaticResource Crease}" Data="M 29,129 Q 60,134.5 91,129"/>
+                    <Ellipse Canvas.Left="21" Canvas.Top="108" Width="16" Height="8" Fill="Black" Opacity="0.32" Effect="{StaticResource SoftShadow}"/>
+                </Canvas>
+                <!-- Pocket -->
+                <Path Fill="#1F000000" Stroke="#4E1519" StrokeThickness="1.2" Data="M 43,110 Q 60,106 77,110 L 80,127 Q 60,130 40,127 Z"/>
+                <Path Stroke="#BFA9474F" StrokeThickness="0.55" StrokeDashArray="2.55,2.2"
+                      Data="M 45,112.4 Q 60,108.6 75,112.4 L 77.6,125.2 Q 60,127.8 42.4,125.2 Z"/>
+                <Path Stroke="#40000000" StrokeThickness="1.2" Effect="{StaticResource Crease}" Data="M 43.5,111 Q 60,107.2 76.5,111"/>
+                <!-- Drawstrings -->
+                <Path Stroke="#DCD3CF" StrokeThickness="1.8" StrokeLineCap="Round" Data="M 55,80 Q 53.5,88 54,96 M 65,80 Q 66.5,88 66,96"/>
+                <Ellipse Canvas.Left="53.5" Canvas.Top="78.5" Width="3" Height="3" Fill="#4A1418"/>
+                <Ellipse Canvas.Left="63.5" Canvas.Top="78.5" Width="3" Height="3" Fill="#4A1418"/>
+                <Rectangle Canvas.Left="52.6" Canvas.Top="94.5" Width="2.8" Height="4.5" RadiusX="1.2" RadiusY="1.2" Fill="#CFC6C0"/>
+                <Rectangle Canvas.Left="64.6" Canvas.Top="94.5" Width="2.8" Height="4.5" RadiusX="1.2" RadiusY="1.2" Fill="#CFC6C0"/>
+
+                <!-- ── Hood (turns slightly with the head) ── -->
+                <Canvas x:Name="Head">
+                    <Path x:Name="Hood" Data="{StaticResource HoodShape}">
+                        <Path.Fill>
+                            <RadialGradientBrush Center="34%,26%" GradientOrigin="34%,26%" Radius="0.95">
+                                <GradientStop Offset="0" Color="#A9474F"/><GradientStop Offset="0.5" Color="#83292F"/><GradientStop Offset="1" Color="#561A1F"/>
+                            </RadialGradientBrush>
+                        </Path.Fill>
+                    </Path>
+                    <Path Data="{StaticResource HoodShape}" Fill="{DynamicResource Weave}" Opacity="0.75" IsHitTestVisible="False"/>
+                    <Canvas Clip="{StaticResource HoodShape}" Effect="{StaticResource Crease}" IsHitTestVisible="False">
+                        <Path Stroke="#4D000000" StrokeThickness="1.6" Data="M 34,68 Q 40,76 48,79 M 86,68 Q 80,76 72,79"/>
+                        <Path Stroke="#40B4525A" StrokeThickness="1" Data="M 33,64 Q 38,72 45,76"/>
+                    </Canvas>
+
+                    <!-- Face opening and eyes, clipped by the hood so they slide out of view as he turns -->
+                    <Canvas Clip="{StaticResource HoodShape}">
+                        <Canvas x:Name="Face">
+                            <Path Stroke="#38000000" StrokeThickness="0.5" Data="M 60,21 L 60,27"/>
+                            <Ellipse Canvas.Left="34" Canvas.Top="27" Width="52" Height="49">
+                                <Ellipse.Fill>
+                                    <RadialGradientBrush Center="50%,70%" GradientOrigin="50%,70%" Radius="0.6">
+                                        <GradientStop Offset="0" Color="#0E0E12"/><GradientStop Offset="1" Color="#000000"/>
+                                    </RadialGradientBrush>
+                                </Ellipse.Fill>
+                            </Ellipse>
+                            <Ellipse Canvas.Left="36" Canvas.Top="28" Width="48" Height="36" Stroke="#80000000" StrokeThickness="5"
+                                     Effect="{StaticResource SoftShadow}"/>
+                            <Ellipse Canvas.Left="34" Canvas.Top="27" Width="52" Height="49" StrokeThickness="3">
+                                <Ellipse.Stroke>
+                                    <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
+                                        <GradientStop Offset="0" Color="#521519"/><GradientStop Offset="1" Color="#9C3C44"/>
+                                    </LinearGradientBrush>
+                                </Ellipse.Stroke>
+                            </Ellipse>
+                            <Ellipse Canvas.Left="32.4" Canvas.Top="25.4" Width="55.2" Height="52.2" Stroke="#38000000" StrokeThickness="0.8"
+                                     Effect="{StaticResource Crease}"/>
+                        </Canvas>
+
+                        <Canvas x:Name="Eyes">
+                            <Canvas.Effect>
+                                <DropShadowEffect Color="White" BlurRadius="7" OffsetX="0" OffsetY="0" Opacity="0.85"/>
+                            </Canvas.Effect>
+                            <Ellipse Canvas.Left="47" Canvas.Top="45" Width="9" Height="13" Fill="White"/>
+                            <Ellipse Canvas.Left="64" Canvas.Top="45" Width="9" Height="13" Fill="White"/>
+                        </Canvas>
+                    </Canvas>
+                </Canvas>
+
+                <!-- ── Front: left mitten, mug, right mitten ── -->
+                <Canvas x:Name="LeftGlove">
+                    <Ellipse Canvas.Left="21" Canvas.Top="99" Width="16" Height="15" Fill="{StaticResource Glove}"/>
+                    <Ellipse Canvas.Left="21" Canvas.Top="99" Width="16" Height="15" Fill="{DynamicResource Weave}" Opacity="0.35" IsHitTestVisible="False"/>
+                </Canvas>
+
+                <!-- Mug, held in the right mitten. A see-through gauge so the level reads at a glance. -->
+                <Canvas x:Name="Mug" Canvas.Left="80" Canvas.Top="83" Width="28" Height="24" Background="Transparent"
+                        RenderTransformOrigin="0,0">
+                    <Canvas x:Name="Steam" Opacity="0">
+                        <Path Stroke="#99FFFFFF" StrokeThickness="1.4" StrokeLineCap="Round"
+                              Data="M 4.5,3 C 1.5,-1 7.5,-4 4.5,-9 M 11,3 C 8,-1 14,-4 11,-9"/>
+                    </Canvas>
+                    <Ellipse Canvas.Left="12.5" Canvas.Top="7.5" Width="9" Height="11" Stroke="#D8D1C3" StrokeThickness="2.6"/>
+                    <Rectangle Canvas.Left="0" Canvas.Top="4" Width="15.5" Height="19" RadiusX="3" RadiusY="3">
+                        <Rectangle.Fill>
+                            <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,0%">
+                                <GradientStop Offset="0" Color="#F6F3EC"/><GradientStop Offset="0.6" Color="#E4DED2"/><GradientStop Offset="1" Color="#B3AB9B"/>
+                            </LinearGradientBrush>
+                        </Rectangle.Fill>
+                    </Rectangle>
+                    <Rectangle Canvas.Left="2.25" Canvas.Top="6.25" Width="11" Height="14.5" RadiusX="1.5" RadiusY="1.5" Fill="#A49C8E"/>
+                    <Rectangle x:Name="Coffee" Canvas.Left="2.25" Canvas.Top="6.25" Width="11" Height="14.5" RadiusX="1.5" RadiusY="1.5" Fill="#5B3521"/>
+                </Canvas>
+                <Canvas x:Name="RightGlove">
+                    <Ellipse Canvas.Left="91" Canvas.Top="95" Width="16" Height="15" Fill="{StaticResource Glove}"/>
+                    <Ellipse Canvas.Left="91" Canvas.Top="95" Width="16" Height="15" Fill="{DynamicResource Weave}" Opacity="0.35" IsHitTestVisible="False"/>
+                </Canvas>
+            </Canvas>
+
+            <!-- Boots -->
+            <Canvas x:Name="LeftFoot">
+                <Path Fill="{StaticResource Boot}"
+                      Data="M 36,148.5 C 34,148.5 33.5,144 36,141 C 38.5,138 46,137 52,139 C 57,140.5 58,148.5 54,148.5 Z"/>
+                <Path Stroke="#CC9C8676" StrokeThickness="0.9" Data="M 35,147.6 L 55,147.6"/>
+            </Canvas>
+            <Canvas x:Name="RightFoot">
+                <Path Fill="{StaticResource Boot}"
+                      Data="M 64,148.5 C 61,148.5 62,140.5 67,139 C 73,137 81.5,138 84,141 C 86.5,144 86,148.5 84,148.5 Z"/>
+                <Path Stroke="#CC9C8676" StrokeThickness="0.9" Data="M 65,147.6 L 85,147.6"/>
+            </Canvas>
+        </Canvas>
+    </Canvas>
+</Window>

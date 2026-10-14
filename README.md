@@ -71,6 +71,10 @@ A cut-down Vex for people without Claude: the character, nudges, lunch, the mug,
 
 Build it with `powershell -ExecutionPolicy Bypass -File .uild-lite.ps1`, which writes `Vex Lite.exe` to the repo root.
 
+## Vex for Mac (early)
+
+A separate, cut-down Vex for macOS in `src/VexMac`, built on Avalonia so it runs on a Mac (and on Windows, for trying it out). So far he walks the bottom of the screen above the Dock, blinks, breathes, dozes when you're idle, can be dragged and dropped, has his mug, and nudges about a stretch and water; menu-bar icon, start at login. No Claude, nothing leaves the Mac. `build-mac.ps1` makes `Vex-mac.zip` (Vex.app, about 44 MB) as Intel code, which Apple Silicon Macs run through Rosetta without Apple's code signing. Needs macOS 14 or newer. How to get it onto the Mac: [src/VexMac/README-MAC.md](src/VexMac/README-MAC.md).
+
 ## Building from source
 
 Needs the .NET 10 SDK (Vex Lite also needs the .NET Framework 4.8 targeting pack, which the SDK fetches by itself). Run `powershell -ExecutionPolicy Bypass -File .\build.ps1`; it produces a self-contained `Vex.exe` in the repo root. Design notes are in [SPEC.md](SPEC.md).

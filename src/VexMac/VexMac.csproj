@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Vex for macOS: a separate, cut-down Vex (no Claude, nothing leaves the Mac) built on Avalonia so it runs on a Mac.
+    Starts small: he walks the bottom of the screen, blinks, breathes, dozes when you're idle, can be dragged and
+    dropped, has his mug, and nudges you to take a break. build-mac.ps1 (repo root) packages Vex.app for Intel Macs,
+    which also runs on Apple Silicon through Rosetta without needing Apple's code signing.
+    It also runs on Windows, so most of it can be tried out there (dotnet run).
+  -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <AssemblyName>Vex</AssemblyName>
+    <RootNamespace>VexMac</RootNamespace>
+    <Product>Vex</Product>
+    <Version>0.1.0</Version>
+    <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia" Version="11.3.22" />
+    <PackageReference Include="Avalonia.Desktop" Version="11.3.22" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="11.3.22" />
+  </ItemGroup>
+
+</Project>

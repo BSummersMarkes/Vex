@@ -8,6 +8,10 @@ src/VexLite/bin/
 src/VexLite/obj/
 src/VexLite/publish/
 Vex Lite.exe
+src/VexMac/bin/
+src/VexMac/obj/
+src/VexMac/publish-osx/
+Vex-mac.zip
 
 # Editor / OS
 .vs/
