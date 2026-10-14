@@ -69,19 +69,27 @@ public static class Commute
         {
             var from = await Geocode(C.WorkAddress);
             var to = await Geocode(C.HomeAddress);
-            if (from == null || to == null) return "I couldn't find one of the addresses. Check them in Setup.";
-            var url = $"https://api.tomtom.com/routing/1/calculateRoute/{from}:{to}/json?key={Uri.EscapeDataString(C.TomTomKey)}" +
+            if (from is not { } f || to is not { } t) return "I couldn't find one of the addresses. Check them in Setup.";
+            var url = $"https://api.tomtom.com/routing/1/calculateRoute/{f.Ll}:{t.Ll}/json?key={Uri.EscapeDataString(C.TomTomKey)}" +
                       "&traffic=true&travelMode=car&computeTravelTimeFor=all";
             using var doc = JsonDocument.Parse(await http.GetStringAsync(url));
             var sum = doc.RootElement.GetProperty("routes")[0].GetProperty("summary");
             int Min(string n) => sum.TryGetProperty(n, out var v) ? (int)Math.Round(v.GetDouble() / 60) : -1;
             int now = Min("travelTimeInSeconds"), usual = Min("historicTrafficTravelTimeInSeconds");
             if (usual <= 0) usual = Min("noTrafficTravelTimeInSeconds");
+            // The raw figures go to vex.log so a mismatch with Google can be traced: a different distance means a
+            // different route or a misplaced address; the same distance means TomTom's traffic just reads it differently.
+            Store.Log(string.Create(CultureInfo.InvariantCulture,
+                $"Traffic: {f.Ll} → {t.Ll}, {sum.GetProperty("lengthInMeters").GetDouble() / 1000:0.#} km, now {now} min, historic {Min("historicTrafficTravelTimeInSeconds")}, " +
+                $"free-flow {Min("noTrafficTravelTimeInSeconds")}, live delay {Min("trafficDelayInSeconds")}"));
             int slower = now - usual;
             var text = $"Home's {now} min right now" + (usual <= 0 ? "." :
                 slower >= C.TrafficSlowMinutes ? $", {slower} slower than usual. Might want to get going." :
                 slower >= 3 ? $", {slower} slower than usual." :
                 slower <= -3 ? $", quicker than usual." : ", about normal.");
+            // A roughly placed address can put the route start or end miles out, so the time can't be trusted.
+            var rough = f.Rough && t.Rough ? "work and home" : f.Rough ? "work" : t.Rough ? "home" : null;
+            if (rough != null) text += $" I've only placed {rough} roughly though, so it may be off. A fuller address or postcode in Setup will fix that.";
             lastCheck = (DateTime.Now, text);
             return text;
         }
@@ -100,10 +108,15 @@ public static class Commute
         if (!CanCheck) OpenMap();
     }
 
-    /// <summary>"lat,lon" for an address, looked up once and kept in state.</summary>
-    static async Task<string?> Geocode(string address)
+    /// <summary>
+    /// "lat,lon" for an address, looked up once and kept in state as "lat,lon|type/entityType" (TomTom's match kind,
+    /// e.g. "Point Address/" or "Geography/PostalCodeArea"). Rough means TomTom only matched a street, area or town.
+    /// </summary>
+    static async Task<(string Ll, bool Rough)?> Geocode(string address)
     {
-        if (Store.State.GeoCache.TryGetValue(address, out var hit)) return hit;
+        // Entries cached before the match kind was kept have no "|", so they're looked up once more to get it.
+        if (Store.State.GeoCache.TryGetValue(address, out var hit) && hit.Split('|') is [var hitLl, var hitKind])
+            return (hitLl, IsRough(hitKind));
         var url = $"https://api.tomtom.com/search/2/geocode/{Uri.EscapeDataString(address)}.json?key={Uri.EscapeDataString(C.TomTomKey)}&limit=1" +
                   (C.TrafficCountry.Length > 0 ? $"&countrySet={Uri.EscapeDataString(C.TrafficCountry)}" : "");
         using var doc = JsonDocument.Parse(await http.GetStringAsync(url));
@@ -111,10 +124,27 @@ public static class Commute
         if (results.GetArrayLength() == 0) return null;
         var pos = results[0].GetProperty("position");
         var ll = string.Create(CultureInfo.InvariantCulture, $"{pos.GetProperty("lat").GetDouble():0.######},{pos.GetProperty("lon").GetDouble():0.######}");
-        Store.State.GeoCache[address] = ll;
+        var kind = $"{(results[0].TryGetProperty("type", out var ty) ? ty.GetString() : "")}/" +
+                   $"{(results[0].TryGetProperty("entityType", out var et) ? et.GetString() : "")}";
+        // Where TomTom actually put it, so a bad match ("Street" is a street's midpoint, not the building) shows in vex.log.
+        var found = results[0].TryGetProperty("address", out var a) && a.TryGetProperty("freeformAddress", out var f) ? f.GetString() : "?";
+        Store.Log($"Traffic: \"{address}\" → {found} ({kind}) at {ll}");
+        Store.State.GeoCache[address] = $"{ll}|{kind}";
         Store.SaveState();
-        return ll;
+        return (ll, IsRough(kind));
     }
+
+    /// <summary>
+    /// Match kinds that don't pin down a building: a street's midpoint, a junction, or an area/town. A postcode also
+    /// comes back as Geography, but a full UK one covers a handful of buildings, so it counts as precise; otherwise
+    /// the warning would ask for a postcode and then complain about it.
+    /// </summary>
+    static bool IsRough(string kind) => kind.Split('/') switch
+    {
+        ["Street" or "Cross Street", ..] => true,
+        ["Geography", var entity] => entity != "PostalCodeArea",
+        _ => false,
+    };
 
     /// <summary>Google Maps directions from work to home (traffic layer on) in the browser.</summary>
     public static void OpenMap()

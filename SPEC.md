@@ -84,7 +84,7 @@ A small animated desktop companion that lives on top of the Windows desktop, kee
 | Active app | Process name + window title | Foreground window polling. Exclusion list applied *before* anything is stored. |
 | Window text | Text of the window in front, allowlisted apps only | UI Automation (no screenshots), off the UI thread, capped at `WatchContentChars`. Sent with chat messages and used for his questions. `Services/WindowText.cs`. |
 | Curiosity | What he doesn't know yet about your work | Every `CuriousEveryMinutes` (90), at most `CuriousPerDay` (3): a background Claude call looks at recent titles (and allowlisted window text) against his pages and picks one question. Asked as a normal nudge; "Tell you" opens the chat and the answer is filed on his pages. `Services/Curiosity.cs`. |
-| Traffic | Drive time home now vs usual | TomTom routing API (free key) when `TomTomKey` and both addresses are set; else a Google Maps link. `Services/Commute.cs`. |
+| Traffic | Drive time home now vs usual | TomTom routing API (free key) when `TomTomKey` and both addresses are set; else a Google Maps link. Addresses are geocoded once and cached with TomTom's match type. If either was only matched roughly (`Street`, `Cross Street`, or a `Geography` area or town such as an ambiguous "Central Park"; a postcode match, `Geography/PostalCodeArea`, counts as precise), the reply says the time may be off and suggests a fuller address or postcode in Setup. To help explain a gap with Google, `vex.log` records where each address landed, plus the route length and raw times (live, historic, free-flow) for every check. `Services/Commute.cs`. |
 | Claude Code | Session finished / waiting for input / needs permission | Claude Code hooks (`Stop`, `Notification`) that post to Vex's local listener. |
 | Calendar | Today's meetings | Classic Outlook (local COM) once the laptop moves back to it; fallback: Power Automate writes `calendar.json` to OneDrive. |
 | Lab Notebook | Journal, checkbox to-dos | Reads the notebook's data file (read-only). Writes go via an inbox — see section 8. |
@@ -240,6 +240,7 @@ Each job's log (prompts' results, git output, build errors, review) is in `%LOCA
 - [x] A fresh chat each day; daily chat archive; nightly diary entry + learned facts filed onto his pages
 - [x] Curiosity: asks about recurring things in window titles; reads window text for allowlisted apps
 - [x] Pack-up nudge with TomTom traffic (or a Google Maps link), `[[traffic]]` in chat
+- [x] Traffic: warns when an address was only placed roughly; route and raw times in `vex.log`
 - [x] Morning brief, "Prep me" on meeting reminders, quick-chat hotkey (`QuickChatHotkey`, Ctrl+Alt+V)
 - [x] Stretch nudge held back while watching a remote session (TeamViewer / remote desktop) until you switch window, 30 min cap
 - [x] Breaks never assumed from time away: only confirmed on the stretch/lunch nudge ("Taking a break", "Had my break", "Had lunch") or in chat (`[[break]]`); context shows the last confirmed break, and time away separately as information

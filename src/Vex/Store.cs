@@ -197,7 +197,7 @@ public class VexState
     /// <summary>Questions Vex has asked by himself (newest last), so he doesn't ask the same thing twice.</summary>
     public List<string> AskedQuestions { get; set; } = new();
     public int AskedToday { get; set; }
-    /// <summary>Address → "lat,lon" from TomTom, so addresses are looked up once.</summary>
+    /// <summary>Address → "lat,lon|type/entityType" from TomTom, so addresses are looked up once.</summary>
     public Dictionary<string, string> GeoCache { get; set; } = new();
     /// <summary>Nudges and Build it / Restart cards that went unanswered, for the chat's Pending tab (Services/Pending.cs).</summary>
     public List<Services.PendingItem> Pending { get; set; } = new();
