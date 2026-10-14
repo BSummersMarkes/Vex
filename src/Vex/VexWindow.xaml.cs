@@ -448,7 +448,7 @@ public partial class VexWindow : Window
     }
 
     /// <summary>Parts drawn in reds that aren't his hoodie (props, mug, eyes): left alone when it's recoloured.</summary>
-    static readonly HashSet<string> NotHoodie = new() { "Book", "Sandwich", "Phone", "Mug", "LunchBox", "Laptop", "Eyes", "Ripple" };
+    static readonly HashSet<string> NotHoodie = new() { "Book", "Sandwich", "Phone", "Mug", "LunchBox", "Laptop", "Eyes", "Ripple", "Balls" };
 
     /// <summary>Hoodie colour (and the matching bubble rim and Zzz), plus the speech bubble's light/dark colours.</summary>
     void ApplyAppearance()
@@ -714,7 +714,7 @@ public partial class VexWindow : Window
         double sq = now < squashUntil ? 1 - squashAmp * Math.Sin((squashUntil - now) / 0.18 * Math.PI) : 1;
         Squash.ScaleY = sq; Squash.ScaleX = 2 - sq;
 
-        // Idle activities (sip, phone, book, sit, stretch, watch) layer on top. See VexActs.cs.
+        // Idle activities (sip, phone, book, sit, stretch, watch, juggle) layer on top. See VexActs.cs.
         double eyeCap = 1; double? actTurn = null, actLookY = null;
         ActPose(ref eyeCap, ref actTurn, ref actLookY);
         if (KnockPose()) { actTurn = 0; actLookY = 0; eyeCap = 1; } // face front, eyes wide: knocking on your side of the glass

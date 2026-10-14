@@ -287,6 +287,20 @@
                       Data="M 64,148.5 C 61,148.5 62,140.5 67,139 C 73,137 81.5,138 84,141 C 86.5,144 86,148.5 84,148.5 Z"/>
                 <Path Stroke="#CC9C8676" StrokeThickness="0.9" Data="M 65,147.6 L 85,147.6"/>
             </Canvas>
+
+            <!-- Juggling balls (VexJuggle.cs). Outside the breathing group so a dropped one stays on the floor; each is
+                 centred on its own origin and moved by its transform. In front of everything, face included. -->
+            <Canvas x:Name="Balls" Opacity="0" IsHitTestVisible="False">
+                <Ellipse Canvas.Left="-3.5" Canvas.Top="-3.5" Width="7" Height="7" Fill="#E8B33C" Stroke="#9C7520" StrokeThickness="0.6">
+                    <Ellipse.RenderTransform><TranslateTransform x:Name="Ball0"/></Ellipse.RenderTransform>
+                </Ellipse>
+                <Ellipse Canvas.Left="-3.5" Canvas.Top="-3.5" Width="7" Height="7" Fill="#3FA7A0" Stroke="#24706B" StrokeThickness="0.6">
+                    <Ellipse.RenderTransform><TranslateTransform x:Name="Ball1"/></Ellipse.RenderTransform>
+                </Ellipse>
+                <Ellipse Canvas.Left="-3.5" Canvas.Top="-3.5" Width="7" Height="7" Fill="#5B7FD6" Stroke="#3A579E" StrokeThickness="0.6">
+                    <Ellipse.RenderTransform><TranslateTransform x:Name="Ball2"/></Ellipse.RenderTransform>
+                </Ellipse>
+            </Canvas>
         </Canvas>
     </Canvas>
 </Window>

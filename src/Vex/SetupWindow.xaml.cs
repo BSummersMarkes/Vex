@@ -45,6 +45,11 @@ public partial class SetupWindow : Window
         CodingForClaude.IsChecked = c.CodingForClaude;
         LunchRoutine.IsChecked = c.LunchRoutine;
         LunchMinutes.Text = c.LunchMinutes.ToString(CultureInfo.CurrentCulture);
+        foreach (var a in IdleActs.All)
+            IdleActsList.Children.Add(new System.Windows.Controls.CheckBox
+            {
+                Content = a.Name, Tag = a.Id, IsChecked = IdleActs.Enabled(a.Act), Width = 200,
+            });
         ActivityLog.IsChecked = c.ActivityLog;
         Curious.IsChecked = c.Curious;
         WatchApps.Text = string.Join(", ", c.WatchContentApps);
@@ -137,6 +142,9 @@ public partial class SetupWindow : Window
         // Anything unreadable keeps the old length; a lunch shorter than a couple of minutes isn't one.
         if (double.TryParse(LunchMinutes.Text.Trim(), NumberStyles.Float, CultureInfo.CurrentCulture, out var lunch) && lunch > 0)
             c.LunchMinutes = Math.Clamp(lunch, 2, 240);
+        // Every activity written out, on or off, so config.json shows the full list to edit.
+        foreach (var box in IdleActsList.Children.OfType<System.Windows.Controls.CheckBox>())
+            c.IdleActivities[(string)box.Tag] = box.IsChecked == true;
         c.ActivityLog = ActivityLog.IsChecked == true;
         c.Curious = Curious.IsChecked == true;
         c.WatchContentApps = WatchApps.Text.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)

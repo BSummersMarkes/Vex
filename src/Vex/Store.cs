@@ -72,6 +72,17 @@ public class VexConfig
     /// <summary>Pasted pictures bigger than this (pixels, longest side) are scaled down before they're sent to Claude.</summary>
     public int ChatImageMaxSide { get; set; } = 1568;
 
+    // Idle activities (VexActs.cs).
+    /// <summary>
+    /// Which idle activities he may pick when he's bored, by id (see IdleActs.All). Missing ids use that activity's
+    /// default (on). All off: he just stands about. Setup → Behaviour → Idle activities.
+    /// </summary>
+    public Dictionary<string, bool> IdleActivities { get; set; } = new();
+    /// <summary>Roughly how long one juggling session lasts, in seconds (not counting putting the mug down and picking it up).</summary>
+    public double JuggleSeconds { get; set; } = 6;
+    /// <summary>Chance (0–1) that he drops a ball mid-juggle, looks unimpressed and picks it up.</summary>
+    public double JuggleDropChance { get; set; } = 0.15;
+
     // Coding at the laptop (VexCoding.cs).
     /// <summary>While his workshop is building, he sits in a corner and types on a laptop. Setup → Behaviour.</summary>
     public bool CodingAtLaptop { get; set; } = true;

@@ -1,6 +1,6 @@
 # Vex — Desktop Companion Spec
 
-*Living document. Last updated 2026-10-13.*
+*Living document. Last updated 2026-10-14.*
 
 ## 1. What Vex is
 
@@ -15,7 +15,7 @@ A small animated desktop companion that lives on top of the Windows desktop, kee
 - White mittens, little brown boots. No visible arms or legs.
 - Carries a small mug of coffee that empties over time.
 - Eyes and head do most of the acting: blink, squint, sleep; the head turns to follow the cursor (face and eyes slide inside the hood, |turn| ≤ 40°).
-- Idle activities: sipping coffee, phone, reading a book, sitting against a screen edge (often reading or on his phone), stretching (more after long sitting), checking his watch (meeting soon).
+- Idle activities: sipping coffee, phone, reading a book, sitting against a screen edge (often reading or on his phone), stretching (more after long sitting), checking his watch (meeting soon), juggling three balls (now and then dropping one). Each can be switched off (section 4, Idle activities).
 
 ## 2. Principles
 
@@ -62,6 +62,8 @@ A small animated desktop companion that lives on top of the Windows desktop, kee
 - **Bubble and chat:** the speech bubble and chat panel follow him in step and always sit wholly on his monitor (dragging the chat parks it; clicking Vex re-attaches; clicking him with it attached closes it).
 - **Drag and drop:** pick him up and drop him; he falls to the floor (and is mildly annoyed).
 - **Sleeping:** after a few idle minutes he sits and dozes (Zzz). Wakes when you're back.
+- **Idle activities:** when he's been standing about a while he picks one at random (weighted by context, section 1). Setup → Behaviour → **Idle actions** has a checkbox for each, all on by default, saved in `config.json` (`IdleActivities`, by id; missing ids use the default). He only picks from the ones that are on; with all off he just stands still. Reading and the phone off also means he doesn't do them while sitting at the screen edge. The list lives in one place, `IdleActs.All` in `VexActs.cs` (id, name, default), which Setup reads too. Lunch and the coding laptop aren't idle activities and keep their own switches.
+  - **Juggling:** puts his mug down beside him (its level carries on as normal), juggles three balls in a cascade for about `JuggleSeconds` (6) with his eyes on the highest ball, catches them, pockets them and picks the mug back up. With `JuggleDropChance` (0.15) one gets away and rolls off along the floor: a flat, unimpressed look and a sigh, then he picks it up and stops there. `VexJuggle.cs`.
 - **Coding:** while the workshop is building (section 9), and optionally while a Claude Code session has been working for `CodingClaudeAfterSeconds` (20), he walks to a bottom corner of his screen (`CodingCorner`, right), puts his mug down beside him, sits and types on a small laptop whose screen lights his face, pausing now and then to think. When it ends he shuts the lid, stands, nods (success) or shrugs (failure), then walks back to where he was once nothing's waiting on him. If the corner is covered he works where he stands; dragged mid-job, he types where he's dropped. He still dodges, can be clicked, right-clicked and dragged, doesn't doze off, and knocks for nudges from his seat (the workshop's result knock waits until he's stood up). Setup → Behaviour: `CodingAtLaptop` (on), `CodingForClaude` (off). Sessions "working" past `CodingClaudeMaxMinutes` (120) are ignored as stuck. `VexCoding.cs`.
 - **Lunch:** when you go for lunch (the lunch nudge's "Going", `[[break: going to lunch]]` in chat, or Setup → Behaviour → Lunch break) a `LunchMinutes` (30) timer starts and he has his own: walks to the nearer bottom corner, puts his mug down beside him, sits, opens his lunch box and eats a sandwich for a random `LunchEatMinMinutes`–`LunchEatMaxMinutes` (5–10, at most half the break), then shuts it and naps (eyes shut, head nodding, Zzz, silent). Time's up: a small flinch awake and a dry line. Back early (input after `LunchAwayMinutes` (3) idle or a locked screen, `[[break: back]]` in chat, clicking him mid-nap, or Setup → Behaviour → End lunch): a groggy wake (mid-sandwich he just packs up). Chat, the menu, dragging and bubbles all still work; moved, he sits back down where he lands on the same timer. While he naps, wellbeing nudges and casual remarks are held back; exempt nudges (section 7) and things you just asked for still show, and he opens his eyes and knocks from his seat. Takes priority over the coding laptop (a running build carries on and he goes to the laptop afterwards). No dodging or wandering meanwhile. Only the nudge's "Going" and the chat action confirm the lunch break (section 6); the timer itself confirms nothing. Setup → Behaviour: `LunchRoutine` (on) and the length. `VexLunch.cs`.
 - **Hidden:** never appears in screen shares or screenshots (`HideFromScreenCapture`); vanishes for full-screen presentations/video. Remote desktop and VMs count as ordinary windows.
@@ -232,6 +234,7 @@ Each job's log (prompts' results, git output, build errors, review) is in `%LOCA
 - [x] Lunch routine: a lunch timer when you go ("Going" or in chat); he eats 5–10 min with his mug beside him, naps the rest (only important bubbles), flinches awake at the end or wakes groggily if you're back early; survives chat, drags and nudges; beats the coding laptop; on/off and length in Setup → Behaviour
 - [x] Slim menus: tray and right-click both just Setup…, What Vex knows…, Appearance, Quit; the other actions moved into Setup (Behaviour → Right now, Privacy → Your data)
 - [x] Mug menu: right-click the mug for today's coffee count and Undo last refill (steps back through today's refills, restores the mug level, survives restarts)
+- [x] Juggling idle activity (mug put down and picked back up; the odd dropped ball), and Setup → Behaviour → Idle actions to switch each idle activity on or off (one registry, `IdleActs.All`)
 
 ### He learns (2026-10-13)
 - [x] Build/restart from chat need a click (prompt-injection guard); context marked as data, not instructions

@@ -6,7 +6,37 @@ using Forms = System.Windows.Forms;
 namespace Vex;
 
 /// <summary>Little things Vex does while he's just standing about.</summary>
-enum Act { None, Sip, Phone, Read, Sit, Stretch, Watch, Lunch, Code }
+enum Act { None, Sip, Phone, Read, Sit, Stretch, Watch, Lunch, Code, Juggle }
+
+/// <summary>One of the things he may do when he's bored: its config id, its name in Setup, and whether it's on by default.</summary>
+record IdleAct(Act Act, string Id, string Name, bool DefaultOn = true);
+
+/// <summary>
+/// The one list of idle activities. The picker in UpdateActs and Setup → Behaviour → Idle activities both read it, so
+/// a new one only needs adding here (and a case in UpdateActs/Pose). Lunch and the coding laptop aren't idle: they're
+/// triggered by what you're doing, and have their own switches.
+/// </summary>
+static class IdleActs
+{
+    public static readonly IdleAct[] All =
+    {
+        new(Act.Sip, "sip", "Sip coffee"),
+        new(Act.Phone, "phone", "Check his phone"),
+        new(Act.Read, "read", "Read a book"),
+        new(Act.Sit, "sit", "Sit against the screen edge"),
+        new(Act.Stretch, "stretch", "Stretch"),
+        new(Act.Watch, "watch", "Check his watch (meeting soon)"),
+        new(Act.Juggle, "juggle", "Juggle"),
+    };
+
+    /// <summary>Whether he may do this when bored (config.json IdleActivities, else its default). Anything not in the list is always allowed.</summary>
+    public static bool Enabled(Act a)
+    {
+        var e = All.FirstOrDefault(i => i.Act == a);
+        if (e == null) return true;
+        return Store.Config.IdleActivities.TryGetValue(e.Id, out var on) ? on : e.DefaultOn;
+    }
+}
 
 /// <summary>
 /// Idle activities. One at a time: ease in, hold, ease out. Anything that needs him to move
@@ -61,6 +91,10 @@ public partial class VexWindow
         if (MugLevel() > 0.02 && now - lastSip > 50) options.Add((Act.Sip, 4));
         bool meetingSoon = Services.Hub.Calendar.Upcoming.Any(m => (m.Start - DateTime.Now).TotalMinutes is > 0 and < 15);
         if (meetingSoon && now - lastWatch > 300) options.Add((Act.Watch, 6));
+        options.Add((Act.Juggle, 0.6));   // a rare bit of showing off
+        // Only what's switched on in Setup; with nothing left he just stands there and tries again later.
+        options.RemoveAll(o => !IdleActs.Enabled(o.Act));
+        if (options.Count == 0) { nextAct = now + 12 + rng.NextDouble() * 25; return; }
 
         double roll = rng.NextDouble() * options.Sum(o => o.Weight);
         var pick = options.First().Act;
@@ -74,6 +108,7 @@ public partial class VexWindow
             case Act.Stretch: Begin(Act.Stretch, 2.6); break;
             case Act.Watch: Begin(Act.Watch, 2.4); lastWatch = now; break;
             case Act.Sit: GoSit(scr); break;
+            case Act.Juggle: StartJuggle(); break;
         }
     }
 
@@ -88,6 +123,7 @@ public partial class VexWindow
             case Act.Lunch: StartLunch(); break;
             case Act.Code: codeDebugUntil = now + 15; break;   // pretends a job runs for 15 s, then nods
             case Act.Read: Begin(a, 20); nextFlip = now + 2; break;
+            case Act.Juggle: StartJuggle(); break;
             default: Begin(a, a is Act.Sip or Act.Stretch or Act.Watch ? 3 : 15); break;
         }
         return "ok";
@@ -98,15 +134,22 @@ public partial class VexWindow
     /// <summary>Wander to the nearer edge of the screen, then sit leaning against it.</summary>
     void GoSit(Forms.Screen scr)
     {
-        if (Perched) { Begin(Act.Read, 15); nextFlip = now + 3; return; } // no screen edge up here
+        if (Perched) { ReadInstead(); return; } // no screen edge up here
         var wa = scr.WorkingArea;
         double half = BodyHalfW * S;
         double left = wa.Left + half + 2 * S, right = wa.Right - half - 2 * S;
         double tx = x - left < right - x ? left : right;
-        if (ForegroundRect() is { } r && Overlaps(r, tx, wa.Bottom)) { Begin(Act.Read, 15); nextFlip = now + 3; return; }
+        if (ForegroundRect() is { } r && Overlaps(r, tx, wa.Bottom)) { ReadInstead(); return; }
         if (Math.Abs(tx - x) < 3 * S) { StartSit(scr); return; }
         pendingAct = Act.Sit; pendingX = tx;
         WalkTo(tx, Store.Config.WalkSpeed);
+    }
+
+    /// <summary>Can't sit at the edge: read where he stands instead, or, with reading switched off, leave it for a while.</summary>
+    void ReadInstead()
+    {
+        if (IdleActs.Enabled(Act.Read)) { Begin(Act.Read, 15); nextFlip = now + 3; }
+        else nextAct = now + 12 + rng.NextDouble() * 25;
     }
 
     void StartSit(Forms.Screen scr)
@@ -116,6 +159,7 @@ public partial class VexWindow
         sitLean = edgeLeft ? -5 : 5;         // top of the hood rests against the edge
         double r = rng.NextDouble();
         sitSub = r < 0.5 ? Act.Read : r < 0.8 ? Act.Phone : Act.None;
+        if (!IdleActs.Enabled(sitSub)) sitSub = Act.None;   // book or phone switched off: he just sits and looks about
         Begin(Act.Sit, 35 + rng.NextDouble() * 45);
         nextFlip = now + 5;
     }
@@ -130,10 +174,11 @@ public partial class VexWindow
     {
         // Reset the parts only activities move.
         MugT.X = 0; RightGloveT.X = 0; MugR.Angle = 0; Lean.Angle = 0; HoodT.Y = 0;
-        Book.Opacity = 0; Phone.Opacity = 0; Sandwich.Opacity = 0; LunchBox.Opacity = 0; Laptop.Opacity = 0;
+        Book.Opacity = 0; Phone.Opacity = 0; Sandwich.Opacity = 0; LunchBox.Opacity = 0; Laptop.Opacity = 0; Balls.Opacity = 0;
         if (act == Act.None) return;
         if (act == Act.Lunch) { LunchPose(ref eyeCap, ref turnOverride, ref lookY); return; }
         if (act == Act.Code) { CodePose(ref eyeCap, ref turnOverride, ref lookY); return; }
+        if (act == Act.Juggle) { JugglePose(ref eyeCap, ref turnOverride, ref lookY); return; }
 
         if (act == Act.Sit)
         {

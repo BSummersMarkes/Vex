@@ -135,6 +135,11 @@
                     <TextBlock Style="{StaticResource Note}" Margin="20,0,0,0"
                                Text="Starts when you press Going on the lunch nudge or tell me you're off. Come back early and I'll wake up."/>
 
+                    <!-- One checkbox per idle activity, made in code from IdleActs.All so new ones show up here by themselves. -->
+                    <TextBlock Style="{StaticResource Heading}" Text="Idle actions"/>
+                    <TextBlock Style="{StaticResource Note}" Text="What I get up to when I'm bored. Untick them all and I'll just stand about."/>
+                    <WrapPanel x:Name="IdleActsList"/>
+
                     <!-- What used to be on the right-click menu. Happens straight away; nothing here waits for Save. -->
                     <StackPanel x:Name="RightNow">
                         <TextBlock Style="{StaticResource Heading}" Text="Right now"/>
