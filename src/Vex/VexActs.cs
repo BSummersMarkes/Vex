@@ -6,7 +6,7 @@ using Forms = System.Windows.Forms;
 namespace Vex;
 
 /// <summary>Little things Vex does while he's just standing about.</summary>
-enum Act { None, Sip, Phone, Read, Sit, Stretch, Watch, Lunch, Code, Juggle }
+enum Act { None, Sip, Phone, Read, Sit, Stretch, Watch, Lunch, Code, Juggle, Climb }
 
 /// <summary>One of the things he may do when he's bored: its config id, its name in Setup, and whether it's on by default.</summary>
 record IdleAct(Act Act, string Id, string Name, bool DefaultOn = true);
@@ -27,6 +27,7 @@ static class IdleActs
         new(Act.Stretch, "stretch", "Stretch"),
         new(Act.Watch, "watch", "Check his watch (meeting soon)"),
         new(Act.Juggle, "juggle", "Juggle"),
+        new(Act.Climb, "climb", "Climb windows"),
     };
 
     /// <summary>Whether he may do this when bored (config.json IdleActivities, else its default). Anything not in the list is always allowed.</summary>
@@ -70,14 +71,15 @@ public partial class VexWindow
         UpdateCoding(scr);   // off to the laptop while code is being written (VexCoding.cs)
         if (mode != Mode.Idle || act != Act.None || peeking || thinking || hovering || hidden || autoHidden || currentNudge != null) return;
 
-        // Arrived at the screen edge to sit down (or have lunch, or code)?
-        if (pendingAct is Act.Sit or Act.Lunch or Act.Code)
+        // Arrived at the screen edge to sit down (or have lunch, or code), or at the foot or top of a window edge to climb?
+        if (pendingAct is Act.Sit or Act.Lunch or Act.Code or Act.Climb)
         {
             var was = pendingAct;
             pendingAct = Act.None;
             if (Math.Abs(x - pendingX) < 3 * S)
             {
-                if (was == Act.Lunch) BeginLunch(scr); else if (was == Act.Code) BeginCode(scr, againstEdge: true); else StartSit(scr);
+                if (was == Act.Lunch) BeginLunch(scr); else if (was == Act.Code) BeginCode(scr, againstEdge: true);
+                else if (was == Act.Climb) BeginClimb(); else StartSit(scr);
                 return;
             }
         }
@@ -92,6 +94,9 @@ public partial class VexWindow
         bool meetingSoon = Services.Hub.Calendar.Upcoming.Any(m => (m.Start - DateTime.Now).TotalMinutes is > 0 and < 15);
         if (meetingSoon && now - lastWatch > 300) options.Add((Act.Watch, 6));
         options.Add((Act.Juggle, 0.6));   // a rare bit of showing off
+        // Climbing needs a clear edge to go up or down, so the route is found first and he only picks it if there is one.
+        var route = ClimbAllowed() ? ClimbRoute(scr) : null;
+        if (route != null) options.Add((Act.Climb, 0.8));
         // Only what's switched on in Setup; with nothing left he just stands there and tries again later.
         options.RemoveAll(o => !IdleActs.Enabled(o.Act));
         if (options.Count == 0) { nextAct = now + 12 + rng.NextDouble() * 25; return; }
@@ -109,6 +114,7 @@ public partial class VexWindow
             case Act.Watch: Begin(Act.Watch, 2.4); lastWatch = now; break;
             case Act.Sit: GoSit(scr); break;
             case Act.Juggle: StartJuggle(); break;
+            case Act.Climb: GoClimb(route!); break;
         }
     }
 
@@ -124,6 +130,9 @@ public partial class VexWindow
             case Act.Code: codeDebugUntil = now + 15; break;   // pretends a job runs for 15 s, then nods
             case Act.Read: Begin(a, 20); nextFlip = now + 2; break;
             case Act.Juggle: StartJuggle(); break;
+            case Act.Climb:
+                if (ClimbRoute(ScreenAt(x)) is not { } route) return "no climbable edge from here";
+                GoClimb(route); break;
             default: Begin(a, a is Act.Sip or Act.Stretch or Act.Watch ? 3 : 15); break;
         }
         return "ok";

@@ -39,7 +39,7 @@ public partial class VexWindow
     bool Lively()
     {
         if (mode is not (Mode.Idle or Mode.Sleeping) || pressed || settling || thinking) return true;
-        if (Knocking || now - rippleStart < 0.5 || now < squashUntil) return true;
+        if (Knocking || now - rippleStart < 0.5 || now < squashUntil || now - unimpressedAt < 2.4) return true;   // (unimpressed: VexClimb.cs)
         if (mode != Mode.Sleeping && (blinkStart >= 0 || now >= nextBlink - CalmFrame.TotalSeconds)) return true;   // asleep, no blinks
 
         // The mouse moving near him: his eyes follow it.

@@ -55,8 +55,8 @@
                 </TransformGroup>
             </Canvas.RenderTransform>
 
-            <!-- Ground shadow -->
-            <Ellipse Canvas.Left="30" Canvas.Top="145.3" Width="60" Height="6.4" Fill="Black" Opacity="0.5"
+            <!-- Ground shadow (faded out while he's climbing, VexClimb.cs) -->
+            <Ellipse x:Name="Shadow" Canvas.Left="30" Canvas.Top="145.3" Width="60" Height="6.4" Fill="Black" Opacity="0.5"
                      Effect="{StaticResource SoftShadow}" IsHitTestVisible="False"/>
 
             <Canvas x:Name="Upper">

@@ -82,6 +82,10 @@ public class VexConfig
     public double JuggleSeconds { get; set; } = 6;
     /// <summary>Chance (0–1) that he drops a ball mid-juggle, looks unimpressed and picks it up.</summary>
     public double JuggleDropChance { get; set; } = 0.15;
+    /// <summary>Shortest window edge (screen pixels, the part on screen) he'll climb up or down.</summary>
+    public double ClimbMinEdgePixels { get; set; } = 80;
+    /// <summary>How fast he climbs, DIP per second (walking is WalkSpeed).</summary>
+    public double ClimbSpeed { get; set; } = 55;
 
     // Coding at the laptop (VexCoding.cs).
     /// <summary>While his workshop is building, he sits in a corner and types on a laptop. Setup → Behaviour.</summary>

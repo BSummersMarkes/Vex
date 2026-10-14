@@ -58,6 +58,7 @@ public partial class VexWindow
         eatEnd = -1; lunchWake = 0; lunchSawAway = false;
 
         act = Act.None; peeking = false;   // lunch beats the laptop: a running build carries on without him
+        if (mode == Mode.Climbing) { LetGo(slipped: false); return; }   // down off the wall first; UpdateLunch sits him where he lands
         var scr = ScreenAt(x);
         if (Perched) { BeginLunch(scr); return; }      // lunch on the window top, then
 

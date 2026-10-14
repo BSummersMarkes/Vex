@@ -72,7 +72,13 @@ static class Native
     public const uint MOD_ALT = 1, MOD_CONTROL = 2, MOD_SHIFT = 4, MOD_WIN = 8, MOD_NOREPEAT = 0x4000;
     public const int WM_HOTKEY = 0x0312;
 
-    /// <summary>Visible, titled top-level windows of other processes, topmost first, with their visible bounds.</summary>
+    [DllImport("user32.dll")] static extern int GetWindowTextLength(IntPtr hWnd);
+
+    /// <summary>
+    /// Visible, titled top-level windows of other processes, topmost first, with their visible bounds. Used for perching
+    /// and climbing, which only need where windows are: whether one has a title is checked (untitled ones are mostly
+    /// invisible helpers), but the title itself isn't read.
+    /// </summary>
     public static System.Collections.Generic.List<(IntPtr Hwnd, RECT Rect)> TopWindows(uint exceptPid)
     {
         var list = new System.Collections.Generic.List<(IntPtr, RECT)>();
@@ -80,7 +86,7 @@ static class Native
         {
             if (!IsWindowVisible(h) || IsIconic(h) || IsCloaked(h)) return true;
             GetWindowThreadProcessId(h, out uint pid);
-            if (pid == exceptPid || WindowText(h).Length == 0) return true;
+            if (pid == exceptPid || GetWindowTextLength(h) == 0) return true;
             var r = Bounds(h);
             if (r.Right - r.Left > 50 && r.Bottom - r.Top > 50) list.Add((h, r));
             return true;

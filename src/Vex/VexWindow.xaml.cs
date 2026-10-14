@@ -12,7 +12,7 @@ using Forms = System.Windows.Forms;
 
 namespace Vex;
 
-enum Mode { Idle, Walking, Dragging, Falling, Sleeping, Hopping }
+enum Mode { Idle, Walking, Dragging, Falling, Sleeping, Hopping, Climbing }
 
 /// <summary>
 /// The character window. All world positions are in physical screen pixels; the drawing is in DIPs
@@ -128,7 +128,7 @@ public partial class VexWindow : Window
         // Mouse over him or his bubble: stand still so it can be read and clicked.
         hovering = Rig.IsMouseOver || Bubble.IsMouseOver;
 
-        if (now >= nextDodgeCheck && !hovering && !AtLunch && mode is not (Mode.Dragging or Mode.Falling or Mode.Hopping))
+        if (now >= nextDodgeCheck && !hovering && !AtLunch && mode is not (Mode.Dragging or Mode.Falling or Mode.Hopping or Mode.Climbing))
         {
             nextDodgeCheck = now + 0.3;
             CheckSurroundings(scr);
@@ -171,6 +171,10 @@ public partial class VexWindow : Window
                 }
                 else if (t < 0.35) Opacity = (t - 0.15) / 0.2;
                 else { Opacity = hidden ? 0 : 1; mode = Mode.Idle; nextWander = now + 10; }
+                break;
+
+            case Mode.Climbing:
+                ClimbStep(dt); // up or down a window's side (VexClimb.cs)
                 break;
 
             case Mode.Sleeping:
@@ -399,6 +403,7 @@ public partial class VexWindow : Window
 
     public void ShowNudge(Services.Nudge n)
     {
+        if (mode == Mode.Climbing) LetGo(slipped: false);   // never knocks from halfway up a window: down first
         if (mode == Mode.Sleeping) Wake(quiet: true);
         // At the laptop or at lunch he knocks from his seat (and packs the laptop up first if he's done). Mid-nap, the
         // knock and bubble open his eyes until it's dealt with (VexLunch.cs).
@@ -550,6 +555,7 @@ public partial class VexWindow : Window
     public void OpenChat(string? prompt = null)
     {
         if (LunchNapping) LunchBack();   // poked mid-nap: you're evidently back. Eating, he just chats.
+        if (mode == Mode.Climbing) LetGo(slipped: false);   // comes down off the wall to talk
         if (hidden) ToggleHidden();
         if (mode == Mode.Sleeping) Wake(quiet: true);
         HideBubble();
@@ -654,8 +660,8 @@ public partial class VexWindow : Window
     /// <summary>"I refilled my coffee", same as clicking the mug.</summary>
     public void RefillCoffee() => Refill();
 
-    /// <summary>Have a nap, or wake him if he's dozing.</summary>
-    public void ToggleNap() { if (mode == Mode.Sleeping) Wake(); else Sleep(requested: true); }
+    /// <summary>Have a nap, or wake him if he's dozing. Mid-climb he only comes down (no dozing halfway up a window).</summary>
+    public void ToggleNap() { if (mode == Mode.Sleeping) Wake(); else if (mode == Mode.Climbing) LetGo(slipped: false); else Sleep(requested: true); }
 
     /// <summary>Walk over to the other monitor, if there is one.</summary>
     public void GoToOtherScreen()
@@ -740,6 +746,7 @@ public partial class VexWindow : Window
         // Idle activities (sip, phone, book, sit, stretch, watch, juggle) layer on top. See VexActs.cs.
         double eyeCap = 1; double? actTurn = null, actLookY = null;
         ActPose(ref eyeCap, ref actTurn, ref actLookY);
+        ClimbPose(ref eyeCap, ref actTurn, ref actLookY); // climbing isn't an Act (he's on the move), so it poses itself (VexClimb.cs)
         if (KnockPose()) { actTurn = 0; actLookY = 0; eyeCap = 1; } // face front, eyes wide: knocking on your side of the glass
         RipplePose();
         AirPose(); // flailing when falling, dangling when carried
@@ -834,6 +841,7 @@ public partial class VexWindow : Window
         if (Math.Abs(c.X - pressAt.X) + Math.Abs(c.Y - pressAt.Y) < 6 * S) return;
         if (mode == Mode.Sleeping) Wake();
         peeking = false; perchHwnd = IntPtr.Zero; bounces = 0;
+        climb = null; landQuiet = landSlip = false;   // picked off a wall or mid-fall: he's yours now, and "Rude." is fair
         mode = Mode.Dragging; HideBubble();
         grabDx = c.X - x; grabDy = c.Y - y;
         lastCursor = new Point(c.X, c.Y); lastCursorT = now; flingVx = 0;

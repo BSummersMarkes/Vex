@@ -7,7 +7,8 @@ namespace Vex;
 /// <summary>
 /// Falling and perching. Dropped from a height, he lands on the first window top edge he passes
 /// (if nothing's covering that spot), then stands on that window: moves with it, strolls along it,
-/// and falls off if it closes, minimises, maximises, shrinks out from under him, or something covers him.
+/// and falls off if it closes, minimises, maximises, shrinks out from under him, or something covers him
+/// (landing with an unimpressed look rather than a remark). He can also get up there by climbing (VexClimb.cs).
 /// </summary>
 public partial class VexWindow
 {
@@ -23,7 +24,7 @@ public partial class VexWindow
     {
         var p = at.Split(',');
         if (p.Length != 2 || !double.TryParse(p[0], out var px) || !double.TryParse(p[1], out var py)) return "use x,y";
-        act = Act.None; perchHwnd = IntPtr.Zero; peeking = false;
+        act = Act.None; perchHwnd = IntPtr.Zero; peeking = false; climb = null; landQuiet = landSlip = false;
         x = px; y = py; vy = 0; flingVx = 0; bounces = 0; mode = Mode.Falling;
         return "dropped";
     }
@@ -64,7 +65,16 @@ public partial class VexWindow
         perchHwnd = on; perchRect = rect;
         squashUntil = now + 0.2; squashAmp = 0.12;
         nextWander = now + 4;
-        if (rng.NextDouble() < 0.45)
+        // He let go himself (VexClimb.cs) or his window went from under him: no "Rude." for being dropped. A slip
+        // gets a flat, unimpressed look instead, and now and then a word.
+        bool quiet = landQuiet, slip = landSlip;
+        landQuiet = landSlip = false;
+        if (slip) unimpressedAt = now;
+        if (quiet)
+        {
+            if (slip && rng.NextDouble() < 0.3) Say(Pick("...noted.", "I was using that.", "Fine. I'll stand here."), 3);
+        }
+        else if (rng.NextDouble() < 0.45)
             Say(on != IntPtr.Zero
                 ? Pick("Nice view up here.", "I live here now.", "Don't close this one.", "...fine. I'll stand on this.")
                 : Pick("Rude.", "I had a mug, you know.", "...thanks.", "I'll just stand here then.", "Wheee. (That's sarcasm.)"), 3);
@@ -124,6 +134,7 @@ public partial class VexWindow
         if (mode is Mode.Dragging or Mode.Hopping) return;
         act = Act.None; pendingAct = Act.None;
         mode = Mode.Falling; vy = -200 * S; flingVx = 0; // a little hop off
+        landQuiet = landSlip = true;                     // not his doing: lands with an unimpressed look (VexClimb.cs)
     }
 
     /// <summary>
