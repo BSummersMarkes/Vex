@@ -57,6 +57,7 @@ public partial class SetupWindow : Window
         WorkAddress.Text = c.WorkAddress;
         HomeAddress.Text = c.HomeAddress;
         TomTomKey.Text = c.TomTomKey;
+        (c.CommuteBy switch { "transit" => ByTransit, "cycle" => ByCycle, "walk" => ByWalk, _ => ByDrive }).IsChecked = true;
 
         PrivacyText.Text =
             "Everything I keep stays on this PC (in %LOCALAPPDATA%\\Vex and your notes). I never record password managers, " +
@@ -153,6 +154,7 @@ public partial class SetupWindow : Window
         c.WorkAddress = WorkAddress.Text.Trim();
         c.HomeAddress = HomeAddress.Text.Trim();
         c.TomTomKey = TomTomKey.Text.Trim();
+        c.CommuteBy = ByTransit.IsChecked == true ? "transit" : ByCycle.IsChecked == true ? "cycle" : ByWalk.IsChecked == true ? "walk" : "drive";
         c.SetupDone = true;
         Store.SaveConfig();
 

@@ -9,10 +9,10 @@ A small desktop companion for Windows. He lives on your taskbar in a dark red ho
 - **Breaks are never assumed:** being away from your desk doesn't count (you might be in the lab or a meeting). Tell him on the stretch nudge ("Taking a break" / "Had my break"), the lunch nudge ("Going" / "Had lunch"), or in the chat ("had lunch at 12:30"), and the sitting timer restarts. "Not now" puts the nudge off; unanswered ones wait in the chat's Pending tab.
 - **Lunch:** when you head off (the lunch nudge's "Going", telling him in the chat, or Setup → Behaviour → Lunch break) a lunch timer starts and he has his own: sits in a corner with his mug beside him, eats a sandwich for 5–10 minutes, then naps for the rest (30 minutes by default). When time's up he wakes with a start and says so; come back early and he wakes up, groggily. While he naps he only pipes up for important things (meetings, reminders, Claude Code). On/off and the length are in Setup → Behaviour.
 - **Meeting reminders** from classic Outlook (if it's running), with a "Prep me" button. A short **morning brief** when you first sit down.
-- **Going home:** tell him when you leave (Setup) and he says when to pack up, with the drive home. Live traffic needs a free TomTom key; without one you get a Google Maps button. If he says he's only placed an address roughly, give a fuller address or postcode in Setup.
+- **Going home:** tell him when you leave and how you get home (car, train or bus, bike, on foot) in Setup, and he says when to pack up, with a Google Maps button for the way home (by train or bus it lists the next departures). Driving, a free TomTom key adds the live traffic. If he says he's only placed an address roughly, give a fuller address or postcode in Setup.
 - **Learns your work:** every night he writes a short diary of the day and files what he picked up (projects, people, kit, terms) on his own pages. Now and then he asks about something he keeps seeing ("What's ChromSpace_2?"). You can let him read the text of windows from apps you choose.
 - **Claude Code alerts:** tells you when a Claude Code session needs you or has finished (optional). If you like, he also sits in the bottom-right corner typing on a little laptop while a session is working, and nods when it's done (Setup → Behaviour).
-- **Chat:** click him. He knows roughly what you've been doing today, your meetings and your to-dos, and can add to-dos, tick them off, take notes, set reminders and remember things about you.
+- **Chat:** click him. He knows roughly what you've been doing today, your meetings and your to-dos, and can add to-dos, tick them off, take notes, set reminders and remember things about you. Reminders can repeat: "remind me to take my tablets every day at 10", "weekdays at 2 to drink some water", "Mondays and Thursdays at 9:30 …". A repeating one has a **Stop these** button, or ask him to cancel it.
 - **The mug** empties over time. Click it when you refill yours. He counts. Clicked it by mistake? Right-click the mug → Undo last refill.
 
 ## Getting started
@@ -53,7 +53,7 @@ Vex's own pages (*About you*, *Remembered*, *Diary*, *Projects*, ...) are markdo
 - Everything Vex keeps stays on your PC: `%LOCALAPPDATA%\Vex` (settings, chat history, activity log) and your notes folder.
 - The optional activity log records which app and window title is in front. It never records password managers, private browsing, or windows with words like "password", "sign in" or "bank" in the title (editable in `config.json`). Turn it off in Setup.
 - When you chat, your message goes to Claude through your own Claude Code login, along with a short summary of your day (time at the desk, recent apps, window titles if the log is on, meetings, to-dos and his notes), plus the text of the window in front only for apps you've listed, and any pictures you paste into the message (only those; he never takes screenshots). The nightly diary and his occasional questions send the same kind of summary.
-- If you set a TomTom key, your work and home addresses go to TomTom to work out the drive home.
+- If you set a TomTom key and drive, your work and home addresses go to TomTom to work out the drive home.
 - Vex and his bubbles never appear in screenshots or screen shares.
 
 ## Settings

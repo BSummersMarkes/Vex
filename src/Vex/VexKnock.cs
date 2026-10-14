@@ -23,6 +23,7 @@ public partial class VexWindow
         if (CodingWrapEnd() is var until && until > now) { knockAt = until; lastKnock = now; return; }
         knockAt = 0;
         knockStart = now; lastTap = -1; lastKnock = now;
+        Hurry();
         if (Store.Config.KnockSound && Services.Hub.InCall == null) PlayKnock();
     }
 

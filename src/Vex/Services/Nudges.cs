@@ -128,7 +128,7 @@ public class Nudges
             "morning" => MorningNudge(p.Text),
             "lunch" => LunchNudge(p.Text),
             "eod" => EndOfDayNudge(p.Text),
-            "reminder" => ReminderNudge(Arg("text")),
+            "reminder" => ReminderNudge(Arg("text"), Store.State.Reminders.Any(r => r.Id == Arg("repeat")) ? Arg("repeat") : null),
             "meeting" when p.Options.Contains("On it") => LateNudge(Arg("subject"), When("start"), When("end")),
             "meeting" => MeetingNudge(p.Text, Arg("subject"), When("start"), When("end"), prep: p.Options.Contains("Prep me")),
             "packup" => PackUpNudge(p.Text),
@@ -316,20 +316,35 @@ public class Nudges
     {
         var due = Store.State.Reminders.Where(r => r.At <= now).ToList();
         if (due.Count == 0) return;
+        // A repeating one missed by a long way (the PC was off): no point showing yesterday's, just move it on.
+        foreach (var r in due.Where(r => r.Repeat.Length > 0 && now - r.At > TimeSpan.FromHours(12)).ToList())
+        {
+            r.At = ReminderTimes.Next(r.Repeat, r.At.TimeOfDay, now);
+            due.Remove(r);
+            Store.SaveState();
+        }
         foreach (var r in due)
         {
+            bool repeats = r.Repeat.Length > 0;
             // Kept until it's actually on screen: while something's full screen it waits for the next tick.
-            if (!Offer(ReminderNudge(r.Text))) return;
-            Store.State.Reminders.Remove(r);
+            if (!Offer(ReminderNudge(r.Text, repeats ? r.Id : null))) return;
+            if (repeats) r.At = ReminderTimes.Next(r.Repeat, r.At.TimeOfDay, now);
+            else Store.State.Reminders.Remove(r);
             Store.SaveState();
         }
     }
 
-    static Nudge ReminderNudge(string text)
+    /// <param name="repeatId">A repeating reminder's id: it gets a "Stop these" button that cancels the rest.</param>
+    static Nudge ReminderNudge(string text, string? repeatId = null)
     {
         var n = new Nudge { Type = "reminder", Exempt = true, Seconds = 120, Text = $"Reminder: {text}", Args = { ["text"] = text } };
         n.Buttons.Add(("OK", () => { }));
         n.Buttons.Add(("10 min", () => { Store.State.Reminders.Add(new Reminder { At = DateTime.Now.AddMinutes(10), Text = text }); Store.SaveState(); }));
+        if (repeatId != null)
+        {
+            n.Args["repeat"] = repeatId;
+            n.Buttons.Add(("Stop these", () => { Store.State.Reminders.RemoveAll(r => r.Id == repeatId); Store.SaveState(); Hub.Vex.Say("No more of those.", 3, important: true); }));
+        }
         return n;
     }
 
@@ -452,7 +467,7 @@ public class Nudges
         n.Buttons.Add(("Summarise day", () => Hub.Vex.OpenChat(
             "I'm packing up. Summarise my day from what you've seen: what I worked on, meetings, and what's still open. " +
             "Then suggest the first thing for tomorrow. Offer to add the summary to my journal.")));
-        n.Buttons.Add(("Map", Commute.OpenMap));
+        n.Buttons.Add((Commute.MapLabel, Commute.OpenMap));
         n.Buttons.Add(("10 min", () => { packUpSnooze = DateTime.Now.AddMinutes(10); Store.State.DoneToday.Remove("packup"); Store.SaveState(); }));
         return n;
     }

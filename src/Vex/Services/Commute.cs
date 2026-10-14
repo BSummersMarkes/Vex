@@ -13,6 +13,8 @@ namespace Vex.Services;
 /// stands. Live traffic comes from TomTom's routing API when TomTomKey and both addresses are set (free key from
 /// developer.tomtom.com; the addresses and route go to TomTom, nothing else). Without a key the nudge just has a
 /// "Map" button that opens Google Maps directions in the browser. "[[traffic: now]]" in chat checks on demand.
+/// Going by train or bus, bike or on foot (CommuteBy) there's no traffic check: the button opens the map in that mode
+/// instead ("Trains" for transit, where Google lists the next departures).
 /// </summary>
 public static class Commute
 {
@@ -23,8 +25,22 @@ public static class Commute
     static (DateTime At, string Text)? lastCheck;
 
     public static bool Enabled => TryLeave(out _);
-    /// <summary>Live traffic is possible: key and both addresses set.</summary>
-    public static bool CanCheck => C.TomTomKey.Length > 0 && C.HomeAddress.Length > 0 && C.WorkAddress.Length > 0;
+    /// <summary>Live traffic is possible: driving, with a key and both addresses set.</summary>
+    public static bool CanCheck => Driving && C.TomTomKey.Length > 0 && C.HomeAddress.Length > 0 && C.WorkAddress.Length > 0;
+
+    static bool Driving => By == "driving";
+
+    /// <summary>Google Maps' travel mode for CommuteBy (anything unrecognised counts as driving).</summary>
+    static string By => C.CommuteBy.Trim().ToLowerInvariant() switch
+    {
+        "transit" or "train" or "bus" => "transit",
+        "cycle" or "bike" or "bicycling" => "bicycling",
+        "walk" or "walking" => "walking",
+        _ => "driving",
+    };
+
+    /// <summary>The pack-up nudge's map button.</summary>
+    public static string MapLabel => By == "transit" ? "Trains" : "Map";
 
     static bool TryLeave(out DateTime leave)
     {
@@ -48,7 +64,8 @@ public static class Commute
     public static string? Summary()
     {
         if (!TryLeave(out var leave) || !IsCommuteDay(DateTime.Today)) return null;
-        var s = $"Leaves work at {leave:HH:mm} (pack-up nudge at {leave.AddMinutes(-C.PackUpMinutes):HH:mm}).";
+        var how = By switch { "transit" => " by train or bus", "bicycling" => " by bike", "walking" => " on foot", _ => "" };
+        var s = $"Leaves work at {leave:HH:mm}{how} (pack-up nudge at {leave.AddMinutes(-C.PackUpMinutes):HH:mm}).";
         if (lastCheck is { } lc && DateTime.Now - lc.At < TimeSpan.FromMinutes(45)) s += $" Traffic at {lc.At:HH:mm}: {lc.Text}";
         return s;
     }
@@ -103,7 +120,7 @@ public static class Commute
     /// <summary>For the [[traffic]] chat action: checks, then says it in a bubble.</summary>
     public static async Task SayNow()
     {
-        var text = await Check() ?? "I've no live traffic without a TomTom key. Here's the map.";
+        var text = await Check() ?? (Driving ? "I've no live traffic without a TomTom key. Here's the map." : "Here's the way home.");
         Hub.Vex.Say(text, 10, important: true);   // you asked
         if (!CanCheck) OpenMap();
     }
@@ -146,11 +163,11 @@ public static class Commute
         _ => false,
     };
 
-    /// <summary>Google Maps directions from work to home (traffic layer on) in the browser.</summary>
+    /// <summary>Google Maps directions from work to home in the browser, by CommuteBy (traffic layer on when driving).</summary>
     public static void OpenMap()
     {
-        var url = C.HomeAddress.Length == 0 ? "https://www.google.com/maps/@?api=1&map_action=map&layer=traffic"
-            : $"https://www.google.com/maps/dir/?api=1&origin={Uri.EscapeDataString(C.WorkAddress)}&destination={Uri.EscapeDataString(C.HomeAddress)}&travelmode=driving";
+        var url = C.HomeAddress.Length == 0 ? $"https://www.google.com/maps/@?api=1&map_action=map&layer={(Driving ? "traffic" : By == "transit" ? "transit" : "none")}"
+            : $"https://www.google.com/maps/dir/?api=1&origin={Uri.EscapeDataString(C.WorkAddress)}&destination={Uri.EscapeDataString(C.HomeAddress)}&travelmode={By}";
         try { Process.Start(new ProcessStartInfo(url) { UseShellExecute = true }); } catch (Exception ex) { Store.Log($"Map: {ex.Message}"); }
     }
 }

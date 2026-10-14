@@ -197,7 +197,7 @@ public static class Hub
         }
         if (Workshop.Status() is { } shop) sb.AppendLine(shop);
         if (Store.State.Reminders.Count > 0)
-            sb.AppendLine("Pending reminders: " + string.Join("; ", Store.State.Reminders.OrderBy(r => r.At).Select(r => $"{r.At:HH:mm} {r.Text}")));
+            sb.AppendLine("Pending reminders: " + string.Join("; ", Store.State.Reminders.OrderBy(r => r.At).Select(r => $"{ReminderTimes.Describe(r, now)} {r.Text}")));
 
         // Your own pages: the source of truth for what you know. They edit these too.
         sb.AppendLine($"Your memory pages (markdown files in {Memory.Folder}; {Who} can edit them, and the Lab Notebook mirrors them):");
@@ -233,7 +233,9 @@ public static class Hub
         [[journal: text]]         a timestamped note in today's journal ("note this down", progress, decisions)
         [[remember: fact]]        adds a fact about {who} to your "{Memory.Remembered}" page
         [[page: Page title | markdown]]  adds to one of your own pages (created if missing)
-        [[remind: HH:mm | text]]  or  [[remind: 20m | text]]
+        [[remind: when | text]]   when is "20m", "1h30m", "14:30", "tomorrow 9:00", "fri 16:00", or repeating:
+                                  "daily 10:00", "weekdays 14:00", "weekends 9:00", "mon,thu 9:30"
+        [[unremind: text]]        cancels reminders (repeating ones too) whose text contains this
         [[break: had]]  or  [[break: lunch]]  records a break or lunch {who} says they're taking or have had, which restarts
                                   the sitting timer and stops the lunch nudge (add "| HH:mm" if they say when). Breaks are
                                   never assumed: time away from the desk is often work elsewhere, so only record what {who} tells you.
@@ -314,14 +316,17 @@ public static class Hub
             case "remind":
             {
                 if (parts.Length < 2) return "✗ Couldn't read that reminder.";
-                DateTime at;
-                var m = Regex.Match(parts[0], @"^(\d+)\s*m");
-                if (m.Success) at = DateTime.Now.AddMinutes(int.Parse(m.Groups[1].Value));
-                else if (TimeSpan.TryParse(parts[0], CultureInfo.InvariantCulture, out var t)) at = DateTime.Today + t < DateTime.Now ? DateTime.Today.AddDays(1) + t : DateTime.Today + t;
-                else return "✗ Couldn't read that reminder time.";
-                Store.State.Reminders.Add(new Reminder { At = at, Text = parts[1] });
+                if (!ReminderTimes.TryParse(parts[0], DateTime.Now, out var at, out var repeat)) return "✗ Couldn't read that reminder time.";
+                var r = new Reminder { At = at, Text = parts[1], Repeat = repeat };
+                Store.State.Reminders.Add(r);
                 Store.SaveState();
-                return $"✓ Reminder at {at:HH:mm}: {parts[1]}";
+                return $"✓ Reminder {(repeat.Length > 0 ? "" : "for ")}{ReminderTimes.Describe(r, DateTime.Now)}: {parts[1]}";
+            }
+            case "unremind":
+            {
+                int n = Store.State.Reminders.RemoveAll(r => r.Text.Contains(arg.Trim(), StringComparison.OrdinalIgnoreCase));
+                if (n > 0) Store.SaveState();
+                return n switch { 0 => $"✗ No reminder about \"{arg}\".", 1 => $"✓ Cancelled the reminder about {arg}", _ => $"✓ Cancelled {n} reminders about {arg}" };
             }
             case "break":
             {

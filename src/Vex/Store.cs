@@ -118,6 +118,8 @@ public class VexConfig
     public string LeaveAt { get; set; } = "";
     public double PackUpMinutes { get; set; } = 15;
     public List<string> CommuteDays { get; set; } = new() { "Mon", "Tue", "Wed", "Thu", "Fri" };
+    /// <summary>"drive", "transit" (train or bus), "cycle" or "walk": the map's travel mode. Live traffic is only for "drive".</summary>
+    public string CommuteBy { get; set; } = "drive";
     /// <summary>Addresses or postcodes. Sent to TomTom (if a key is set) to find the route; otherwise used for a Google Maps link.</summary>
     public string WorkAddress { get; set; } = "";
     public string HomeAddress { get; set; } = "";
@@ -176,8 +178,12 @@ public class NudgeStat
 
 public class Reminder
 {
+    public string Id { get; set; } = Guid.NewGuid().ToString("N")[..8];
+    /// <summary>When it's next due. A repeating one moves on to its next day after it's shown.</summary>
     public DateTime At { get; set; }
     public string Text { get; set; } = "";
+    /// <summary>"" once, else "daily", "weekdays", "weekends" or days like "Mon,Thu" (Services.ReminderTimes).</summary>
+    public string Repeat { get; set; } = "";
 }
 
 /// <summary>Day-to-day state that survives restarts.</summary>
@@ -219,8 +225,8 @@ public class VexState
 static class Store
 {
     /// <summary>%LOCALAPPDATA%\Vex, or VEX_DATA_DIR if set (testing a fresh install side by side).</summary>
-    public static readonly string Dir = Environment.GetEnvironmentVariable("VEX_DATA_DIR") is { Length: > 0 } d ? d : Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Vex");
+    public static readonly string Dir = Environment.GetEnvironmentVariable("VEX_DATA_DIR") is { Length: > 0 } d ? d : DefaultDir;
+    public static string DefaultDir => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Vex");
     static readonly string ConfigPath = Path.Combine(Dir, "config.json");
     static readonly string StatePath = Path.Combine(Dir, "state.json");
     static readonly JsonSerializerOptions Json = new() { WriteIndented = true };

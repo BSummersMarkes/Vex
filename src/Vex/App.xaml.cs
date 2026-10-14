@@ -16,7 +16,9 @@ public partial class App : Application
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
-        single = new Mutex(true, @"Local\Vex.Companion", out bool first);
+        // One Vex per data folder: a test copy with its own VEX_DATA_DIR can run beside the real one.
+        var instance = Store.Dir == Store.DefaultDir ? "" : "." + Store.Dir.ToLowerInvariant().Replace('\\', '/');   // no backslashes in a mutex name
+        single = new Mutex(true, @"Local\Vex.Companion" + instance, out bool first);
         if (!first) { Shutdown(); return; }
 
         DispatcherUnhandledException += (_, ex) => { Store.Log($"Unhandled: {ex.Exception}"); ex.Handled = true; };
