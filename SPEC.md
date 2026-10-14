@@ -59,7 +59,7 @@ A small animated desktop companion that lives on top of the Windows desktop, kee
 - **Dodging:** if the foreground window covers him, he walks (never teleports) to clear floor, crossing to the other monitor on foot if the taskbars join.
 - **Peeking:** if there's no clear floor (e.g. maximised windows on both screens), he ducks down where he is so only his hood and eyes peek above the taskbar.
 - **Hover:** stops moving while the mouse is over him or his bubble.
-- **Bubble and chat:** the speech bubble and chat panel follow him in step and always sit wholly on his monitor (dragging the chat parks it; clicking Vex re-attaches; clicking him with it attached closes it).
+- **Bubble and chat:** the speech bubble and chat panel follow him in step and always sit wholly on his monitor (dragging the chat parks it; clicking Vex re-attaches; clicking him with it attached closes it). A bubble that shows while the chat is open never covers it: it goes above the chat, else beside it on the roomier side, else below it, measured from the chat's real on-screen size and position, and it reflows at once if the chat moves or grows (`ClearOfChat` in `VexWindow.xaml.cs`).
 - **Drag and drop:** pick him up and drop him; he falls to the floor (and is mildly annoyed).
 - **Perching:** dropped onto a window's top edge (or after climbing up one) he stands on it, rides along when it moves and strolls along it. If it closes, minimises, maximises, shrinks away from under him or gets covered, he drops to the next surface below and lands with a flat, unimpressed look rather than a remark. `VexPerch.cs`.
 - **Sleeping:** after a few idle minutes he sits and dozes (Zzz). Wakes when you're back.
@@ -111,7 +111,7 @@ A small animated desktop companion that lives on top of the Windows desktop, kee
 |---|---|
 | Morning brief | First sight of you each day (`MorningBrief`): meetings and open/carried-over to-dos in a line; "Rundown" asks for the full version in chat |
 | Meeting | 10 min and 2 min before; "you're late" at +2 min. "Prep me" opens the chat to pull together what he knows about it |
-| Claude Code waiting | Session needs input or permission; repeat after 5 min |
+| Claude Code waiting | Session needs input or permission; repeat after 5 min. "Show me" restores the project's VS Code window if minimised and brings it to the front (getting past Windows' foreground lock if needed); if it's gone, a short "Can't find that window" bubble |
 | Claude Code finished | Session completes while you're in another window |
 | Eyes (20-20-20) | Every ~20 min of continuous screen time |
 | Stretch / stand | ~50–60 min since the last confirmed break. Buttons: Taking a break, Had my break (both record a break and restart the sitting timer), Not now (10 min), ✕. While a remote session is in front (`StretchHoldApps`: TeamViewer, mstsc) it waits until you switch window, at most `StretchHoldMaxMinutes` (30) |
@@ -264,6 +264,7 @@ For Ben's wife's Mac. A separate project (`src/VexMac`), not the shared source: 
 - [x] Juggling idle activity (mug put down and picked back up; the odd dropped ball), and Setup → Behaviour → Idle actions to switch each idle activity on or off (one registry, `IdleActs.All`)
 - [x] Climbing idle activity ("Climb windows"): up a window's side onto its top and back down, hand over hand with the mug hooked on his back; lets go and lands unimpressed if the window moves or goes, comes straight down for chat, bubbles, nudges and clicks; window geometry only (section 4)
 - [x] Theme: "Appearance" renamed Theme on both menus; deep teal hoodie by default, with an Original (dark red) preset to flip back; Setup → Theme hoodie lightness slider with live preview (section 3)
+- [x] Bubbles keep clear of the open chat (above, beside or below it, reflowing as it moves or grows); "Show me" reliably restores and focuses VS Code, with a short bubble if the window's gone (sections 4, 7)
 
 ### He learns (2026-10-13)
 - [x] Build/restart from chat need a click (prompt-injection guard); context marked as data, not instructions

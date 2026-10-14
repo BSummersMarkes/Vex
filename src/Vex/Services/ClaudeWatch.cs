@@ -195,15 +195,22 @@ public class ClaudeWatch
         File.WriteAllText(SettingsPath, root.ToJsonString(new JsonSerializerOptions { WriteIndented = true }));
     }
 
-    /// <summary>Brings the VS Code window for a project to the front, if there is one.</summary>
+    /// <summary>
+    /// "Show me": brings the VS Code window for a project to the front (restored if minimised), else any VS Code
+    /// window. If there's none left to show, or Windows won't switch to it, he says so in a short bubble.
+    /// </summary>
     public static bool FocusVsCode(string project)
     {
         var pids = Process.GetProcessesByName("Code").Select(p => (uint)p.Id).ToHashSet();
         var wins = Native.WindowsOf(pids);
         var h = wins.FirstOrDefault(w => Native.WindowText(w).Contains(project, StringComparison.OrdinalIgnoreCase));
         if (h == IntPtr.Zero) h = wins.FirstOrDefault();
-        if (h == IntPtr.Zero) return false;
-        if (Native.IsIconic(h)) Native.ShowWindow(h, Native.SW_RESTORE);
-        return Native.SetForegroundWindow(h);
+        bool shown = h != IntPtr.Zero && Native.BringToFront(h);
+        if (!shown)
+        {
+            Store.Log(h == IntPtr.Zero ? $"Show me: no VS Code window for {project}." : $"Show me: Windows wouldn't switch to {project}.");
+            Hub.Vex.Say(h == IntPtr.Zero ? "Can't find that window. Closed, I think." : "Windows wouldn't let me switch. It's on the taskbar.", 4, important: true);
+        }
+        return shown;
     }
 }

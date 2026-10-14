@@ -198,8 +198,8 @@ public partial class VexWindow : Window
         if (bubbleUntil > 0 && hovering) bubbleUntil = Math.Max(bubbleUntil, now + 2);
         if (bubbleUntil > 0 && now > bubbleUntil) BubbleExpired();
         Place();
+        chat?.Follow(x, y - BodyH * S, ScreenAt(x)); // chat first: the bubble steps round where it is now
         PlaceBubble(ScreenAt(x)); // same frame as Vex's own move, so the two stay locked together
-        chat?.Follow(x, y - BodyH * S, ScreenAt(x));
         Pace();   // how soon the next frame comes (VexPace.cs)
     }
 
@@ -476,7 +476,10 @@ public partial class VexWindow : Window
         }
     }
 
-    /// <summary>Centres the bubble over his head, but keeps it wholly on the monitor he's standing on.</summary>
+    /// <summary>
+    /// Centres the bubble over his head, but keeps it wholly on the monitor he's standing on, and clear of the chat
+    /// panel when that's open too (see <see cref="ClearOfChat"/>).
+    /// </summary>
     void PlaceBubble(Forms.Screen scr)
     {
         if (Bubble.Visibility != Visibility.Visible || bubbleHwnd == IntPtr.Zero) return;
@@ -485,8 +488,43 @@ public partial class VexWindow : Window
         var wa = scr.WorkingArea;
         int left = (int)Math.Round(Math.Clamp(x - w / 2.0, wa.Left + 6, Math.Max(wa.Left + 6, wa.Right - w - 6)));
         int top = (int)Math.Round(Math.Max(wa.Top + 6, y - BubbleGap * S - h));
+        (left, top) = ClearOfChat(left, top, w, h, wa);
         if (left == r.Left && top == r.Top) return;
         Native.SetWindowPos(bubbleHwnd, Native.HWND_TOPMOST, left, top, 0, 0, Native.SWP_NOSIZE | Native.SWP_NOACTIVATE);
+    }
+
+    /// <summary>
+    /// Both sit just above his head, so with the chat open a bubble (a nudge, a reminder, "Noted.") would land on top
+    /// of it. If they'd touch, the bubble moves above the chat, else beside it on whichever side has more room, else
+    /// below it; never off his monitor. Uses the chat's real on-screen rectangle (physical pixels, like everything
+    /// here), so it copes with the chat's size, a dragged-off chat and either monitor's scaling. Called every frame,
+    /// and when the chat moves or resizes, so it reflows straight away.
+    /// </summary>
+    (int Left, int Top) ClearOfChat(int left, int top, int w, int h, System.Drawing.Rectangle wa)
+    {
+        if (chat is not { IsVisible: true }) return (left, top);
+        var ch = new WindowInteropHelper(chat).Handle;
+        if (ch == IntPtr.Zero || Native.IsIconic(ch)) return (left, top);
+        var c = Native.Bounds(ch);
+        int gap = (int)Math.Round(8 * S);
+        bool Clear(int l, int t) => l + w + gap <= c.Left || l >= c.Right + gap || t + h + gap <= c.Top || t >= c.Bottom + gap;
+        bool Fits(int l, int t) => l >= wa.Left && l + w <= wa.Right && t >= wa.Top && t + h <= wa.Bottom;
+        if (Clear(left, top)) return (left, top);
+
+        int m = (int)Math.Round(6 * S);
+        int keepTop = Math.Clamp(top, wa.Top + m, Math.Max(wa.Top + m, wa.Bottom - h - m));
+        int keepLeft = Math.Clamp(left, wa.Left + m, Math.Max(wa.Left + m, wa.Right - w - m));
+        bool rightFirst = wa.Right - c.Right >= c.Left - wa.Left;
+        var tries = new List<(int, int)>
+        {
+            (keepLeft, c.Top - gap - h),                                       // above the chat
+            rightFirst ? (c.Right + gap, keepTop) : (c.Left - gap - w, keepTop), // beside it, roomier side first
+            rightFirst ? (c.Left - gap - w, keepTop) : (c.Right + gap, keepTop),
+            (keepLeft, c.Bottom + gap),                                        // below it (a chat dragged up high)
+        };
+        foreach (var (l, t) in tries)
+            if (Fits(l, t)) return (l, t);
+        return (left, top); // no room anywhere on his screen (a huge chat): back over his head as before
     }
 
     /// <summary>A borderless, click-through-where-empty window that just holds the speech bubble.</summary>
@@ -562,7 +600,14 @@ public partial class VexWindow : Window
         if (hidden) ToggleHidden();
         if (mode == Mode.Sleeping) Wake(quiet: true);
         HideBubble();
-        chat ??= new ChatWindow(this);
+        if (chat == null)
+        {
+            chat = new ChatWindow(this);
+            // A bubble that turns up while the chat is open keeps clear of it (ClearOfChat); between frames (he may be
+            // at 2 fps), it also steps aside the moment the chat is dragged or grows.
+            chat.SizeChanged += (_, _) => PlaceBubble(ScreenAt(x));
+            chat.LocationChanged += (_, _) => PlaceBubble(ScreenAt(x));
+        }
         chat.ShowNear(x, y - BodyH * S, ScreenAt(x));
         if (prompt != null) chat.Send(prompt);
     }

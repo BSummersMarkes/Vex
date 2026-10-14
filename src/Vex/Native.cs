@@ -56,6 +56,28 @@ static class Native
     public const uint WDA_EXCLUDEFROMCAPTURE = 0x11;
     public const int SW_RESTORE = 9;
 
+    [DllImport("user32.dll")] static extern bool AttachThreadInput(uint idAttach, uint idAttachTo, bool attach);
+    [DllImport("user32.dll")] static extern bool BringWindowToTop(IntPtr hWnd);
+    [DllImport("kernel32.dll")] static extern uint GetCurrentThreadId();
+
+    /// <summary>
+    /// Restores a window if it's minimised and brings it to the front with the keyboard focus. Vex's windows never
+    /// take focus, so Windows' foreground lock can refuse a plain SetForegroundWindow (the taskbar button just
+    /// flashes); if it does, Vex briefly joins the input of whoever is in front, which lets the switch through.
+    /// Returns whether the window really ended up in front.
+    /// </summary>
+    public static bool BringToFront(IntPtr hWnd)
+    {
+        if (!IsWindow(hWnd)) return false;
+        if (IsIconic(hWnd)) ShowWindow(hWnd, SW_RESTORE);
+        if (SetForegroundWindow(hWnd) && GetForegroundWindow() == hWnd) return true;
+        uint me = GetCurrentThreadId(), front = GetWindowThreadProcessId(GetForegroundWindow(), out _);
+        bool joined = front != 0 && front != me && AttachThreadInput(me, front, true);
+        try { BringWindowToTop(hWnd); SetForegroundWindow(hWnd); }
+        finally { if (joined) AttachThreadInput(me, front, false); }
+        return GetForegroundWindow() == hWnd;
+    }
+
     public static string WindowText(IntPtr hWnd)
     {
         var sb = new StringBuilder(512);
