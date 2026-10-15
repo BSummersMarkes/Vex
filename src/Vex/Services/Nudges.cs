@@ -33,7 +33,7 @@ public class Nudge
 /// <summary>
 /// Decides when Vex pipes up. One wellbeing nudge per gap at most; never while away, in a call or full screen.
 /// Breaks and lunch are never assumed from time away: only the stretch and lunch nudges' buttons (or the chat) record one. Learns per nudge type: brushed off often → asks less often, acted on → back to normal.
-/// Exempt nudges (reminders, meetings, Claude Code, packing up) that can't be shown yet (something's full screen)
+/// Exempt nudges (reminders, meetings, Claude Code, packing up, clocking in/out on home days) that can't be shown yet (something's full screen)
 /// stay pending and are retried every tick, rather than dropped.
 /// </summary>
 public class Nudges
@@ -136,6 +136,10 @@ public class Nudges
             "meeting" when p.Options.Contains("On it") => LateNudge(Arg("subject"), When("start"), When("end")),
             "meeting" => MeetingNudge(p.Text, Arg("subject"), When("start"), When("end"), prep: p.Options.Contains("Prep me")),
             "packup" => PackUpNudge(p.Text),
+#if !LITE
+            "clockin" => ClockInNudge(p.Text),
+            "clockout" => ClockOutNudge(p.Text),
+#endif
             _ => null,
         };
     }
@@ -151,6 +155,10 @@ public class Nudges
         ClaudeRenudge(now);
 #endif
         PackUp(now);
+#if !LITE
+        // A clock-in/out bubble waiting for an answer isn't buried under a wellbeing nudge; those wait their turn.
+        if (Clock(now) || (lastClock != null && Hub.Vex.ShowingNudge(lastClock))) return;
+#endif
 
         var p = Hub.Presence;
         if (p.Away || Hub.Quiet || Hub.Vex.LunchNapping) return;   // (some mark themselves done once made, so don't make them now)
@@ -471,6 +479,9 @@ public class Nudges
     /// </summary>
     void PackUp(DateTime now)
     {
+#if !LITE
+        if (Hub.Where.HomeToday) return;   // nothing to pack up at home; the clock-out nudge has this slot instead
+#endif
         if (packUpChecking || Store.State.DoneToday.Contains("packup") || now < packUpSnooze) return;
         if (Commute.PackUpAt() is not { } at || Commute.LeaveTime() is not { } leave) return;
         if (now < at || now > leave.AddMinutes(30) || Hub.Presence.Away) return;   // away: wait for you to be back (or gone)
@@ -505,6 +516,89 @@ public class Nudges
     }
 
 #if !LITE
+    // ───────────── home days: clocking in and out ─────────────
+
+    /// <summary>The last clock-in or clock-out nudge shown, so it isn't knocked over by another before it's answered.</summary>
+    Nudge? lastClock;
+    DateTime lastClockIn = DateTime.MinValue, clockInSnooze = DateTime.MinValue, clockOutSnooze = DateTime.MinValue;
+
+    /// <summary>
+    /// On a home day (<see cref="Whereabouts"/>), with ClockNudges on and you at the desk: clock in when you first sit
+    /// down, clock out at ClockOutAt. Exempt like reminders (a missed clock-in matters more than a rate limit), but
+    /// answering either never counts as a break and leaves the sitting timer alone. Office and unknown days: nothing.
+    /// </summary>
+    bool Clock(DateTime now)
+    {
+        if (!C.ClockNudges || !Hub.Where.HomeToday || Hub.Presence.Away) return false;
+        return ClockIn(now) || ClockOut(now);
+    }
+
+    /// <summary>
+    /// First sight of you on a home day: clock in. Unanswered (or snoozed), it comes back every ClockInRepeatMinutes,
+    /// at most ClockInMaxNudges times a day, and not once it's clocking-out time. Done stops it for the day.
+    /// </summary>
+    bool ClockIn(DateTime now)
+    {
+        var s = Store.State;
+        if (s.DoneToday.Contains("clockin") || s.ClockInNudges >= C.ClockInMaxNudges) return false;
+        if (Hub.Presence.FirstSeenToday == DateTime.MaxValue || now < clockInSnooze) return false;
+        if (Whereabouts.ClockOutTime() is { } outAt && now >= outAt) return false;
+        if (now - lastClockIn < TimeSpan.FromMinutes(C.ClockInRepeatMinutes)) return false;
+        if (lastClock != null && Hub.Vex.ShowingNudge(lastClock)) return false;   // still up: let it be answered, no second knock
+        var n = ClockInNudge(s.ClockInNudges switch
+        {
+            0 => "Working from home today. Clock in.",
+            1 => "Clocked in yet? The system won't do it for you.",
+            _ => "Last time I'll say it: clock in.",
+        });
+        if (!Offer(n)) return false;   // full screen, or another exempt nudge is up: next tick
+        lastClock = n; lastClockIn = now;
+        s.ClockInNudges++;
+        Store.SaveState();
+        return true;
+    }
+
+    Nudge ClockInNudge(string text)
+    {
+        var n = new Nudge
+        {
+            Type = "clockin", Exempt = true, Seconds = 90, Text = text, PendingKey = "clockin", Until = DateTime.Today.AddDays(1),
+            StillValid = () => !Store.State.DoneToday.Contains("clockin"),
+        };
+        n.Buttons.Add(("Done", () => { MarkDone("clockin"); Store.Log("Clock-in: done."); }));
+        n.Buttons.Add(($"Snooze {C.ClockSnoozeMinutes:0} min", () => clockInSnooze = DateTime.Now.AddMinutes(C.ClockSnoozeMinutes)));
+        return n;
+    }
+
+    /// <summary>
+    /// ClockOutAt (else LeaveAt) on a home day, in place of the pack-up nudge: clock out. Shown once (it waits until
+    /// you're at the desk, any time later that day) and, like pack-up, stands in for the end-of-day nudge.
+    /// </summary>
+    bool ClockOut(DateTime now)
+    {
+        if (Store.State.DoneToday.Contains("clockout") || now < clockOutSnooze) return false;
+        if (Whereabouts.ClockOutTime() is not { } at || now < at) return false;
+        var n = ClockOutNudge($"Clock-out time ({at:HH:mm}). Clock out, then step away from the desk.");
+        if (!Offer(n)) return false;
+        lastClock = n;
+        MarkDone("clockout");
+        if (!Store.State.DoneToday.Contains("eod")) MarkDone("eod");
+        return true;
+    }
+
+    Nudge ClockOutNudge(string text)
+    {
+        var n = new Nudge { Type = "clockout", Exempt = true, Seconds = 90, Text = text, PendingKey = "clockout", Until = DateTime.Today.AddDays(1) };
+        n.Buttons.Add(("Done", () => Store.Log("Clock-out: done.")));
+        n.Buttons.Add(($"Snooze {C.ClockSnoozeMinutes:0} min", () =>
+        {
+            clockOutSnooze = DateTime.Now.AddMinutes(C.ClockSnoozeMinutes);
+            Store.State.DoneToday.Remove("clockout");
+            Store.SaveState();
+        }));
+        return n;
+    }
+
     // Goes away by itself once the session moves on (e.g. you answered Claude in VS Code). In Pending, the latest
     // nudge per project stands, and only for the hour it would have been re-nudged in.
     static Nudge ClaudeNudge(ClaudeSession s, string text, ClaudeState shownFor) =>

@@ -40,6 +40,8 @@ public static class Hub
     public static Calendar Calendar { get; } = new();
     public static ClaudeWatch Claude { get; } = new();
     public static Nudges Nudges { get; } = new();
+    /// <summary>Home, office or not sure today, from the network (locally) or what you've said.</summary>
+    public static Whereabouts Where { get; } = new();
 
     /// <summary>In a call, or something's full screen: no wellbeing nudges.</summary>
     public static bool Quiet => InCall != null || FullScreen;
@@ -74,6 +76,7 @@ public static class Hub
         Claude.Changed += Nudges.OnClaude;
         Presence.BackAfterAway += WelcomeBack;
         if (Activity.Today.Count > 0) Presence.SeenSince(Activity.Today[0].Start);
+        Where.Start();
         Workshop.Started();
         Diary.Tick();
 
@@ -89,6 +92,7 @@ public static class Hub
     public static void ApplySettings()
     {
         Commute.Reset();
+        Where.Recheck("settings saved");   // the saved home/office networks may have changed
         var next = PickNotes();
         if (next.GetType() == Notes.GetType() && (next is not LocalNotes nl || nl.Folder == ((LocalNotes)Notes).Folder)) return;
         Notes.Acked -= NotesAcked;
@@ -101,6 +105,7 @@ public static class Hub
     {
         Store.RollDay();
         Presence.Tick();
+        Where.Tick();
         Activity.Tick(Presence.Away);
         FullScreen = Activity.FullScreen();
     }
@@ -148,7 +153,8 @@ public static class Hub
                           string.Join(", ", p.AwayTimes.TakeLast(4).Select(a => $"{a.Start:HH:mm}–{a.End:HH:mm}")));
         if (InCall != null) sb.AppendLine($"In a call (microphone in use by {InCall}).");
         if (Vex.LunchStatus() is { } lunch) sb.AppendLine(lunch);
-        if (Commute.Summary() is { } home) sb.AppendLine(home);
+        sb.AppendLine(Where.Summary() + (Where.HomeToday ? HomeDayLine() : ""));
+        if (!Where.HomeToday && Commute.Summary() is { } home) sb.AppendLine(home);   // no packing up at home
 
         if (Activity.CurrentApp is { Length: > 0 } app && app != Activity.Away)
             sb.AppendLine($"In front now: {app}{(Store.Config.ActivityLog && Activity.CurrentTitle.Length > 0 ? $" — \"{Activity.CurrentTitle}\"" : "")}");
@@ -221,6 +227,16 @@ public static class Hub
         return sb.ToString();
     }
 
+    /// <summary>On a home day: whether clocking in is done, and when the clock-out nudge comes (instead of pack-up).</summary>
+    static string HomeDayLine()
+    {
+        if (!Store.Config.ClockNudges) return " Clock-in/out nudges are off.";
+        var done = Store.State.DoneToday;
+        var clockIn = done.Contains("clockin") ? " Clocked in (said Done)." : " Not confirmed clocking in yet.";
+        var clockOut = Whereabouts.ClockOutTime() is { } at ? $" Clock-out nudge at {at:HH:mm} (no pack-up nudge today)." : "";
+        return clockIn + clockOut;
+    }
+
     static string Hm(double minutes) => minutes >= 60 ? $"{(int)(minutes / 60)}h{(int)(minutes % 60):00}" : $"{(int)minutes}m";
     static string Tail(string s, int n) => s.Length <= n ? s.Trim() : "…" + s[^n..].Trim();
 
@@ -242,6 +258,9 @@ public static class Hub
                                   [[break: going to lunch]] when they're heading off for lunch right now: records it and you
                                   have your own lunch too (eat, then nap). [[break: back]] when they say they're back from
                                   lunch while you're still on yours: wakes you up (records nothing).
+        [[where: home]]  or  [[where: office]]  when {who} says they're working from home or at the office today: sets
+                                  today's place by hand, for when the network guess is wrong or unsure (home days get
+                                  clock-in and clock-out nudges instead of pack-up). [[where: auto]] goes back to the guess.
         {(Commute.CanCheck ? "[[traffic: now]]          checks the drive home right now and tells " + who + " in a bubble\n" : "")}{(Workshop.Enabled ? WorkshopHelp(who) : "")}Only act when {who} asks or clearly implies it. Never mention this syntax; Vex's app hides it and confirms.
 
         You're learning {who}'s work, so keep your pages organised as a knowledge base: "Projects", "People",
@@ -340,6 +359,14 @@ public static class Hub
                 Presence.ConfirmBreak(lunch, at);
                 if (lunch && !when && parts[0].Contains("going", StringComparison.OrdinalIgnoreCase)) Vex.StartLunch();
                 return $"✓ {(lunch ? "Lunch" : "Break")} noted ({at:HH:mm})";
+            }
+            case "where":
+            {
+                // Today only; the chat's way to the same override as the right-click menu's Where today.
+                var a = parts[0].ToLowerInvariant();
+                Place? place = a.Contains("home") ? Place.Home : a.Contains("office") ? Place.Office : null;
+                if (place == null && !a.Contains("auto")) return $"✗ Not sure where \"{arg}\" is.";
+                return "✓ " + Where.SetOverride(place, "chat");
             }
             case "remember":
                 return Memory.Append(Memory.Remembered, $"- {DateTime.Now:yyyy-MM-dd}: {arg}") ? $"✓ Remembered: {arg}" : "✗ Couldn't write that down.";

@@ -38,6 +38,9 @@ public partial class App : Application
         var menu = new Forms.ContextMenuStrip();
         menu.Items.Add("Setup…", null, (_, _) => OpenSetup());
         menu.Items.Add("What Vex knows…", null, (_, _) => ShowStatus());
+#if !LITE
+        menu.Items.Add(WhereMenu(menu));
+#endif
         menu.Items.Add(ThemeMenu(menu));
         menu.Items.Add(new Forms.ToolStripSeparator());
         menu.Items.Add("Quit", null, (_, _) => Quit());
@@ -122,6 +125,53 @@ public partial class App : Application
         return root;
     }
 
+#if !LITE
+    /// <summary>
+    /// The choices on the Where today menu: say where you are for today (when the network guess is wrong or unsure),
+    /// or go back to the guess. Null = detect. Shared by the tray's and Vex's own menus.
+    /// </summary>
+    static readonly (string Name, Services.Place? Place)[] Wheres =
+    {
+        ("I'm working from home today", Services.Place.Home), ("I'm at the office today", Services.Place.Office), ("Work it out from the network", null),
+    };
+
+    /// <summary>Header showing today's place, so the menu doubles as a glance at what he thinks.</summary>
+    static string WhereHeader() => $"Where today: {Services.Whereabouts.Describe(Services.Hub.Where.Today)}";
+
+    static void SetWhere(Services.Place? place) =>
+        Services.Hub.Vex.Say(Services.Hub.Where.SetOverride(place, "menu"), 4, important: true);
+
+    /// <summary>Tray → Where today, ticked and relabelled each time the menu opens.</summary>
+    static Forms.ToolStripMenuItem WhereMenu(Forms.ContextMenuStrip menu)
+    {
+        var root = new Forms.ToolStripMenuItem(WhereHeader());
+        var items = Wheres.Select(w => new Forms.ToolStripMenuItem(w.Name, null, (_, _) => SetWhere(w.Place)) { Tag = w.Place }).ToList();
+        root.DropDownItems.AddRange(items.Take(2).ToArray());
+        root.DropDownItems.Add(new Forms.ToolStripSeparator());
+        root.DropDownItems.Add(items[2]);
+        menu.Opening += (_, _) =>
+        {
+            root.Text = WhereHeader();
+            foreach (var i in items) i.Checked = (Services.Place?)i.Tag == Services.Hub.Where.Override;
+        };
+        return root;
+    }
+
+    /// <summary>Right-click Vex → Where today: the same choices as the tray's, as a WPF menu, built fresh each time.</summary>
+    internal static System.Windows.Controls.MenuItem WhereMenu()
+    {
+        var root = new System.Windows.Controls.MenuItem { Header = WhereHeader() };
+        foreach (var (name, place) in Wheres)
+        {
+            if (place == null) root.Items.Add(new System.Windows.Controls.Separator());
+            var mi = new System.Windows.Controls.MenuItem { Header = name, IsChecked = place == Services.Hub.Where.Override };
+            mi.Click += (_, _) => SetWhere(place);
+            root.Items.Add(mi);
+        }
+        return root;
+    }
+#endif
+
     /// <summary>Theme → Hoodie colour → Custom…: the Windows colour picker, starting from the current colour.</summary>
     static void PickCustomHoodie()
     {
@@ -187,6 +237,7 @@ public partial class App : Application
             $"Notes: {nb.Name}{(nb.Linked ? $", {nb.OpenChecks.Count + nb.Open.Count()} open to-dos" : " (not set up)")}{(nb.Linked && !nb.Live ? " (app closed)" : "")}.",
             $"Calendar: {(cal.Source == "none" ? "not connected" : $"{cal.Today.Count} today via {cal.Source}")}.",
             $"Claude Code: {(Services.ClaudeWatch.Installed() ? $"{Services.Hub.Claude.Sessions.Count} session(s) seen" : "not connected")}{(Services.Hub.Claude.Listening ? "" : ", listener down")}.",
+            Services.Hub.Where.Summary(details: true),   // a local bubble, so the network details are fine here
             $"Quiet mode: {(Services.Hub.InCall != null ? $"in a call ({Services.Hub.InCall})" : Services.Hub.FullScreen ? "full screen" : "off")}.",
         });
 #endif

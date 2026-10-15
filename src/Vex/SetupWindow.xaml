@@ -224,6 +224,36 @@
                 </StackPanel>
             </TabItem>
 
+            <!-- Working from home: clock-in/out nudges, and the saved networks that tell home from the office (Whereabouts.cs).
+                 The network list is edited here and kept on Save, like the rest. -->
+            <TabItem x:Name="HomeDaysTab" Header="Home days">
+                <StackPanel>
+                    <TextBlock Style="{StaticResource Title}" Text="Working from home"/>
+                    <CheckBox x:Name="ClockNudges" Content="Remind me to clock in and out when working from home"/>
+                    <StackPanel Orientation="Horizontal" Margin="20,5,0,0" IsEnabled="{Binding IsChecked, ElementName=ClockNudges}">
+                        <TextBlock Text="Clock out at (HH:mm)" VerticalAlignment="Center"/>
+                        <TextBox x:Name="ClockOutAt" Width="60" Margin="8,0,8,0"/>
+                        <TextBlock Style="{StaticResource Note}" VerticalAlignment="Center" Margin="0" Text="empty: when I leave (Going home)"/>
+                    </StackPanel>
+                    <TextBlock Style="{StaticResource Note}" Margin="20,0,0,0"
+                               Text="On a home day: a clock-in nudge when you first sit down (up to three times until you press Done), and a clock-out nudge at that time instead of the pack-up one. At the office or when I'm not sure, everything's as usual."/>
+
+                    <TextBlock Style="{StaticResource Heading}" Text="Which network is where"/>
+                    <TextBlock x:Name="NetNow" Style="{StaticResource Note}" Margin="0,0,0,2"/>
+                    <WrapPanel>
+                        <WrapPanel.Resources>
+                            <Style TargetType="Button"><Setter Property="Padding" Value="8,2"/><Setter Property="Margin" Value="0,4,6,0"/></Style>
+                        </WrapPanel.Resources>
+                        <Button x:Name="SaveHomeNet" Content="This network is home"/>
+                        <Button x:Name="SaveOfficeNet" Content="This network is the office"/>
+                    </WrapPanel>
+                    <!-- One row per saved network, made in code, each with a ✕ to remove it. -->
+                    <StackPanel x:Name="NetList" Margin="0,6,0,0"/>
+                    <TextBlock Style="{StaticResource Note}" Margin="0,6,0,0"
+                               Text="Read on this PC only (Wi-Fi name, router address, DNS suffix, VPN); nothing is sent anywhere. Save as many as you like per place, e.g. the office's wired and Wi-Fi, or home with the VPN on. Wrong today? Right-click me → Where today."/>
+                </StackPanel>
+            </TabItem>
+
             <TabItem Header="Privacy">
                 <StackPanel>
                     <TextBlock Style="{StaticResource Title}" Text="Privacy"/>

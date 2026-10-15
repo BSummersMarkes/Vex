@@ -69,6 +69,9 @@ public partial class SetupWindow : Window
         (c.CommuteBy switch { "transit" => ByTransit, "cycle" => ByCycle, "walk" => ByWalk, _ => ByDrive }).IsChecked = true;
 
 #if !LITE
+        ClockNudges.IsChecked = c.ClockNudges;
+        ClockOutAt.Text = c.ClockOutAt;
+        WireNetworks();
         PrivacyText.Text =
             "Everything I keep stays on this PC (in %LOCALAPPDATA%\\Vex and your notes). I never record password managers, " +
             "private browsing or windows with words like \"password\" or \"bank\" in the title. When you chat with me, your " +
@@ -144,6 +147,63 @@ public partial class SetupWindow : Window
         Closed += (_, _) => { if (DialogResult != true && Store.Config.HoodieLightness != before) Theme.PreviewLightness(before); };
     }
 
+#if !LITE
+    /// <summary>Working copies of the saved networks; written to config.json only on Save, like everything else here.</summary>
+    readonly System.Collections.Generic.List<NetPrint> homeNets = Store.Config.HomeNetworks.ToList(),
+                                                       officeNets = Store.Config.OfficeNetworks.ToList();
+
+    /// <summary>
+    /// Home days → "This network is home" / "…is the office": saves what this PC sees right now under that place
+    /// (moving it if it was saved under the other one), and lists what's saved with a ✕ each.
+    /// </summary>
+    void WireNetworks()
+    {
+        // Today's verdict only once Vex is running (not on first run, before the Hub has looked).
+        var here = Services.Whereabouts.Observe();
+        NetNow.Text = $"This PC is on: {Services.Whereabouts.Describe(here)}." +
+                      (Services.Hub.Vex != null ? " " + Services.Hub.Where.Summary(details: true) : "");
+        void ShowList()
+        {
+            NetList.Children.Clear();
+            foreach (var (place, nets) in new[] { ("Home", homeNets), ("Office", officeNets) })
+                foreach (var net in nets.ToList())
+                {
+                    var row = new System.Windows.Controls.DockPanel { Margin = new Thickness(0, 2, 0, 0) };
+                    var remove = new System.Windows.Controls.Button { Content = "✕", Padding = new Thickness(6, 0, 6, 0), Margin = new Thickness(8, 0, 0, 0), ToolTip = "Forget this network" };
+                    remove.Click += (_, _) => { nets.Remove(net); ShowList(); };
+                    System.Windows.Controls.DockPanel.SetDock(remove, System.Windows.Controls.Dock.Right);
+                    row.Children.Add(remove);
+                    row.Children.Add(new System.Windows.Controls.TextBlock
+                    {
+                        Text = $"{place}: {Services.Whereabouts.Describe(net)}", VerticalAlignment = VerticalAlignment.Center,
+                    });
+                    NetList.Children.Add(row);
+                }
+            if (NetList.Children.Count == 0)
+                NetList.Children.Add(new System.Windows.Controls.TextBlock { Text = "No networks saved yet, so I can't tell home from the office.", Style = (Style)FindResource("Note") });
+        }
+        void SaveHere(System.Collections.Generic.List<NetPrint> into, System.Collections.Generic.List<NetPrint> other)
+        {
+            here = Services.Whereabouts.Observe();   // fresh: the network may have changed since the window opened
+            if (here.WiFi.Count == 0 && here.Gateways.Count == 0 && here.DnsSuffixes.Count == 0)
+            {
+                NetNow.Text = "I can't see a network to save right now (no Wi-Fi name, router or DNS suffix).";
+                return;
+            }
+            // The same network saved twice (or under both places) would only muddle the matching.
+            static string Key(NetPrint p) => string.Join("|", p.WiFi.Concat(p.Gateways).Concat(p.DnsSuffixes).Select(s => s.ToLowerInvariant()).OrderBy(s => s)) + p.Vpn;
+            into.RemoveAll(p => Key(p) == Key(here));
+            other.RemoveAll(p => Key(p) == Key(here));
+            into.Add(here);
+            NetNow.Text = $"Saved as {(into == homeNets ? "home" : "the office")}: {Services.Whereabouts.Describe(here)}. Save keeps it.";
+            ShowList();
+        }
+        SaveHomeNet.Click += (_, _) => SaveHere(homeNets, officeNets);
+        SaveOfficeNet.Click += (_, _) => SaveHere(officeNets, homeNets);
+        ShowList();
+    }
+#endif
+
 #if LITE
     /// <summary>
     /// The lite build shares this window's layout with the full Vex: what needs Claude (chat, notes, watching, the
@@ -153,7 +213,7 @@ public partial class SetupWindow : Window
     void LiteLayout()
     {
         foreach (var e in new UIElement[] { WorkPart, NotesTab, WatchTab, ClaudeHooks, ClaudeNote, CodingAtLaptop, CodingForClaude, CodingNote,
-                                            TomTomLabel, TomTomKey, ForgetNow, OpenMemory, OpenChats })
+                                            TomTomLabel, TomTomKey, ForgetNow, OpenMemory, OpenChats, HomeDaysTab })
             e.Visibility = Visibility.Collapsed;
         IntroNote.Text = "I live on your taskbar, keep out of the way and nudge you about breaks, water, lunch and meetings. " +
                          "Click me to set reminders.";
@@ -224,6 +284,10 @@ public partial class SetupWindow : Window
         c.HomeAddress = HomeAddress.Text.Trim();
 #if !LITE
         c.TomTomKey = TomTomKey.Text.Trim();
+        c.ClockNudges = ClockNudges.IsChecked == true;
+        c.ClockOutAt = Services.Commute.ParseTime(ClockOutAt.Text) is { } clockOut ? $"{clockOut:hh\\:mm}" : "";
+        c.HomeNetworks = homeNets;
+        c.OfficeNetworks = officeNets;
 #endif
         c.CommuteBy = ByTransit.IsChecked == true ? "transit" : ByCycle.IsChecked == true ? "cycle" : ByWalk.IsChecked == true ? "walk" : "drive";
         c.SetupDone = true;

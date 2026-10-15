@@ -136,6 +136,28 @@ public class VexConfig
     /// <summary>Delay (minutes over the usual) at which he suggests leaving early.</summary>
     public double TrafficSlowMinutes { get; set; } = 10;
 
+#if !LITE
+    // Home days: where you're working is worked out from the network (Services/Whereabouts.cs), on this PC only.
+    /// <summary>On a home day, nudge to clock in when you first sit down and to clock out at ClockOutAt. Setup → Home days.</summary>
+    public bool ClockNudges { get; set; } = true;
+    /// <summary>When to clock out on a home day (HH:mm). Empty = LeaveAt. Replaces the pack-up nudge on home days.</summary>
+    public string ClockOutAt { get; set; } = "";
+    /// <summary>An unanswered clock-in nudge comes back after this long, at most ClockInMaxNudges times a day.</summary>
+    public double ClockInRepeatMinutes { get; set; } = 10;
+    public int ClockInMaxNudges { get; set; } = 3;
+    /// <summary>How long "Snooze" puts the clock-in or clock-out nudge off.</summary>
+    public double ClockSnoozeMinutes { get; set; } = 10;
+    /// <summary>Networks saved with "This network is home" / "…is the office" in Setup. Several per place is fine.</summary>
+    public List<NetPrint> HomeNetworks { get; set; } = new();
+    public List<NetPrint> OfficeNetworks { get; set; } = new();
+    /// <summary>Words in an adapter's name or description that mark it as a VPN (dial-up/PPP adapters always count).</summary>
+    public List<string> VpnAdapterWords { get; set; } = new()
+    {
+        "VPN", "Virtual Private", "AnyConnect", "GlobalProtect", "PANGP", "Fortinet", "FortiClient", "WireGuard", "Wintun",
+        "TAP-Windows", "OpenVPN", "Juniper", "Pulse Secure", "Ivanti", "Zscaler", "SonicWall", "Check Point", "NordLynx",
+    };
+#endif
+
     // Integrations.
     public int HookPort { get; set; } = 47321;
     public string? CalendarJsonPath { get; set; }           // Power Automate export; default %OneDriveCommercial%\Vex\calendar.json
@@ -192,6 +214,27 @@ public class Reminder
     public string Repeat { get; set; } = "";
 }
 
+#if !LITE
+/// <summary>
+/// A network as seen from this PC, saved in Setup → Home days as home or the office (Services/Whereabouts.cs). Lists,
+/// because a PC can be on wired and Wi-Fi at once. Read locally only; nothing here is ever sent anywhere.
+/// </summary>
+public class NetPrint
+{
+    /// <summary>Connected Wi-Fi network names (SSIDs). Empty when wired, or if Windows won't say (location access off).</summary>
+    public List<string> WiFi { get; set; } = new();
+    /// <summary>The default gateways' (routers') MAC addresses, from Windows' ARP cache.</summary>
+    public List<string> Gateways { get; set; } = new();
+    /// <summary>Connection-specific DNS suffixes handed out on the non-VPN adapters (e.g. "markes.local").</summary>
+    public List<string> DnsSuffixes { get; set; } = new();
+    /// <summary>One of those suffixes is the domain this PC is joined to.</summary>
+    public bool DomainNetwork { get; set; }
+    /// <summary>A VPN adapter was up.</summary>
+    public bool Vpn { get; set; }
+    public DateTime Saved { get; set; }
+}
+#endif
+
 /// <summary>Day-to-day state that survives restarts.</summary>
 public class VexState
 {
@@ -224,6 +267,10 @@ public class VexState
     public Dictionary<string, string> GeoCache { get; set; } = new();
     /// <summary>Nudges and Build it / Restart cards that went unanswered, for the chat's Pending tab (Services/Pending.cs).</summary>
     public List<Services.PendingItem> Pending { get; set; } = new();
+    /// <summary>"home" or "office" when you've said where you are today (menu or chat), overriding detection; "" = detect. Cleared daily.</summary>
+    public string WhereOverride { get; set; } = "";
+    /// <summary>Clock-in nudges shown today (capped by ClockInMaxNudges).</summary>
+    public int ClockInNudges { get; set; }
     /// <summary>Journal checkboxes paired with items on the Lab Notebook's To-Do list (Services/Notebook.cs, TodoListMirror).</summary>
 #if !LITE
     public List<Services.TodoLink> TodoLinks { get; set; } = new();
@@ -260,6 +307,8 @@ static class Store
         State.RefillUndo.Clear();
         State.DoneToday.Clear();
         State.AskedToday = 0;
+        State.WhereOverride = "";   // "home today" means today
+        State.ClockInNudges = 0;
         SaveState();
     }
 
