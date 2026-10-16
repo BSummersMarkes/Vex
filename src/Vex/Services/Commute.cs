@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 namespace Vex.Services;
 
 /// <summary>
-/// Going home. PackUpMinutes before LeaveAt (on CommuteDays) he knocks: time to pack up, with the drive home as it
+/// Going home. PackUpMinutes before the day's leave time (LeaveAt, or LeaveAtByDay, on CommuteDays) he knocks: time to pack up, with the drive home as it
 /// stands. Live traffic comes from TomTom's routing API when TomTomKey and both addresses are set (free key from
 /// developer.tomtom.com; the addresses and route go to TomTom, nothing else). Without a key the nudge just has a
 /// "Map" button that opens Google Maps directions in the browser. "[[traffic: now]]" in chat checks on demand.
@@ -46,10 +46,11 @@ public static class Commute
     /// <summary>The pack-up nudge's map button.</summary>
     public static string MapLabel => By == "transit" ? "Trains" : "Map";
 
+    /// <summary>Today's leave time: the day's own LeaveAtByDay entry if it has one, else LeaveAt.</summary>
     static bool TryLeave(out DateTime leave)
     {
         leave = default;
-        if (ParseTime(C.LeaveAt) is not { } t) return false;
+        if (ParseTime(LeaveAtFor(DateTime.Today)) is not { } t) return false;
         leave = DateTime.Today + t;
         return true;
     }
@@ -57,6 +58,19 @@ public static class Commute
     /// <summary>"16:45" or "9:30" as a time of day; anything else (including "17", which TimeSpan reads as days) is null.</summary>
     public static TimeSpan? ParseTime(string s) =>
         TimeSpan.TryParseExact(s.Trim(), new[] { @"h\:mm", @"hh\:mm" }, CultureInfo.InvariantCulture, out var t) && t < TimeSpan.FromDays(1) ? t : null;
+
+    /// <summary>
+    /// The leave time (HH:mm text) for that day: its LeaveAtByDay entry ("Fri"), else LeaveAt. An empty LeaveAt means
+    /// going home is off altogether, so a lone Friday entry (it's there by default) never switches it on by itself.
+    /// </summary>
+    static string LeaveAtFor(DateTime d)
+    {
+        if (C.LeaveAt.Trim().Length == 0) return "";
+        foreach (var kv in C.LeaveAtByDay)
+            if (kv.Key.Length >= 3 && (kv.Value ?? "").Trim().Length > 0 &&
+                d.DayOfWeek.ToString().StartsWith(kv.Key.Substring(0, 3), StringComparison.OrdinalIgnoreCase)) return kv.Value!;
+        return C.LeaveAt;
+    }
 
     public static bool IsCommuteDay(DateTime d) =>
         C.CommuteDays.Any(x => x.Length >= 3 && d.DayOfWeek.ToString().StartsWith(x[..3], StringComparison.OrdinalIgnoreCase));
@@ -78,6 +92,7 @@ public static class Commute
     public static DateTime? PackUpAt() =>
         TryLeave(out var leave) && IsCommuteDay(DateTime.Today) ? leave.AddMinutes(-C.PackUpMinutes) : null;
 
+    /// <summary>Today's leave time (per-day if set), or null if going home isn't set up.</summary>
     public static DateTime? LeaveTime() => TryLeave(out var leave) ? leave : null;
 
 #if LITE

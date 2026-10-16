@@ -63,6 +63,16 @@ public partial class SetupWindow : Window
         Curious.IsChecked = c.Curious;
         WatchApps.Text = string.Join(", ", c.WatchContentApps);
         LeaveAt.Text = c.LeaveAt;
+        // Working days only; a weekend entry can still go in config.json, and Save leaves it alone.
+        foreach (var day in new[] { "Mon", "Tue", "Wed", "Thu", "Fri" })
+        {
+            LeaveDays.Children.Add(new System.Windows.Controls.TextBlock { Text = day, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 4, 0) });
+            LeaveDays.Children.Add(new System.Windows.Controls.TextBox
+            {
+                Tag = day, Width = 46, Margin = new Thickness(0, 0, 10, 0),
+                Text = c.LeaveAtByDay.TryGetValue(day, out var dayLeave) ? dayLeave : "",
+            });
+        }
         WorkAddress.Text = c.WorkAddress;
         HomeAddress.Text = c.HomeAddress;
         TomTomKey.Text = c.TomTomKey;
@@ -222,7 +232,7 @@ public partial class SetupWindow : Window
         ChatNow.Content = "Reminders";
         LunchNote.Text = "Starts when you press Going on the lunch nudge, or Going to lunch in my panel. Come back early and I'll wake up.";
         RightNowNote.Text = "These happen straight away. Reminders closes this window first (without saving).";
-        HomeNote.Text = "15 minutes before you leave I'll tell you to pack up, with a Google Maps button for the way home " +
+        HomeNote.Text = "15 minutes before you leave that day I'll tell you to pack up, with a Google Maps button for the way home " +
                         "(by train or bus it lists the next departures). The addresses only go into that map link. Postcodes are fine.";
         PrivacyText.Text =
             "Everything I keep stays on this PC, in %LOCALAPPDATA%\\Vex Lite: settings, reminders and today's counts. Nothing is " +
@@ -280,6 +290,9 @@ public partial class SetupWindow : Window
             .Select(a => a.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) ? a[..^4] : a).ToList();
 #endif
         c.LeaveAt = Services.Commute.ParseTime(LeaveAt.Text) is { } leave ? $"{leave:hh\\:mm}" : "";
+        // Cleared days are written as "" rather than removed, so the Friday default can't come back on the next load.
+        foreach (var box in LeaveDays.Children.OfType<System.Windows.Controls.TextBox>())
+            c.LeaveAtByDay[(string)box.Tag] = Services.Commute.ParseTime(box.Text) is { } dayLeave ? $"{dayLeave:hh\\:mm}" : "";
         c.WorkAddress = WorkAddress.Text.Trim();
         c.HomeAddress = HomeAddress.Text.Trim();
 #if !LITE

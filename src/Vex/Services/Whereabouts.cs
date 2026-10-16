@@ -115,9 +115,11 @@ public class Whereabouts
 
     public static string Describe(Place p) => p switch { Place.Home => "working from home", Place.Office => "at the office", _ => "not sure" };
 
-    /// <summary>When to clock out on a home day: ClockOutAt, or the leave time if that's empty. Null if neither is set.</summary>
+    /// <summary>When to clock out on a home day: ClockOutAt, or today's leave time (per-day) if that's empty. Null if neither is set.</summary>
     public static DateTime? ClockOutTime() =>
-        Commute.ParseTime(Store.Config.ClockOutAt.Length > 0 ? Store.Config.ClockOutAt : Store.Config.LeaveAt) is { } t ? DateTime.Today + t : null;
+        Store.Config.ClockOutAt.Length > 0
+            ? Commute.ParseTime(Store.Config.ClockOutAt) is { } t ? DateTime.Today + t : null
+            : Commute.LeaveTime();
 
     // ───────────── matching ─────────────
 

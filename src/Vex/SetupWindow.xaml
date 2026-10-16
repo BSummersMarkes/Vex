@@ -202,25 +202,28 @@
                     <TextBlock Style="{StaticResource Title}" Text="Going home (optional)"/>
                     <Grid Margin="0,6,0,0">
                         <Grid.ColumnDefinitions><ColumnDefinition Width="110"/><ColumnDefinition/></Grid.ColumnDefinitions>
-                        <Grid.RowDefinitions><RowDefinition/><RowDefinition/><RowDefinition/><RowDefinition/><RowDefinition/></Grid.RowDefinitions>
+                        <Grid.RowDefinitions><RowDefinition/><RowDefinition/><RowDefinition/><RowDefinition/><RowDefinition/><RowDefinition/></Grid.RowDefinitions>
                         <TextBlock Text="I leave at (HH:mm)" VerticalAlignment="Center"/>
                         <TextBox x:Name="LeaveAt" Grid.Column="1" Width="70" HorizontalAlignment="Left" Margin="0,2"/>
-                        <TextBlock Grid.Row="1" Text="I go home by" VerticalAlignment="Center"/>
-                        <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" Margin="0,0,0,3">
+                        <!-- One box per weekday, made in code; empty means that day leaves at the time above. -->
+                        <TextBlock Grid.Row="1" Text="Except on" VerticalAlignment="Center"/>
+                        <StackPanel x:Name="LeaveDays" Grid.Row="1" Grid.Column="1" Orientation="Horizontal" Margin="0,2"/>
+                        <TextBlock Grid.Row="2" Text="I go home by" VerticalAlignment="Center"/>
+                        <StackPanel Grid.Row="2" Grid.Column="1" Orientation="Horizontal" Margin="0,0,0,3">
                             <RadioButton x:Name="ByDrive" GroupName="By" Content="Car" Margin="0,5,14,0"/>
                             <RadioButton x:Name="ByTransit" GroupName="By" Content="Train or bus" Margin="0,5,14,0"/>
                             <RadioButton x:Name="ByCycle" GroupName="By" Content="Bike" Margin="0,5,14,0"/>
                             <RadioButton x:Name="ByWalk" GroupName="By" Content="On foot" Margin="0,5,0,0"/>
                         </StackPanel>
-                        <TextBlock Grid.Row="2" Text="Work address" VerticalAlignment="Center"/>
-                        <TextBox x:Name="WorkAddress" Grid.Row="2" Grid.Column="1" Margin="0,2"/>
-                        <TextBlock Grid.Row="3" Text="Home address" VerticalAlignment="Center"/>
-                        <TextBox x:Name="HomeAddress" Grid.Row="3" Grid.Column="1" Margin="0,2"/>
-                        <TextBlock x:Name="TomTomLabel" Grid.Row="4" Text="TomTom key" VerticalAlignment="Center"/>
-                        <TextBox x:Name="TomTomKey" Grid.Row="4" Grid.Column="1" Margin="0,2"/>
+                        <TextBlock Grid.Row="3" Text="Work address" VerticalAlignment="Center"/>
+                        <TextBox x:Name="WorkAddress" Grid.Row="3" Grid.Column="1" Margin="0,2"/>
+                        <TextBlock Grid.Row="4" Text="Home address" VerticalAlignment="Center"/>
+                        <TextBox x:Name="HomeAddress" Grid.Row="4" Grid.Column="1" Margin="0,2"/>
+                        <TextBlock x:Name="TomTomLabel" Grid.Row="5" Text="TomTom key" VerticalAlignment="Center"/>
+                        <TextBox x:Name="TomTomKey" Grid.Row="5" Grid.Column="1" Margin="0,2"/>
                     </Grid>
                     <TextBlock x:Name="HomeNote" Style="{StaticResource Note}" Margin="0,8,0,0"
-                               Text="15 minutes before you leave I'll tell you to pack up, with a Google Maps button for the way home (by train or bus it lists the next departures). Driving, a free TomTom key (developer.tomtom.com) lets me check the live traffic; that sends the two addresses to TomTom. Postcodes are fine."/>
+                               Text="15 minutes before you leave that day I'll tell you to pack up, with a Google Maps button for the way home (by train or bus it lists the next departures). Driving, a free TomTom key (developer.tomtom.com) lets me check the live traffic; that sends the two addresses to TomTom. Postcodes are fine."/>
                 </StackPanel>
             </TabItem>
 

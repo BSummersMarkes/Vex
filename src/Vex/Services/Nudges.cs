@@ -473,7 +473,7 @@ public class Nudges
     DateTime packUpSnooze = DateTime.MinValue;
 
     /// <summary>
-    /// PackUpMinutes before LeaveAt: "pack up", with the drive home if TomTom is set up. Exempt (like a meeting), shown
+    /// PackUpMinutes before today's leave time (LeaveAt, or that day's LeaveAtByDay): "pack up", with the drive home if TomTom is set up. Exempt (like a meeting), shown
     /// once a day; if it can't be shown yet it's retried until half an hour after leaving time. Also counts as the
     /// end-of-day nudge, which would otherwise come after you've gone.
     /// </summary>
@@ -571,7 +571,7 @@ public class Nudges
     }
 
     /// <summary>
-    /// ClockOutAt (else LeaveAt) on a home day, in place of the pack-up nudge: clock out. Shown once (it waits until
+    /// ClockOutAt (else today's leave time) on a home day, in place of the pack-up nudge: clock out. Shown once (it waits until
     /// you're at the desk, any time later that day) and, like pack-up, stands in for the end-of-day nudge.
     /// </summary>
     bool ClockOut(DateTime now)

@@ -122,6 +122,11 @@ public class VexConfig
     // Going home: a pack-up nudge with a traffic check.
     /// <summary>When you leave work (HH:mm). Empty = no pack-up nudge.</summary>
     public string LeaveAt { get; set; } = "";
+    /// <summary>
+    /// Days that leave at a different time from LeaveAt, by short day name ("Fri": "16:15"). Empty or missing = LeaveAt.
+    /// Only used while LeaveAt is set, so clearing that still turns the pack-up nudge off. Setup → Going home.
+    /// </summary>
+    public Dictionary<string, string> LeaveAtByDay { get; set; } = new() { ["Fri"] = "16:15" };
     public double PackUpMinutes { get; set; } = 15;
     public List<string> CommuteDays { get; set; } = new() { "Mon", "Tue", "Wed", "Thu", "Fri" };
     /// <summary>"drive", "transit" (train or bus), "cycle" or "walk": the map's travel mode. Live traffic is only for "drive".</summary>
