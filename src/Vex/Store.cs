@@ -33,6 +33,15 @@ public class VexConfig
     public string HoodieColour { get; set; } = "";
     /// <summary>Lightness shift on the hoodie colour, in HSL points (−10 darker to +15 lighter; 0 = as chosen). Setup → Theme.</summary>
     public double HoodieLightness { get; set; }
+    /// <summary>Seasonal outfits: a Santa hat, bunny ears, an oni mask around their days (Occasions.All, VexOutfits.cs). Setup → Theme.</summary>
+    public bool DressUp { get; set; } = true;
+    /// <summary>How many days before an occasion its outfit goes on (it comes off after the day itself), unless the occasion sets its own.</summary>
+    public int DressUpLeadDays { get; set; } = 5;
+    /// <summary>
+    /// For trying outfits on: an occasion id ("christmas", "easter", "halloween") is worn now whatever the date, even
+    /// with DressUp off. Empty = go by the date. Setup → Theme → Try one on.
+    /// </summary>
+    public string DressUpPreview { get; set; } = "";
 
     /// <summary>Keep Vex (and his chat) out of screenshots and screen shares.</summary>
     public bool HideFromScreenCapture { get; set; } = true;
@@ -281,6 +290,8 @@ public class VexState
     public string WhereOverride { get; set; } = "";
     /// <summary>Clock-in nudges shown today (capped by ClockInMaxNudges).</summary>
     public int ClockInNudges { get; set; }
+    /// <summary>Outfits he's already remarked on, as "id-year" (e.g. "halloween-2026"), so it's one comment a year each.</summary>
+    public List<string> DressUpRemarked { get; set; } = new();
     /// <summary>Journal checkboxes paired with items on the Lab Notebook's To-Do list (Services/Notebook.cs, TodoListMirror).</summary>
 #if !LITE
     public List<Services.TodoLink> TodoLinks { get; set; } = new();

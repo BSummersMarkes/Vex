@@ -15,6 +15,7 @@ A small animated desktop companion that lives on top of the Windows desktop, kee
 - White mittens, little brown boots. No visible arms or legs.
 - Carries a small mug of coffee that empties over time.
 - Eyes and head do most of the acting: blink, squint, sleep; the head turns to follow the cursor (face and eyes slide inside the hood, |turn| ≤ 40°).
+- **Seasonal outfits** (`DressUp`, on; Setup → Theme): a floppy Santa hat for Christmas (25 Dec), bunny ears on a headband for Easter (Easter Sunday, worked out per year with the anonymous Gregorian algorithm) and a red hannya-style oni mask pushed up on the side of the hood for Halloween (31 Oct), so both eyes stay in view. Each is worn from `DressUpLeadDays` (5) days before through to the end of the day itself (Halloween from 26 Oct). Drawn in the same matte style inside the hood (`Outfit` in `VexWindow.xaml`), so they move with every breath, walk, sit, nap, climb and head turn, and keep their own colours whatever the hoodie colour. The occasions are one table, `Occasions.All` in `VexOutfits.cs` (id, name, date rule, outfit, remarks, optional own lead days); a new one is a row there plus a drawing under `Outfit`. The first time an outfit goes on each year he says one dry line about it, only when he's standing about in plain view with nothing else being said and you've been active in the last minute (`DressUpRemarked` in `state.json`). Setup → Theme → **Try one on** (`DressUpPreview`) wears any outfit straight away whatever the date, even with dressing up off, for testing; previews never use up the year's remark. Shared with Vex Lite.
 - Idle activities: sipping coffee, phone, reading a book, sitting against a screen edge (often reading or on his phone), stretching (more after long sitting), checking his watch (meeting soon), juggling three balls (now and then dropping one), climbing up a window's side onto its top and back down again. Each can be switched off (section 4, Idle activities).
 
 ## 2. Principles
@@ -45,7 +46,7 @@ A small animated desktop companion that lives on top of the Windows desktop, kee
 - **Local event bus:** a small localhost HTTP listener (127.0.0.1 only) that receives events from Claude Code hooks and any future integrations.
 - **Storage:** `%LOCALAPPDATA%\Vex\`
   - `config.json`: timings, exclusions, preferences
-  - `state.json`: today's counters (coffees, sitting time, last nudges, clock-in nudges shown), reminders, the chat's Pending items, today's Where override
+  - `state.json`: today's counters (coffees, sitting time, last nudges, clock-in nudges shown), reminders, the chat's Pending items, today's Where override, which seasonal outfits he's remarked on this year
   - `chats\YYYY-MM-DD.jsonl`: each day's chat transcript, kept as an archive (Setup → Privacy → Chat history; Setup → Behaviour → "Forget today's chat" removes today's)
   - `memory\*.md`: his own pages (*About Ben*, *Remembered*, *Diary*, *Projects*, *People*, ...), the source of truth for what he knows; `MemoryFolder` moves it
   - `log\activity-YYYY-MM-DD.jsonl`: app/title timeline (exclusions already filtered out; stays local, never in OneDrive)
@@ -183,7 +184,7 @@ Each job's log (prompts' results, git output, build errors, review) is in `%LOCA
 
 For people without a Claude login (Ben's sister and wife, on work PCs). Same source, built by `src/VexLite/VexLite.csproj` with `LITE` defined; `build-lite.ps1` writes `Vex Lite.exe` (~230 KB).
 
-- **Keeps:** the character and everything he does (wandering, dodging, perching, climbing, idle acts, lunch, the mug, knocking), wellbeing nudges with the quiet rules (calls, full screen), Pending, reminders (one-off and repeating), meetings from classic Outlook (no Power Automate), going home (map only, no TomTom), Setup, themes.
+- **Keeps:** the character and everything he does (wandering, dodging, perching, climbing, idle acts, lunch, the mug, knocking), wellbeing nudges with the quiet rules (calls, full screen), Pending, reminders (one-off and repeating), meetings from classic Outlook (no Power Automate), going home (map only, no TomTom), Setup, themes, seasonal outfits.
 - **Drops:** chat and brain, diary, curiosity, memory pages, workshop, Claude Code alerts and the coding laptop, Lab Notebook and notes/to-dos, window reading, the activity log on disk, home days (Where, clock in/out; pack-up runs as before). Nothing leaves the PC.
 - **Clicking him** opens `LitePanel` instead of the chat: Remind me (when/what, read by `ReminderTimes`), Coming up (with ✕), Right now (break, lunch, coffee), and the Pending tab. In `VexWindow` it's aliased as `ChatWindow`, so the shared open/follow/dismiss code is unchanged.
 - **Own data folder** `%LOCALAPPDATA%\Vex Lite`, mutex `Vex.Lite` and start-with-Windows entry "Vex Lite", so it runs beside the full Vex.
@@ -271,6 +272,7 @@ For Ben's wife's Mac. A separate project (`src/VexMac`), not the shared source: 
 - [x] Home days (2026-10-15): Home / Office / Unknown from a local network fingerprint (Wi-Fi name, router MAC, DNS suffix/domain, VPN) against networks saved in Setup → Home days; Where today on the menus and `[[where]]` in chat to override for the day; on home days clock-in and clock-out nudges replace pack-up; result and reason in `vex.log` (sections 6, 7). Not yet tried on the real home and office networks
 - [x] Leave time per weekday (2026-10-16): `LeaveAtByDay` overrides `LeaveAt` for chosen days (Friday 16:15 by default), set in Setup → Going home → Except on; pack-up, clock-out (when `ClockOutAt` is empty) and the "Leaves work at" chat context follow the day's time (section 7)
 - [x] Offline timers and reminders (2026-10-22): "timer 10m" or "remind me at 3pm to …" typed in the chat is set at once by a local parser, without a Claude round trip; anything unclear still goes to Claude (`ChatLocalReminders`; section 7, Reminder)
+- [x] Seasonal outfits (2026-10-22): Santa hat for Christmas, bunny ears for Easter, an oni mask on the side of the hood for Halloween, from 5 days before to the day itself, following every pose; one table of occasions (`Occasions.All`); one dry remark a year each; Setup → Theme to turn it off or try one on (section 1, Look)
 
 ### He learns (2026-10-13)
 - [x] Build/restart from chat need a click (prompt-injection guard); context marked as data, not instructions
@@ -297,7 +299,7 @@ For Ben's wife's Mac. A separate project (`src/VexMac`), not the shared source: 
 
 ### Later: "He follows"
 - [ ] Android companion (shared memory over OneDrive or Bluetooth)
-- [ ] Perching on title bars, seasonal outfits
+- [ ] Perching on title bars
 - [ ] More context animations (ideas): foot-tap while it waits on you, blowing on fresh coffee, peeking round a window edge, legs dangling off a title bar, doodling during long meetings, wave when you're back, shiver when the mug's cold
 
 ## 12. Open questions

@@ -59,6 +59,7 @@ public partial class SetupWindow : Window
                 Content = a.Name, Tag = a.Id, IsChecked = IdleActs.Enabled(a.Act), Width = 200,
             });
         WireLightness();
+        WireOutfits(vex);
         ActivityLog.IsChecked = c.ActivityLog;
         Curious.IsChecked = c.Curious;
         WatchApps.Text = string.Join(", ", c.WatchContentApps);
@@ -155,6 +156,36 @@ public partial class SetupWindow : Window
         Show();
         Lightness.ValueChanged += (_, e) => { Theme.PreviewLightness(e.NewValue); Show(); };
         Closed += (_, _) => { if (DialogResult != true && Store.Config.HoodieLightness != before) Theme.PreviewLightness(before); };
+    }
+
+    /// <summary>
+    /// Theme → Seasonal outfits: the on/off switch (kept on Save), and "Try one on", which puts the outfit on him at once
+    /// as a preview, like the lightness slider. Only Save keeps the choice; closing any other way puts back what was set.
+    /// </summary>
+    void WireOutfits(VexWindow? vex)
+    {
+        var c = Store.Config;
+        string before = c.DressUpPreview;
+        DressUp.IsChecked = c.DressUp;
+        var names = Occasions.All.Select(o => o.Name).ToList();
+        string list = names.Count > 1 ? string.Join(", ", names.Take(names.Count - 1)) + " and " + names[^1] : string.Join("", names);
+        DressUpNote.Text = $"{list}: from {c.DressUpLeadDays} days before until the end of the day itself. " +
+                           "The first time each year I'll say something about it. Once.";
+        foreach (var (id, name) in new[] { ("", "Go by the date") }.Concat(Occasions.All.Select(o => (o.Id, o.Name))))
+        {
+            var choice = new System.Windows.Controls.RadioButton
+            {
+                Content = name, GroupName = "OutfitPreview", Margin = new Thickness(0, 5, 14, 0),
+                IsChecked = string.Equals(id, before, StringComparison.OrdinalIgnoreCase) || (id == "" && Occasions.Find(before) == null),
+            };
+            choice.Checked += (_, _) => { c.DressUpPreview = id; vex?.RefreshOutfit(); };
+            OutfitPreview.Children.Add(choice);
+        }
+        Closed += (_, _) =>
+        {
+            if (DialogResult != true) c.DressUpPreview = before;
+            vex?.RefreshOutfit();   // saved or not, he wears whatever the settings now say
+        };
     }
 
 #if !LITE
@@ -283,6 +314,7 @@ public partial class SetupWindow : Window
         foreach (var box in IdleActsList.Children.OfType<System.Windows.Controls.CheckBox>())
             c.IdleActivities[(string)box.Tag] = box.IsChecked == true;
         c.HoodieLightness = Lightness.Value;   // already previewing; this makes it stick
+        c.DressUp = DressUp.IsChecked == true;  // the try-on choice is already in DressUpPreview
 #if !LITE
         c.ActivityLog = ActivityLog.IsChecked == true;
         c.Curious = Curious.IsChecked == true;

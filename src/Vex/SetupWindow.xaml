@@ -178,6 +178,15 @@
                     </DockPanel>
                     <TextBlock Style="{StaticResource Note}"
                                Text="Darker or lighter than the colour you picked; I change as you slide. Save keeps it, closing without saving puts it back. The colour itself: right-click me → Theme → Hoodie colour."/>
+
+                    <!-- Seasonal outfits (VexOutfits.cs). The occasions and the try-on choices are made in code from Occasions.All. -->
+                    <TextBlock Style="{StaticResource Heading}" Text="Seasonal outfits"/>
+                    <CheckBox x:Name="DressUp" Content="Dress up for the occasion"/>
+                    <TextBlock x:Name="DressUpNote" Style="{StaticResource Note}" Margin="20,0,0,0"/>
+                    <TextBlock Text="Try one on" Margin="0,8,0,0"/>
+                    <WrapPanel x:Name="OutfitPreview"/>
+                    <TextBlock Style="{StaticResource Note}"
+                               Text="Wears it now whatever the date (even with dressing up off), so you can see how it looks. Save keeps it on until you pick Go by the date again."/>
                 </StackPanel>
             </TabItem>
 

@@ -194,6 +194,7 @@ public partial class VexWindow : Window
 
         UpdateNudge();
         UpdateActs(scr);
+        UpdateOutfit();   // seasonal dress-up (VexOutfits.cs)
         Animate(dt);
         if (bubbleUntil > 0 && hovering) bubbleUntil = Math.Max(bubbleUntil, now + 2);
         if (bubbleUntil > 0 && now > bubbleUntil) BubbleExpired();
@@ -458,7 +459,7 @@ public partial class VexWindow : Window
     }
 
     /// <summary>Parts drawn in reds that aren't his hoodie (props, mug, eyes): left alone when it's recoloured.</summary>
-    static readonly HashSet<string> NotHoodie = new() { "Book", "Sandwich", "Phone", "Mug", "LunchBox", "Laptop", "Eyes", "Ripple", "Balls" };
+    static readonly HashSet<string> NotHoodie = new() { "Book", "Sandwich", "Phone", "Mug", "LunchBox", "Laptop", "Eyes", "Ripple", "Balls", "Outfit" };
 
     /// <summary>Hoodie colour (and the matching bubble rim and Zzz), plus the speech bubble's light/dark colours.</summary>
     void ApplyAppearance()
@@ -846,6 +847,7 @@ public partial class VexWindow : Window
         FaceT.X = 14 * sn;
         Look.X = 11 * sn;
         HoodT.X = 1.5 * sn;
+        OutfitT.X = 3 * sn;   // a hat or mask sits on the hood's curve, so it swings a little further round than the hood
         Look.Y += (ly - Look.Y) * Math.Min(1, dt * 10);
         if (Math.Abs(turnTarget - turn) > 0.5 || Math.Abs(ly - Look.Y) > 0.1) settling = true;
 

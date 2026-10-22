@@ -160,6 +160,76 @@
                             <Ellipse Canvas.Left="64" Canvas.Top="45" Width="9" Height="13" Fill="White"/>
                         </Canvas>
                     </Canvas>
+
+                    <!-- Seasonal outfits (VexOutfits.cs): at most one shown, picked by name from Occasions.All. Inside the
+                         hood so they ride along with every breath, sit, nap, climb and turn. Each keeps clear of the eyes
+                         (y 45-58). Named in NotHoodie, so their reds aren't repainted with the hoodie colour. -->
+                    <Canvas x:Name="Outfit">
+                        <Canvas.RenderTransform><TranslateTransform x:Name="OutfitT"/></Canvas.RenderTransform>
+
+                        <!-- Christmas: a floppy Santa hat on the crown, tip and bobble falling to one side -->
+                        <Canvas x:Name="SantaHat" Visibility="Collapsed">
+                            <Path Data="M 36,30 C 36,12 48,0 64,-1 C 80,-2 92,8 99,20 L 95,23 C 89,14 82,10 76,11 C 81,16 84,23 84,30 Z">
+                                <Path.Fill>
+                                    <RadialGradientBrush Center="0.36,0.3" GradientOrigin="0.36,0.3" RadiusX="0.9" RadiusY="0.9">
+                                        <GradientStop Offset="0" Color="#D8383C"/><GradientStop Offset="0.55" Color="#B0242A"/><GradientStop Offset="1" Color="#6E1216"/>
+                                    </RadialGradientBrush>
+                                </Path.Fill>
+                            </Path>
+                            <Path Data="M 36,30 C 36,12 48,0 64,-1 C 80,-2 92,8 99,20 L 95,23 C 89,14 82,10 76,11 C 81,16 84,23 84,30 Z"
+                                  Fill="{DynamicResource Weave}" Opacity="0.75"/>
+                            <Path Stroke="#59000000" StrokeThickness="1.4" Effect="{StaticResource Crease}" Data="M 75,12 C 80,15 83,21 84,28"/>
+                            <!-- Fur brim, following the curve of the hood just above the face opening -->
+                            <Path Fill="{StaticResource Glove}" Data="M 33,36 Q 33,30 37,29 Q 60,17 83,29 Q 87,30 87,36 Q 60,24 33,36 Z"/>
+                            <Path Fill="{DynamicResource Weave}" Opacity="0.45" Data="M 33,36 Q 33,30 37,29 Q 60,17 83,29 Q 87,30 87,36 Q 60,24 33,36 Z"/>
+                            <Ellipse Canvas.Left="92.5" Canvas.Top="16.5" Width="11" Height="11" Fill="{StaticResource Glove}"/>
+                            <Ellipse Canvas.Left="92.5" Canvas.Top="16.5" Width="11" Height="11" Fill="{DynamicResource Weave}" Opacity="0.45"/>
+                        </Canvas>
+
+                        <!-- Easter: bunny ears on a headband, one up, one bent over -->
+                        <Canvas x:Name="BunnyEars" Visibility="Collapsed">
+                            <Path Fill="{StaticResource Glove}" Data="M 44,27 C 36,10 34,-10 41,-16 C 48,-20 54,0 53,25 Z"/>
+                            <Path Fill="#E3A3AE" Data="M 46,22 C 41,10 40,-6 43,-11 C 47,-13 50,2 50,21 Z"/>
+                            <Path Fill="{StaticResource Glove}" Data="M 67,25 C 67,10 70,0 76,-4 C 82,-8 94,-6 97,0 C 92,0 84,2 80,8 C 78,14 77,20 77,25 Z"/>
+                            <Path Fill="#E3A3AE" Data="M 70,22 C 70,10 72,3 77,0 C 82,-3 89,-3 92,-1 C 87,0 81,3 78,8 C 76,13 75,18 75,22 Z"/>
+                            <Path Stroke="#40000000" StrokeThickness="1" Effect="{StaticResource Crease}" Data="M 79,9 C 82,4 88,1 94,-1"/>
+                            <Path Stroke="#D6CFC8" StrokeThickness="2.4" StrokeStartLineCap="Round" StrokeEndLineCap="Round" Data="M 36,32 Q 60,15 84,32"/>
+                        </Canvas>
+
+                        <!-- Halloween: a red hannya-style oni mask pushed up onto the side of the hood, festival style, so
+                             both eyes stay in view; a cord runs over the top of the hood to hold it -->
+                        <Canvas x:Name="OniMask" Visibility="Collapsed">
+                            <Path Stroke="#3A1416" StrokeThickness="0.9" Data="M 42,27 Q 62,17 83,31"/>
+                            <Canvas>
+                                <Canvas.RenderTransform>
+                                    <TransformGroup>
+                                        <RotateTransform Angle="-20"/>
+                                        <TranslateTransform X="34" Y="34"/>
+                                    </TransformGroup>
+                                </Canvas.RenderTransform>
+                                <Path Fill="#EDE3C8" Stroke="#A89E86" StrokeThickness="0.4" Data="M -7,-10 C -9.5,-15 -9.5,-19 -7.5,-23 C -5.5,-18.5 -4,-14.5 -3,-12 Z"/>
+                                <Path Fill="#EDE3C8" Stroke="#A89E86" StrokeThickness="0.4" Data="M 7,-10 C 9.5,-15 9.5,-19 7.5,-23 C 5.5,-18.5 4,-14.5 3,-12 Z"/>
+                                <Path Stroke="#4A0E10" StrokeThickness="0.7"
+                                      Data="M -10,-6 C -10,-12 -5,-13 0,-13 C 5,-13 10,-12 10,-6 C 10,4 7,12 0,13 C -7,12 -10,4 -10,-6 Z">
+                                    <Path.Fill>
+                                        <RadialGradientBrush Center="0.38,0.3" GradientOrigin="0.38,0.3" RadiusX="0.85" RadiusY="0.85">
+                                            <GradientStop Offset="0" Color="#E0453A"/><GradientStop Offset="0.6" Color="#B02A22"/><GradientStop Offset="1" Color="#6A1410"/>
+                                        </RadialGradientBrush>
+                                    </Path.Fill>
+                                </Path>
+                                <!-- Lacquer shine -->
+                                <Ellipse Canvas.Left="-7.5" Canvas.Top="-11.5" Width="6" Height="3.6" Fill="White" Opacity="0.28"/>
+                                <Path Stroke="#1A0B0B" StrokeThickness="1.5" StrokeStartLineCap="Round" StrokeEndLineCap="Round" Data="M -8,-6.5 L -2,-3.6 M 8,-6.5 L 2,-3.6"/>
+                                <Ellipse Canvas.Left="-6.6" Canvas.Top="-3.4" Width="4" Height="2.8" Fill="#E8B33C"/>
+                                <Ellipse Canvas.Left="2.6" Canvas.Top="-3.4" Width="4" Height="2.8" Fill="#E8B33C"/>
+                                <Ellipse Canvas.Left="-5.2" Canvas.Top="-2.7" Width="1.4" Height="1.4" Fill="#1A0B0B"/>
+                                <Ellipse Canvas.Left="3.8" Canvas.Top="-2.7" Width="1.4" Height="1.4" Fill="#1A0B0B"/>
+                                <Path Stroke="#5A1210" StrokeThickness="0.7" Data="M -1.6,2.2 Q 0,3.6 1.6,2.2"/>
+                                <Path Fill="#2A0A0A" Data="M -6.5,6 Q 0,4.2 6.5,6 Q 4.5,11.2 0,11.2 Q -4.5,11.2 -6.5,6 Z"/>
+                                <Path Fill="#F4EEE0" Data="M -5.6,6.1 L -4.4,9.4 L -3.2,5.6 Z M 5.6,6.1 L 4.4,9.4 L 3.2,5.6 Z"/>
+                            </Canvas>
+                        </Canvas>
+                    </Canvas>
                 </Canvas>
 
                 <!-- Laptop on his lap while he codes (VexCoding.cs). We see the back of the lid; the screen faces him
