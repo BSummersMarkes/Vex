@@ -35,6 +35,7 @@ For chat you need **[Claude Code](https://claude.com/claude-code) installed and 
 | Drag Vex | Pick him up and drop him (on the taskbar or on a window) |
 | Click the mug | "I've refilled my coffee" |
 | Right-click the mug | Today's coffee count and Undo last refill (count down one, mug back to its level before; repeat to step back further) |
+| Right-click Vex (not the mug) → To-do list | Today's journal to-dos as a checklist: tick one to tick it off, or type in the box and press Enter to add one. Works without Claude |
 | Right-click Vex (not the mug) or the tray icon | Setup…, What Vex knows…, Where today (working from home / at the office today, or work it out from the network), Theme (light/dark, hoodie colour; Original brings back the dark red), Quit. Left-click the tray icon to chat |
 | Setup → Theme | Hoodie lightness: slide it darker or lighter and watch him change; Save keeps it. Seasonal outfits on or off, and Try one on |
 | Setup → Behaviour → Right now | Lunch break / End lunch, nap / wake up, I refilled my coffee, other screen, hide / show, chat, forget today's chat |

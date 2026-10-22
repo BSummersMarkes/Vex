@@ -664,7 +664,7 @@ public partial class VexWindow : Window
     string Pick(params string[] lines) => lines[rng.Next(lines.Length)];
 
     /// <summary>
-    /// Right-click menu, kept to the same short list as the tray's. Everything that used to be here
+    /// Right-click menu, kept to the same short list as the tray's, plus To-do list. Everything that used to be here
     /// (chat, coffee, lunch, other screen, nap, forget, hide) is now under Setup → Behaviour → Right now.
     /// </summary>
     void ShowMenu()
@@ -675,6 +675,8 @@ public partial class VexWindow : Window
         Add("Setup…", app.OpenSetup);
         Add("What Vex knows…", app.ShowStatus);
 #if !LITE
+        // Local checklist of today's journal to-dos (TodoWindow); Vex Lite has no notes, so not there.
+        Add("To-do list", TodoWindow.ShowList);
         menu.Items.Add(App.WhereMenu());
 #endif
         menu.Items.Add(App.ThemeMenu());
