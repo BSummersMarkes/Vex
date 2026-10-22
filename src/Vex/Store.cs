@@ -73,6 +73,11 @@ public class VexConfig
     public int ChatImagesPerMessage { get; set; } = 3;
     /// <summary>Pasted pictures bigger than this (pixels, longest side) are scaled down before they're sent to Claude.</summary>
     public int ChatImageMaxSide { get; set; } = 1568;
+    /// <summary>
+    /// Timers and reminders typed in the chat ("timer 10m", "remind me at 3pm to call Sam") are set at once, locally,
+    /// without asking Claude (Services.QuickReminders). Off: every message goes to Claude as before.
+    /// </summary>
+    public bool ChatLocalReminders { get; set; } = true;
 
     // Idle activities (VexActs.cs).
     /// <summary>

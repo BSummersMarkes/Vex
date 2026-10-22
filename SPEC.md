@@ -1,6 +1,6 @@
 # Vex — Desktop Companion Spec
 
-*Living document. Last updated 2026-10-15.*
+*Living document. Last updated 2026-10-22.*
 
 ## 1. What Vex is
 
@@ -120,7 +120,7 @@ A small animated desktop companion that lives on top of the Windows desktop, kee
 | Coffee | Comment on count; gentle disapproval after a threshold |
 | Focus check | ~2 h on the same thing: "still the plan?" |
 | Lunch | No lunch confirmed by ~13:30 (never guessed from time away); every 25 min until answered. "Had lunch" records it; "Not now" asks again later; ✕ drops it for the day. "Going" records it and Vex has lunch too (section 4, Lunch). |
-| Reminder | Set in chat (`[[remind: when \| text]]`). When: "20m", "1h30m", "14:30", "9am", "tomorrow 9:00", "fri 16:00", or repeating "daily 10:00", "weekdays 14:00", "weekends 9:00", "mon,thu 9:30", "every friday 16:00". Buttons: OK, 10 min, and on a repeating one Stop these. A repeating one moves on to its next day once shown; missed by more than 12 h (PC off) it just moves on. `[[unremind: text]]` cancels. Parsing is local, no model (`Services/ReminderTimes.cs`) |
+| Reminder | Set in chat (`[[remind: when \| text]]`). When: "20m", "1h30m", "14:30", "9am", "tomorrow 9:00", "fri 16:00", or repeating "daily 10:00", "weekdays 14:00", "weekends 9:00", "mon,thu 9:30", "every friday 16:00". Buttons: OK, 10 min, and on a repeating one Stop these. A repeating one moves on to its next day once shown; missed by more than 12 h (PC off) it just moves on. `[[unremind: text]]` cancels. Parsing is local, no model (`Services/ReminderTimes.cs`). **Typed directly:** a chat message that is just a timer or reminder ("timer 10m", "set a timer for 25 minutes for the tea", "remind me in 20m to call Sam", "remind me to call Sam at 3pm", "remind me every friday 16:00 to …") is set at once, offline, without asking Claude, and answered with the usual ✓ line (`Services/QuickReminders.cs`, `ChatLocalReminders`, on). Only whole messages with a time `ReminderTimes` can read; anything vaguer, or with pictures attached, goes to Claude as before. A timer is a one-off reminder ("10m timer's up") |
 | Pack-up | `PackUpMinutes` (15) before the day's leave time on `CommuteDays`: `LeaveAt`, or that day's own time in `LeaveAtByDay` (Setup → Going home → Except on; Friday 16:15 by default, so 16:00 on Fridays and 16:30 on other days with `LeaveAt` 16:45). An empty `LeaveAt` turns it off, whatever the per-day times say. Pack up, with the live drive home ("34 min, 9 slower than usual"). Buttons: Packing up, Summarise day, Map (Trains when going by train or bus), 10 min. Also stands in for the end-of-day nudge. Not on home days (section 6, Where): clock-out has its slot |
 | Clock in | Home days only, with `ClockNudges` on (Setup → Home days, "Remind me to clock in and out when working from home", on by default): first sight of you that day (or once it turns into a home day, e.g. set by hand), before clock-out time. Buttons: Done, Snooze 10 min (`ClockSnoozeMinutes`). Unanswered or snoozed it comes back every `ClockInRepeatMinutes` (10), at most `ClockInMaxNudges` (3) a day. Never counts as a break; the sitting timer isn't touched |
 | Clock out | Home days only, with `ClockNudges` on: at `ClockOutAt` (Setup → Home days; empty = that day's leave time, as for pack-up: 16:45, Fridays 16:15), instead of pack-up, once you're at the desk any time after. Buttons: Done, Snooze 10 min. Stands in for the end-of-day nudge, like pack-up. Office and Unknown days: unchanged (pack-up as before) |
@@ -270,6 +270,7 @@ For Ben's wife's Mac. A separate project (`src/VexMac`), not the shared source: 
 - [x] Bubbles keep clear of the open chat (above, beside or below it, reflowing as it moves or grows); "Show me" reliably restores and focuses VS Code, with a short bubble if the window's gone (sections 4, 7)
 - [x] Home days (2026-10-15): Home / Office / Unknown from a local network fingerprint (Wi-Fi name, router MAC, DNS suffix/domain, VPN) against networks saved in Setup → Home days; Where today on the menus and `[[where]]` in chat to override for the day; on home days clock-in and clock-out nudges replace pack-up; result and reason in `vex.log` (sections 6, 7). Not yet tried on the real home and office networks
 - [x] Leave time per weekday (2026-10-16): `LeaveAtByDay` overrides `LeaveAt` for chosen days (Friday 16:15 by default), set in Setup → Going home → Except on; pack-up, clock-out (when `ClockOutAt` is empty) and the "Leaves work at" chat context follow the day's time (section 7)
+- [x] Offline timers and reminders (2026-10-22): "timer 10m" or "remind me at 3pm to …" typed in the chat is set at once by a local parser, without a Claude round trip; anything unclear still goes to Claude (`ChatLocalReminders`; section 7, Reminder)
 
 ### He learns (2026-10-13)
 - [x] Build/restart from chat need a click (prompt-injection guard); context marked as data, not instructions

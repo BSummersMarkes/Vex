@@ -315,6 +315,19 @@ public static class Hub
         ? new Confirm($"Build this into me?\n{arg}", "Build it", () => Workshop.Start(arg), action, arg)
         : new Confirm("Restart into the new version?", "Restart now", Workshop.Restart, action, arg);
 
+    /// <summary>
+    /// Adds a reminder to the scheduler (Nudges shows it when due) and returns the chat's confirmation line. Shared by
+    /// the [[remind]] action and timers/reminders typed in the chat (<see cref="QuickReminders"/>), so both behave alike.
+    /// </summary>
+    public static string Remind(string when, string text)
+    {
+        if (!ReminderTimes.TryParse(when, DateTime.Now, out var at, out var repeat)) return "✗ Couldn't read that reminder time.";
+        var r = new Reminder { At = at, Text = text, Repeat = repeat };
+        Store.State.Reminders.Add(r);
+        Store.SaveState();
+        return $"✓ Reminder {(repeat.Length > 0 ? "" : "for ")}{ReminderTimes.Describe(r, DateTime.Now)}: {text}";
+    }
+
     static string Do(string action, string arg)
     {
         var parts = arg.Split('|', 2, StringSplitOptions.TrimEntries);
@@ -335,11 +348,7 @@ public static class Hub
             case "remind":
             {
                 if (parts.Length < 2) return "✗ Couldn't read that reminder.";
-                if (!ReminderTimes.TryParse(parts[0], DateTime.Now, out var at, out var repeat)) return "✗ Couldn't read that reminder time.";
-                var r = new Reminder { At = at, Text = parts[1], Repeat = repeat };
-                Store.State.Reminders.Add(r);
-                Store.SaveState();
-                return $"✓ Reminder {(repeat.Length > 0 ? "" : "for ")}{ReminderTimes.Describe(r, DateTime.Now)}: {parts[1]}";
+                return Remind(parts[0], parts[1]);
             }
             case "unremind":
             {

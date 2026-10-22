@@ -468,6 +468,15 @@ public partial class ChatWindow : Window
     {
         if (pending != null) return;
         if (showingPending) ShowTab(pending: false);   // the reply should be in view
+        // A plain timer or reminder is set here and now, offline; Claude still sees it in the next message's context.
+        // With pictures attached the message is clearly about something else, so it goes to Claude.
+        if (Store.Config.ChatLocalReminders && images is not { Count: > 0 } &&
+            Services.QuickReminders.TryRead(text, DateTime.Now, out var when, out var what))
+        {
+            Add("me", text);
+            Add("note", Services.Hub.Remind(when, what));
+            return;
+        }
         if (images is { Count: > 0 })
         {
             var tag = $"[{images.Count} picture{(images.Count == 1 ? "" : "s")}]";
