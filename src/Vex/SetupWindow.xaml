@@ -304,6 +304,8 @@
                         <Button x:Name="OpenChats" Content="Chat history"/>
                         <Button x:Name="OpenConfig" Content="Settings (config.json)"/>
                         <Button x:Name="OpenData" Content="Data folder"/>
+                        <!-- What went wrong last time he fell over or went missing (Services/Lifeline.cs). -->
+                        <Button x:Name="OpenCrashLog" Content="Crash log"/>
                     </WrapPanel>
                 </StackPanel>
             </TabItem>

@@ -95,7 +95,9 @@ public partial class VexWindow : Window
             Services.Hub.Start(this);
             RegisterQuickChat();
         };
-        SystemEvents.DisplaySettingsChanged += (_, _) => Dispatcher.Invoke(() => screens = Forms.Screen.AllScreens);
+        // Queued, not Invoke: this can arrive on Windows' own system-events thread during remote desktop and display
+        // changes, and an error inside a blocking Invoke would land on that thread, which takes the whole app down.
+        SystemEvents.DisplaySettingsChanged += (_, _) => Dispatcher.BeginInvoke(() => screens = Forms.Screen.AllScreens);
 
         Rig.MouseLeftButtonDown += RigDown;
         Rig.MouseMove += RigMove;

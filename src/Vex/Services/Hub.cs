@@ -77,7 +77,8 @@ public static class Hub
         Presence.BackAfterAway += WelcomeBack;
         if (Activity.Today.Count > 0) Presence.SeenSince(Activity.Today[0].Start);
         Where.Start();
-        Workshop.Started();
+        Lifeline.Greet();   // "I went missing around 14:20", if the last run didn't end cleanly
+        Workshop.Started();   // after it, so a swap's rollback message (which explains the gap better) is the one left showing
         Diary.Tick();
 
         fast = new DispatcherTimer(TimeSpan.FromSeconds(5), DispatcherPriority.Background, (_, _) => Fast(), Vex.Dispatcher);
@@ -117,6 +118,7 @@ public static class Hub
         Nudges.Tick();
         Pending.Prune();
         Workshop.Tick();
+        Lifeline.Tick();
         Diary.Tick();
         Curiosity.Tick();
     }

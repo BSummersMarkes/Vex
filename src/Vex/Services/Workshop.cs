@@ -247,6 +247,8 @@ public static class Workshop
         File.WriteAllText(script, """
             param([int]$OldPid, [string]$New, [string]$Target, [string]$Result)
             Wait-Process -Id $OldPid -Timeout 30 -ErrorAction SilentlyContinue
+            # Vex stops his watchdog (a second copy of the exe) as he quits; make sure it's gone before overwriting the exe.
+            Get-Process -ErrorAction SilentlyContinue | Where-Object { $_.Path -eq $Target } | Wait-Process -Timeout 10 -ErrorAction SilentlyContinue
             Start-Sleep -Milliseconds 500
             try {
                 Copy-Item $Target "$Target.old" -Force
@@ -257,6 +259,9 @@ public static class Workshop
                 Set-Content $Result 'ok'
             } catch {
                 Set-Content $Result "rolled back: $_"
+                # The new version's watchdog may have restarted it meanwhile; stop both so the exe can be put back.
+                Get-Process -ErrorAction SilentlyContinue | Where-Object { $_.Path -eq $Target } | Stop-Process -Force -ErrorAction SilentlyContinue
+                Start-Sleep -Milliseconds 300
                 Copy-Item "$Target.old" $Target -Force
                 Start-Process $Target
             }

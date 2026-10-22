@@ -16,19 +16,35 @@ public partial class App : Application
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
-        // One Vex per data folder: a test copy with its own VEX_DATA_DIR can run beside the real one.
-        var instance = Store.Dir == Store.DefaultDir ? "" : "." + Store.Dir.ToLowerInvariant().Replace('\\', '/');   // no backslashes in a mutex name
-#if LITE
-        single = new Mutex(true, @"Local\Vex.Lite" + instance, out bool first);   // can run beside the full Vex
-#else
-        single = new Mutex(true, @"Local\Vex.Companion" + instance, out bool first);
+#if !LITE
+        // Started as Vex's watchdog (Services/Lifeline.cs): no windows, just wait for him and restart him if he dies.
+        if (e.Args.Length == 2 && e.Args[0] == "--watchdog" && int.TryParse(e.Args[1], out var watched))
+        {
+            Services.Lifeline.Watch(watched);
+            Shutdown();
+            return;
+        }
 #endif
-        if (!first) { Shutdown(); return; }
+        single = new Mutex(true, MutexName, out bool first);
+        if (!first)
+        {
+            Store.Log("A second copy of Vex started and left again: one is already running.");
+            Shutdown(); return;
+        }
 
+#if LITE
         DispatcherUnhandledException += (_, ex) => { Store.Log($"Unhandled: {ex.Exception}"); ex.Handled = true; };
+#else
+        // Every unhandled error goes into crash.log (UI thread, background threads, tasks, the tray menu).
+        Services.Lifeline.Install(this);
+#endif
 
         // First run: a few questions, so nothing personal is baked into the exe.
         if (!Store.Config.SetupDone && new SetupWindow().ShowDialog() != true) { Shutdown(); return; }
+#if !LITE
+        // How did the last run end? Then mark this one as running and start its watchdog.
+        Services.Lifeline.Begin(restarted: e.Args.Contains("--restarted"));
+#endif
 
         vex = new VexWindow();
         vex.Show();
@@ -46,6 +62,23 @@ public partial class App : Application
         menu.Items.Add("Quit", null, (_, _) => Quit());
         tray = new Forms.NotifyIcon { Icon = MakeIcon(), Text = "Vex", Visible = true, ContextMenuStrip = menu };
         tray.MouseClick += (_, me) => { if (me.Button == Forms.MouseButtons.Left) vex.OpenChat(); };
+    }
+
+    /// <summary>
+    /// One Vex per data folder: a test copy with its own VEX_DATA_DIR can run beside the real one. The watchdog also
+    /// checks it, so it never starts a second Vex beside one that's already back.
+    /// </summary>
+    internal static string MutexName
+    {
+        get
+        {
+            var instance = Store.Dir == Store.DefaultDir ? "" : "." + Store.Dir.ToLowerInvariant().Replace('\\', '/');   // no backslashes in a mutex name
+#if LITE
+            return @"Local\Vex.Lite" + instance;   // can run beside the full Vex
+#else
+            return @"Local\Vex.Companion" + instance;
+#endif
+        }
     }
 
     /// <summary>Tray or right-click → Setup…: the settings window, with Vex's "Right now" actions in it.</summary>
@@ -245,6 +278,9 @@ public partial class App : Application
 
     public void Quit()
     {
+#if !LITE
+        Services.Lifeline.Ended("quit");   // a clean exit: nothing to report next start, and the watchdog stands down
+#endif
         Services.Hub.Stop();
         if (tray != null) { tray.Visible = false; tray.Dispose(); }
         Store.SaveState();

@@ -98,6 +98,7 @@ public partial class SetupWindow : Window
 
         OpenMemory.Click += (_, _) => App.Open(Services.Memory.Folder);
         OpenChats.Click += (_, _) => App.Open(ChatLog.Folder);
+        OpenCrashLog.Click += (_, _) => Services.Lifeline.OpenCrashLog();
 #endif
         OpenConfig.Click += (_, _) => App.Open(Path.Combine(Store.Dir, "config.json"));
         OpenData.Click += (_, _) => App.Open(Store.Dir);
@@ -289,7 +290,7 @@ public partial class SetupWindow : Window
     void LiteLayout()
     {
         foreach (var e in new UIElement[] { WorkPart, NotesTab, WatchTab, ClaudeHooks, ClaudeNote, CodingAtLaptop, CodingForClaude, CodingNote,
-                                            TomTomLabel, TomTomKey, ForgetNow, OpenMemory, OpenChats, HomeDaysTab })
+                                            TomTomLabel, TomTomKey, ForgetNow, OpenMemory, OpenChats, OpenCrashLog, HomeDaysTab })
             e.Visibility = Visibility.Collapsed;
         IntroNote.Text = "I live on your taskbar, keep out of the way and nudge you about breaks, water, lunch and meetings. " +
                          "Click me to set reminders.";

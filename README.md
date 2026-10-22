@@ -17,6 +17,7 @@ A small desktop companion for Windows. He lives on your taskbar in a deep teal h
 - **Chat:** click him. He knows roughly what you've been doing today, your meetings and your to-dos, and can add to-dos, tick them off, take notes, set reminders and remember things about you. Reminders can repeat: "remind me to take my tablets every day at 10", "weekdays at 2 to drink some water", "Mondays and Thursdays at 9:30 …". A repeating one has a **Stop these** button, or ask him to cancel it. Plain timers and reminders are set on the spot without asking Claude, so they work offline too: "timer 10m", "set a timer for 25 minutes for the tea", "remind me in 20m to call Sam", "remind me to call Sam at 3pm". Anything less clear-cut goes to Claude as usual (`ChatLocalReminders` in config.json turns this off).
 - **Dresses up** for the season: a Santa hat for Christmas, bunny ears for Easter and an oni mask on the side of his hood for Halloween, from five days before until the day itself. Setup → Theme turns it off, and *Try one on* puts any of them on him straight away to see how it looks.
 - **Your birthday** (optional, Setup → You): on the day he wishes you happy birthday, once, sets off a party popper (confetti you can click straight through, and a pop if the knock sound is on) and wears a party hat all day. Away on the day? He says it the first time he sees you after, a bit late, and wears the hat then. 29 February counts as the 28th in other years. *Try it now* shows it straight away; clear the date to turn it off.
+- **Stays up:** if he crashes or is closed without Quit, he restarts himself after a few seconds (giving up if he keeps falling over). Back after going missing, he says so ("I went missing around 14:20. Back now.") and notes it in your journal. What went wrong is in Setup → Privacy → *Crash log*. To close him for good, use Quit rather than Task Manager, which he treats as a crash.
 - **The mug** empties over time. Click it when you refill yours. He counts. Clicked it by mistake? Right-click the mug → Undo last refill.
 
 ## Getting started
@@ -42,7 +43,7 @@ For chat you need **[Claude Code](https://claude.com/claude-code) installed and 
 | Setup → You | Your name, workplace, and your birthday (day and month, year optional), with Clear and Try it now |
 | Setup → Theme | Hoodie lightness: slide it darker or lighter and watch him change; Save keeps it. Seasonal outfits on or off, and Try one on (the birthday party hat too) |
 | Setup → Behaviour → Right now | Lunch break / End lunch, nap / wake up, I refilled my coffee, other screen, hide / show, chat, forget today's chat |
-| Setup → Privacy → Your data | Open his memory pages, chat history, config.json or the data folder |
+| Setup → Privacy → Your data | Open his memory pages, chat history, config.json, the data folder or the crash log (errors and times he went missing) |
 | Typing in the chat | Enter sends; Shift+Enter or Shift+Space starts a new line |
 | Ctrl+V in the chat | Paste a picture (screenshot, diagram, error message) to send with your message; up to 3, ✕ on a thumbnail removes it |
 | Chat header | Copy the chat as text (Ctrl+Shift+C) or as a picture |
@@ -84,4 +85,4 @@ A separate, cut-down Vex for macOS in `src/VexMac`, built on Avalonia so it runs
 
 ## Building from source
 
-Needs the .NET 10 SDK (Vex Lite also needs the .NET Framework 4.8 targeting pack, which the SDK fetches by itself). Run `powershell -ExecutionPolicy Bypass -File .\build.ps1`; it produces a self-contained `Vex.exe` in the repo root. Design notes are in [SPEC.md](SPEC.md).
+Needs the .NET 10 SDK (Vex Lite also needs the .NET Framework 4.8 targeting pack, which the SDK fetches by itself). Run `powershell -ExecutionPolicy Bypass -File .\build.ps1`; it produces a self-contained `Vex.exe` in the repo root, stopping a running Vex first and starting him again afterwards. Design notes are in [SPEC.md](SPEC.md).

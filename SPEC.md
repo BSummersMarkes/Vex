@@ -31,7 +31,7 @@ A small animated desktop companion that lives on top of the Windows desktop, kee
 
 ## 3. Architecture
 
-- **Language/runtime:** C# / .NET 10 (`net10.0-windows`), matching Lab Notebook. Single-file exe via a `build.ps1`.
+- **Language/runtime:** C# / .NET 10 (`net10.0-windows`), matching Lab Notebook. Single-file exe via a `build.ps1`, which stops a running Vex to replace the exe, leaves `stopped-by.txt` in the data folder so he knows why he was gone, and starts him again afterwards, even if the build fails (it used to leave him stopped).
 - **Character:** WPF transparent, topmost, borderless tool window, drawn with vector shapes. Transparent pixels pass clicks through to whatever is underneath.
 - **Chat panel:** WPF window (WebView2 if it needs to get fancy). Header buttons copy the whole chat as text (also Ctrl+Shift+C) or as a picture. Closes on ✕, Esc, or a click anywhere outside it (another window, the desktop, Vex or his mug; `ChatClosesOnClickAway`, on by default, Setup → Behaviour), except while he's replying, a Build it / Restart card is waiting for a click, or a modal dialog is open. A half-written message (and any pictures pasted into it) is kept in memory and put back when the chat reopens.
   - **Fit:** messages scroll inside the panel and wrap to its width (long paths, URLs and code lines break rather than overflow); the box and header stay put. New messages scroll into view only if you're already at the bottom; scrolled up reading, a "New ↓" button appears instead.
@@ -52,7 +52,13 @@ A small animated desktop companion that lives on top of the Windows desktop, kee
   - `chats\YYYY-MM-DD.jsonl`: each day's chat transcript, kept as an archive (Setup → Privacy → Chat history; Setup → Behaviour → "Forget today's chat" removes today's)
   - `memory\*.md`: his own pages (*About Ben*, *Remembered*, *Diary*, *Projects*, *People*, ...), the source of truth for what he knows; `MemoryFolder` moves it
   - `log\activity-YYYY-MM-DD.jsonl`: app/title timeline (exclusions already filtered out; stays local, never in OneDrive)
+  - `vex.log`: general log; `crash.log` (rotating, plus `crash.1.log`…): errors and unclean exits; `run.json`: this run's heartbeat and clean-exit marker
 - **Startup:** per-user Run key, toggled in Setup → Behaviour ("Start me with Windows"). Runs without the notebook open.
+- **Staying up** (`Services/Lifeline.cs`, full Vex only; added after he vanished unnoticed on 21 and 22 Oct 2026):
+  - **Crash log:** every unhandled error goes to `crash.log` with a timestamp and the full exception: UI thread, background threads, unobserved tasks and the tray's WinForms menu. UI-thread errors are survived as before (a repeat of the same one within a minute is counted, not re-logged), unless WPF's render thread has died (`UCEERR_RENDERTHREADFAILURE`) or there are more than `UiErrorsPerMinute` (30) in a minute; then he exits so the watchdog can restart a working copy. A background-thread error can't be survived (.NET ends the process), so it's logged on the way out. The log starts afresh past `CrashLogKB` (256), keeping `CrashLogKeep` (3) old files. Setup → Privacy → Your data → **Crash log** opens it.
+  - **Clean-exit marker:** `run.json` holds the pid, start time, a heartbeat each minute (`Alive`) with memory, handle, GDI and USER object counts, and `Ended` plus a reason on a clean exit (Quit, a workshop restart, Windows signing out or shutting down; signing out also saves the day's state now). Every `HealthLogMinutes` (60) the same counts go into `vex.log`, to spot slow leaks. On start, a run without `Ended` was an unclean exit: crash.log gets when he was last seen, what he was using and why, as far as known: the caught error, `build.ps1`'s note, the PC having restarted since (boot time after the last heartbeat), or unknown (ended from outside, or a crash .NET can't report, like a stack overflow).
+  - **Back after going missing:** a short dry bubble ("I went missing around 14:20. Back now.", "I fell over around 14:20. Back now. It's in the crash log.", "Someone rebuilt me around 14:20. Back now.") and a line in today's journal, quietly (no "Noted."): when he was down, for how long, and the kind of ending. The journal is part of the chat context, so it only gets the kind and the error's type name; details stay in crash.log.
+  - **Watchdog** (`Watchdog`, on; takes effect from the next start): each run starts a windowless second copy of Vex.exe (`--watchdog <pid>`) that waits for it to exit. A clean exit stops it (Quit stops it straight away, so a workshop swap can overwrite the exe). Otherwise it waits `WatchdogDelaySeconds` (10), doubling for each restart in the last `WatchdogWindowMinutes` (30), and gives up after `WatchdogMaxRestarts` (3) there, saying so in crash.log. It never starts one beside a Vex that's already back (it checks the single-instance mutex). Ending Vex from Task Manager counts as unclean, so he comes back; use Quit. Starting at login stays the Run key above.
 
 ## 4. Movement and screen behaviour
 
@@ -179,7 +185,7 @@ Ask him in chat for a new ability or a change ("add a nudge that…", "make him 
 3. **Build:** Vex publishes it himself into `%LOCALAPPDATA%\Vex\workshop\out` (same settings as `build.ps1`, without stopping the running Vex). Build errors go back to the coder.
 4. **Review:** a second, fresh, read-only Claude session (`WorkshopReviewModel`) checks the staged diff: does what was asked, bugs/threading, privacy principles, comments, no secrets. Objections go back to the coder. Up to 3 rounds.
 5. **Ship:** approved → commit to the current branch (normally `main`) and push (`WorkshopPush`). Not approved, failed or timed out (`WorkshopTimeoutMinutes`) → the attempt is parked on a `vex/<slug>-MMdd-HHmm` branch and the working branch is left clean.
-6. **Restart:** he knocks with the result. "Restart now" (or asking him to in chat) runs `workshop\swap.ps1`: waits for Vex to exit, keeps `Vex.exe.old`, copies the new exe in, starts it, and rolls back if it isn't still running after 15 s. The new Vex says whether the swap took.
+6. **Restart:** he knocks with the result. "Restart now" (or asking him to in chat) runs `workshop\swap.ps1`: waits for Vex (and his watchdog) to exit, keeps `Vex.exe.old`, copies the new exe in, starts it, and rolls back if it isn't still running after 15 s. The new Vex says whether the swap took.
 
 Each job's log (prompts' results, git output, build errors, review) is in `%LOCALAPPDATA%\Vex\workshop\*.log`. While a job runs, its stage is in the chat context, so "how's it going?" works, and he sits in a corner typing on a laptop (section 4, Coding).
 
@@ -279,6 +285,7 @@ For Ben's wife's Mac. A separate project (`src/VexMac`), not the shared source: 
 - [x] Offline to-do list (2026-10-22): right-click Vex → To-do list, a small checklist of today's journal checkboxes; tick to tick off, type and Enter to add, all local without Claude; queued ticks/adds shown while the Lab Notebook is closed (section 3, To-do list)
 - [x] Birthday (2026-10-22): optional date in Setup → You; a dry happy-birthday line once a year on the day (or late, the first time he sees you after), a click-through confetti party popper with a pop, and a party hat all that day that beats seasonal outfits; 29 Feb → 28 Feb in other years; Try it now to test (section 1, Look)
 - [x] Break clock (2026-10-22): a small countdown beside him during a timed break: "Looking away" on the eyes nudge (or `[[break: eyes]]`) counts down 0:20, then a soft chime and "Done. Back to it."; lunch counts down the lunch length (M:SS / H:MM:SS), with or without his own lunch routine; on/off in Setup → Behaviour (section 4, Break clock)
+- [x] Staying up (2026-10-22): every unhandled error into a rotating `crash.log` (Setup → Privacy → Crash log); a heartbeat and clean-exit marker in `run.json`; a watchdog that restarts him after an unclean exit, with back-off; back from one, a dry "I went missing around 14:20. Back now." and a line in the journal; `build.ps1` starts him again after rebuilding (section 3, Staying up)
 
 ### He learns (2026-10-13)
 - [x] Build/restart from chat need a click (prompt-injection guard); context marked as data, not instructions
@@ -312,5 +319,6 @@ For Ben's wife's Mac. A separate project (`src/VexMac`), not the shared source: 
 
 - Calendar: nothing connected yet. Classic Outlook arrives with the new laptop (works automatically when it's running); Power Automate `calendar.json` is the fallback if wanted sooner.
 - The workshop coder can run `dotnet build`, which runs whatever the project file says, so its sandbox isn't airtight. The reviewer and Ben are the real check; what matters is that it only changes Vex's own repo.
-- Memory use (~285 MB, mostly drawing effects in software rendering); slim down if it matters.
+- Memory use (~285 MB, mostly drawing effects in software rendering); slim down if it matters. The watchdog is a second, windowless process on top of that.
+- Why he closed on 21 and 22 Oct 2026 isn't confirmed: nothing at the time logged non-UI errors or how he exited, and the workshop couldn't read the logs or the Windows event log. The one silent way out in the code was `build.ps1` stopping him and not starting him again (now fixed). `crash.log` and the hourly health line should explain the next one.
 - Not yet seen in real use: wellbeing nudge timings over a full day, meeting reminders, a live Claude Code permission prompt, full-screen hiding.

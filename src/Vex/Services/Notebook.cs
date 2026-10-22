@@ -288,9 +288,10 @@ public class Notebook : INotes
             if (CompleteTodo(text) == null) Acked?.Invoke($"Ticked off: {text}", false, err);
         });
 
-    public string? AppendJournal(string text) =>
+    public string? AppendJournal(string text, bool quiet = false) =>
         Send(new { cmd = "journal.append", text, date = Store.Today, time = DateTime.Now.ToString("HH:mm"), source = "vex" },
-             $"Journal: {text}");
+             $"Journal: {text}",
+             quiet ? (ok, err, _) => { if (!ok) Store.Log($"Notebook couldn't add to the journal: {err ?? "unknown error"}"); } : null);
 
     // The old To-Do list: still read, and used as a fallback for ticking things off.
     public string? CompleteTodo(string text)

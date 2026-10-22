@@ -32,7 +32,8 @@ public interface INotes
 
     string? JournalTodo(string text);
     string? JournalDone(string text);
-    string? AppendJournal(string text);
+    /// <param name="quiet">No "Noted." bubble when it's applied: housekeeping nobody asked for (e.g. Vex noting his own downtime).</param>
+    string? AppendJournal(string text, bool quiet = false);
 
     static readonly Regex OpenCheckRx = new(@"^(\s*>)*\s*([-*+]|\d+[.)])\s+\[ \]\s+(?<text>.+)$");
     static readonly Regex AnyCheckRx = new(@"^(?<pre>(\s*>)*\s*([-*+]|\d+[.)])\s+\[)(?<mark>[ xX])(?<post>\]\s+)(?<text>.+)$");
@@ -129,7 +130,7 @@ public class LocalNotes : INotes
 
     public string? JournalTodo(string text) { AppendLine(DayFile(DateTime.Today), $"- [ ] {text}"); return Ok($"To-do: {text}"); }
 
-    public string? AppendJournal(string text) { AppendLine(DayFile(DateTime.Today), $"[{DateTime.Now:HH:mm}] {text}"); return Ok($"Journal: {text}"); }
+    public string? AppendJournal(string text, bool quiet = false) { AppendLine(DayFile(DateTime.Today), $"[{DateTime.Now:HH:mm}] {text}"); return Ok($"Journal: {text}"); }
 
     /// <summary>Ticks the newest matching open checkbox in the last 14 days: exact match first, then contains.</summary>
     public string? JournalDone(string text)

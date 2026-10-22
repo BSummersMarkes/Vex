@@ -221,6 +221,24 @@ public class VexConfig
     /// <summary>Full-screen apps that are just work (remote desktops, VMs): don't hide or go quiet for these.</summary>
     public List<string> FullScreenIsWork { get; set; } = new() { "mstsc", "msrdc", "vmconnect", "CDViewer", "wfica32", "vmware", "VirtualBoxVM" };
 
+#if !LITE
+    // Staying up (Services/Lifeline.cs): a crash log, a clean-exit marker and a watchdog that restarts him.
+    /// <summary>Restart Vex if he exits without Quit (a crash, Task Manager). Takes effect from the next start.</summary>
+    public bool Watchdog { get; set; } = true;
+    /// <summary>Wait before the watchdog's first restart; it doubles for each further restart within WatchdogWindowMinutes.</summary>
+    public double WatchdogDelaySeconds { get; set; } = 10;
+    /// <summary>The watchdog gives up after this many restarts within WatchdogWindowMinutes, so a crash loop can't spin.</summary>
+    public int WatchdogMaxRestarts { get; set; } = 3;
+    public double WatchdogWindowMinutes { get; set; } = 30;
+    /// <summary>More UI errors than this in a minute means something's stuck failing every frame: exit so the watchdog restarts him.</summary>
+    public int UiErrorsPerMinute { get; set; } = 30;
+    /// <summary>crash.log starts afresh past this size; the last CrashLogKeep files are kept as crash.1.log, crash.2.log, ...</summary>
+    public int CrashLogKB { get; set; } = 256;
+    public int CrashLogKeep { get; set; } = 3;
+    /// <summary>How often a memory and handle count goes into vex.log, to spot slow leaks over a long run. 0 = never.</summary>
+    public double HealthLogMinutes { get; set; } = 60;
+#endif
+
     // Privacy: never recorded, never sent anywhere. Matched case-insensitively.
     public List<string> ExcludedApps { get; set; } = new()
     {
