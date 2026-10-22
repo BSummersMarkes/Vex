@@ -120,7 +120,7 @@ public class Nudges
         DateTime When(string k) => DateTime.TryParse(Arg(k), null, System.Globalization.DateTimeStyles.RoundtripKind, out var t) ? t : DateTime.Now;
         return p.Type switch
         {
-            "eyes" => Wellbeing("eyes", p.Text),
+            "eyes" => EyesNudge(p.Text),
             "stretch" => StretchNudge(p.Text),
             "water" => WaterNudge(p.Text),
             "focus" => FocusNudge(p.Text),
@@ -270,9 +270,17 @@ public class Nudges
     Nudge? Eyes(DateTime now)
     {
         if (now - SinceSitting("eyes") < Every("eyes", C.EyesEveryMinutes)) return null;
-        return Wellbeing("eyes", Pick("20-20-20: look at something 20 feet away for 20 seconds. I'll wait.",
-                                      "Eyes off the screen for 20 seconds. Window, wall, anything far away.",
-                                      "Blink. Look away. Twenty seconds. Screens aren't going anywhere."));
+        return EyesNudge(Pick("20-20-20: look at something 20 feet away for 20 seconds. I'll wait.",
+                              "Eyes off the screen for 20 seconds. Window, wall, anything far away.",
+                              "Blink. Look away. Twenty seconds. Screens aren't going anywhere."));
+    }
+
+    /// <summary>The 20-20-20 nudge. "Looking away" counts as done and starts the 20-second break clock beside him.</summary>
+    Nudge EyesNudge(string text)
+    {
+        var n = Wellbeing("eyes", text);
+        n.Buttons.Insert(0, ("Looking away", () => { Acted("eyes"); Hub.Vex.StartEyeBreak(); }));
+        return n;
     }
 
     Nudge? Water(DateTime now)

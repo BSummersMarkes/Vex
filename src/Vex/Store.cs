@@ -76,8 +76,12 @@ public class VexConfig
     public string LunchBy { get; set; } = "13:30";
     /// <summary>When you go for lunch, Vex has his own (eats, then naps for the rest) on a timer. Setup → Behaviour.</summary>
     public bool LunchRoutine { get; set; } = true;
-    /// <summary>How long that lunch timer runs. Setup → Behaviour.</summary>
+    /// <summary>How long that lunch timer runs, and the lunch break clock with it. Setup → Behaviour.</summary>
     public double LunchMinutes { get; set; } = 30;
+    /// <summary>A countdown clock beside Vex during a timed break: the eyes look-away and lunch. Setup → Behaviour.</summary>
+    public bool BreakClock { get; set; } = true;
+    /// <summary>How long the look-away from the eyes nudge's "Looking away" lasts (the 20 of 20-20-20).</summary>
+    public double EyeBreakSeconds { get; set; } = 20;
     /// <summary>He eats for a random time between these (never more than half the break), then naps.</summary>
     public double LunchEatMinMinutes { get; set; } = 5;
     public double LunchEatMaxMinutes { get; set; } = 10;

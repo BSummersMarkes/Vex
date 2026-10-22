@@ -54,6 +54,7 @@ public partial class SetupWindow : Window
         CodingForClaude.IsChecked = c.CodingForClaude;
         LunchRoutine.IsChecked = c.LunchRoutine;
         LunchMinutes.Text = c.LunchMinutes.ToString(CultureInfo.CurrentCulture);
+        BreakClock.IsChecked = c.BreakClock;
         foreach (var a in IdleActs.All)
             IdleActsList.Children.Add(new System.Windows.Controls.CheckBox
             {
@@ -117,9 +118,9 @@ public partial class SetupWindow : Window
     {
         void Refresh()
         {
-            // As on the old menu: End lunch while at lunch, Lunch break only with the routine on (as saved), no nap at lunch.
+            // As on the old menu: End lunch while at lunch, Lunch break only with the routine or the break clock on (as saved), no nap at lunch.
             LunchNow.Content = vex.OnLunch ? "End lunch" : "Lunch break";
-            LunchNow.Visibility = vex.OnLunch || Store.Config.LunchRoutine ? Visibility.Visible : Visibility.Collapsed;
+            LunchNow.Visibility = vex.OnLunch || Store.Config.LunchRoutine || Store.Config.BreakClock ? Visibility.Visible : Visibility.Collapsed;
             NapNow.Content = vex.Asleep ? "Wake up" : "Have a nap";
             NapNow.Visibility = vex.OnLunch ? Visibility.Collapsed : Visibility.Visible;
             HideNow.Content = vex.IsHidden ? "Show Vex" : "Hide Vex";
@@ -353,6 +354,7 @@ public partial class SetupWindow : Window
         // Anything unreadable keeps the old length; a lunch shorter than a couple of minutes isn't one.
         if (double.TryParse(LunchMinutes.Text.Trim(), NumberStyles.Float, CultureInfo.CurrentCulture, out var lunch) && lunch > 0)
             c.LunchMinutes = Math.Clamp(lunch, 2, 240);
+        c.BreakClock = BreakClock.IsChecked == true;
         // Every activity written out, on or off, so config.json shows the full list to edit.
         foreach (var box in IdleActsList.Children.OfType<System.Windows.Controls.CheckBox>())
             c.IdleActivities[(string)box.Tag] = box.IsChecked == true;

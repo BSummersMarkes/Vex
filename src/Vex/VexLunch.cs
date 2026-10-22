@@ -13,7 +13,7 @@ namespace Vex;
 /// The routine survives being dragged, hopped or interrupted by a nudge: he sits down again wherever he ends up and
 /// carries on (same timer). Chat, the menu and important nudges still work; casual bubbles wait till he's awake.
 /// It takes priority over the coding laptop, which picks up again afterwards if the job's still going.
-/// Setup → Behaviour turns it off (LunchRoutine).
+/// Setup → Behaviour turns it off (LunchRoutine). The break clock beside him counts the same timer down (VexBreakClock.cs).
 /// </summary>
 public partial class VexWindow
 {
@@ -44,14 +44,19 @@ public partial class VexWindow
         return $"You're on your own lunch break (it ends {ends:HH:mm}), {(LunchNapping ? "napping" : "having a sandwich")}.";
     }
 
-    /// <summary>You're off for lunch: start the timer and head to the corner. Does nothing if LunchRoutine is off or he's already at lunch.</summary>
+    /// <summary>
+    /// You're off for lunch: start the break clock, the timer, and head to the corner. With LunchRoutine off only the
+    /// clock runs (VexBreakClock.cs); already at lunch, nothing changes.
+    /// </summary>
     public void StartLunch()
     {
         var c = Store.Config;
-        if (!c.LunchRoutine || AtLunch) return;
+        if (AtLunch) return;
+        double total = Math.Max(2, c.LunchMinutes);
+        StartBreakClock(BreakKind.Lunch, total * 60);
+        if (!c.LunchRoutine) return;
         if (mode == Mode.Sleeping) Wake(quiet: true);
 
-        double total = Math.Max(2, c.LunchMinutes);
         double lo = Math.Max(0.5, Math.Min(c.LunchEatMinMinutes, c.LunchEatMaxMinutes)), hi = Math.Max(lo, c.LunchEatMaxMinutes);
         lunchEatFor = Math.Min(lo + rng.NextDouble() * (hi - lo), total / 2) * 60;   // always leaves time for a nap
         lunchUntil = now + total * 60;
@@ -110,6 +115,7 @@ public partial class VexWindow
     {
         if (!AtLunch || lunchWake != 0) return;
         bool napping = LunchNapping;
+        StopBreakClock(cue: timeUp);   // the countdown ends with his lunch; his wake-up line below is the bubble
         lunchWake = !napping ? 3 : timeUp ? 1 : 2;
         lunchWakeAt = now;
         if (act == Act.Lunch) actEnd = now + (lunchWake == 1 ? 2.0 : lunchWake == 2 ? 2.8 : 1.4);
@@ -136,7 +142,11 @@ public partial class VexWindow
     }
 
     /// <summary>You're back early: said so in chat ([[break: back]]), End lunch on the menu, or clicked him mid-nap.</summary>
-    public void LunchBack() => WakeFromLunch(timeUp: false);
+    public void LunchBack()
+    {
+        if (!AtLunch && LunchClockOn) StopBreakClock(cue: false);   // no routine running: just the clock to put away
+        WakeFromLunch(timeUp: false);
+    }
 
     void LunchPose(ref double eyeCap, ref double? turnOverride, ref double? lookY)
     {

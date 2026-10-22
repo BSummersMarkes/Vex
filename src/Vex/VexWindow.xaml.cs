@@ -195,6 +195,7 @@ public partial class VexWindow : Window
         UpdateNudge();
         UpdateActs(scr);
         UpdateOutfit();   // seasonal dress-up (VexOutfits.cs)
+        UpdateBreakClock(scr);   // countdown during a timed break (VexBreakClock.cs)
         Animate(dt);
         if (bubbleUntil > 0 && hovering) bubbleUntil = Math.Max(bubbleUntil, now + 2);
         if (bubbleUntil > 0 && now > bubbleUntil) BubbleExpired();
@@ -467,9 +468,10 @@ public partial class VexWindow : Window
         Theme.PaintHoodie(Rig, NotHoodie);
         Theme.PaintHoodie(Zzz, NotHoodie);
         Theme.PaintHoodie(Bubble, NotHoodie);
+        Theme.PaintHoodie(BreakClock, NotHoodie);   // the break clock is dressed like a little bubble
         var p = Theme.Current;
-        Bubble.Background = Theme.Brush(p.Speech);
-        BubbleText.Foreground = Theme.Brush(p.Text);
+        Bubble.Background = BreakClock.Background = Theme.Brush(p.Speech);
+        BubbleText.Foreground = BreakClockText.Foreground = Theme.Brush(p.Text);
         foreach (var b in BubbleButtons.Children.OfType<Button>())
         {
             b.Background = Theme.Brush(p.Button);
@@ -705,8 +707,8 @@ public partial class VexWindow : Window
 
     // The actions below were on the right-click menu; Setup's "Right now" buttons call them, and do exactly what the menu did.
 
-    /// <summary>At lunch: Setup offers End lunch instead of Lunch break, and no nap.</summary>
-    public bool OnLunch => AtLunch;
+    /// <summary>At lunch (or counting one down without his routine): Setup offers End lunch instead of Lunch break, and no nap.</summary>
+    public bool OnLunch => AtLunch || LunchClockOn;
 
     /// <summary>Dozing (asked to or on his own): Setup's nap button says Wake up.</summary>
     public bool Asleep => mode == Mode.Sleeping;

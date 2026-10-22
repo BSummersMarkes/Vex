@@ -148,13 +148,17 @@
                     <TextBlock x:Name="CodingNote" Style="{StaticResource Note}" Margin="20,0,0,0"
                                Text="Bottom-right corner (CodingCorner in config.json). Drag me somewhere and I'll type there instead."/>
                     <CheckBox x:Name="LunchRoutine" Content="Have my own lunch when you go for yours (a sandwich, then a nap)"/>
-                    <StackPanel Orientation="Horizontal" Margin="20,5,0,0" IsEnabled="{Binding IsChecked, ElementName=LunchRoutine}">
+                    <!-- Not tied to the checkbox above: the break clock counts this down even without my own lunch. -->
+                    <StackPanel Orientation="Horizontal" Margin="20,5,0,0">
                         <TextBlock Text="Lunch length" VerticalAlignment="Center"/>
                         <TextBox x:Name="LunchMinutes" Width="45" Margin="8,0,6,0"/>
                         <TextBlock Text="minutes" VerticalAlignment="Center"/>
                     </StackPanel>
                     <TextBlock x:Name="LunchNote" Style="{StaticResource Note}" Margin="20,0,0,0"
                                Text="Starts when you press Going on the lunch nudge or tell me you're off. Come back early and I'll wake up."/>
+                    <CheckBox x:Name="BreakClock" Content="Show a countdown clock beside me during a timed break"/>
+                    <TextBlock Style="{StaticResource Note}" Margin="20,0,0,0"
+                               Text="The 20-second look-away (Looking away on the eyes nudge) and lunch. A soft chime at the end if the knock sound is on."/>
 
                     <!-- One checkbox per idle activity, made in code from IdleActs.All so new ones show up here by themselves. -->
                     <TextBlock Style="{StaticResource Heading}" Text="Idle actions"/>

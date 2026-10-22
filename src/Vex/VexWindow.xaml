@@ -43,6 +43,13 @@
         <TextBlock x:Name="Zzz" Canvas.Left="158" Canvas.Top="122" Text="z Z" FontSize="16" FontWeight="Bold"
                    Foreground="#E0B8BC" Visibility="Collapsed" IsHitTestVisible="False"/>
 
+        <!-- Break clock (VexBreakClock.cs): a countdown beside his hood during a timed break, above where the mug and
+             mittens go and below the Zzz. Canvas.Left is set in code, on whichever side faces the middle of the screen. -->
+        <Border x:Name="BreakClock" Canvas.Top="160" Visibility="Collapsed" IsHitTestVisible="False"
+                Background="#F01C2030" BorderBrush="#8E2F36" BorderThickness="1.2" CornerRadius="5" Padding="6,1,6,2">
+            <TextBlock x:Name="BreakClockText" FontFamily="Consolas" FontSize="14" FontWeight="SemiBold" Foreground="#E8EAF2"/>
+        </Border>
+
         <!-- The character. 120 x 150, centred on x=60, feet on the bottom edge of the window. -->
         <Canvas x:Name="Rig" Canvas.Left="70" Canvas.Top="110" Width="120" Height="150"
                 RenderTransformOrigin="0.5,1" Cursor="Hand">

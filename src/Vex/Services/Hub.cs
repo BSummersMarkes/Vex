@@ -257,7 +257,8 @@ public static class Hub
                                   never assumed: time away from the desk is often work elsewhere, so only record what {who} tells you.
                                   [[break: going to lunch]] when they're heading off for lunch right now: records it and you
                                   have your own lunch too (eat, then nap). [[break: back]] when they say they're back from
-                                  lunch while you're still on yours: wakes you up (records nothing).
+                                  lunch while you're still on yours: wakes you up (records nothing). [[break: eyes]] when
+                                  they're doing the 20-second look-away now: a countdown clock beside you (records nothing).
         [[where: home]]  or  [[where: office]]  when {who} says they're working from home or at the office today: sets
                                   today's place by hand, for when the network guess is wrong or unsure (home days get
                                   clock-in and clock-out nudges instead of pack-up). [[where: auto]] goes back to the guess.
@@ -361,6 +362,8 @@ public static class Hub
                 // The chat's way of confirming a break or lunch, same as the nudge buttons. A time in the future is ignored.
                 // "back" only ends Vex's own lunch routine; "going" (to lunch, now) also starts it, like the nudge's "Going".
                 if (parts[0].StartsWith("back", StringComparison.OrdinalIgnoreCase)) { Vex.LunchBack(); return "✓ Lunch over"; }
+                // The 20-second look-away is a pause for the eyes, not a break: it shows the clock and records nothing.
+                if (parts[0].StartsWith("eye", StringComparison.OrdinalIgnoreCase)) { Vex.StartEyeBreak(); return $"✓ {Store.Config.EyeBreakSeconds:0} seconds. Look away."; }
                 var lunch = parts[0].Contains("lunch", StringComparison.OrdinalIgnoreCase);
                 var at = DateTime.Now;
                 bool when = false;
