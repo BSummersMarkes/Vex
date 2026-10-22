@@ -93,6 +93,25 @@
                         <TextBox x:Name="WorkBox"/>
                         <TextBlock Style="{StaticResource Note}" Text="Just gives me a little context when we chat."/>
                     </StackPanel>
+
+                    <!-- Birthday (VexBirthday.cs). The day list follows the month (29 for February); kept on Save like the rest. -->
+                    <TextBlock Style="{StaticResource Heading}" Text="When's your birthday? (optional)"/>
+                    <WrapPanel>
+                        <ComboBox x:Name="BirthDay" Width="60" Margin="0,2,6,2" VerticalAlignment="Center" MaxDropDownHeight="240"/>
+                        <ComboBox x:Name="BirthMonth" Width="120" Margin="0,2,6,2" VerticalAlignment="Center" MaxDropDownHeight="300"/>
+                        <TextBox x:Name="BirthYear" Width="60" Margin="0,2,6,2" VerticalAlignment="Center" MaxLength="4" ToolTip="Year (optional)"/>
+                        <TextBlock Style="{StaticResource Note}" Margin="0" VerticalAlignment="Center" Text="year, if you like"/>
+                    </WrapPanel>
+                    <WrapPanel>
+                        <WrapPanel.Resources>
+                            <Style TargetType="Button"><Setter Property="Padding" Value="8,2"/><Setter Property="Margin" Value="0,4,6,0"/></Style>
+                        </WrapPanel.Resources>
+                        <Button x:Name="ClearBirthday" Content="Clear"/>
+                        <Button x:Name="TryBirthday" Content="Try it now"
+                                ToolTip="The greeting, confetti and hat straight away, to see them. Doesn't count as this year's; the hat stays on for today."/>
+                    </WrapPanel>
+                    <TextBlock Style="{StaticResource Note}"
+                               Text="On the day, or the first time I see you after if you're away, I'll say so. Once. There may be a hat. 29 February counts as the 28th in other years. Stays on this PC. Clear it and Save to turn it all off."/>
                 </StackPanel>
             </TabItem>
 

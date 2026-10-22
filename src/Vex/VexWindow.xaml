@@ -161,7 +161,8 @@
                         </Canvas>
                     </Canvas>
 
-                    <!-- Seasonal outfits (VexOutfits.cs): at most one shown, picked by name from Occasions.All. Inside the
+                    <!-- Seasonal outfits (VexOutfits.cs): at most one shown, picked by name from Occasions.All (or the
+                         birthday party hat, Occasions.Birthday). Inside the
                          hood so they ride along with every breath, sit, nap, climb and turn. Each keeps clear of the eyes
                          (y 45-58). Named in NotHoodie, so their reds aren't repainted with the hoodie colour. -->
                     <Canvas x:Name="Outfit">
@@ -228,6 +229,38 @@
                                 <Path Fill="#2A0A0A" Data="M -6.5,6 Q 0,4.2 6.5,6 Q 4.5,11.2 0,11.2 Q -4.5,11.2 -6.5,6 Z"/>
                                 <Path Fill="#F4EEE0" Data="M -5.6,6.1 L -4.4,9.4 L -3.2,5.6 Z M 5.6,6.1 L 4.4,9.4 L 3.2,5.6 Z"/>
                             </Canvas>
+                        </Canvas>
+
+                        <!-- Your birthday (VexBirthday.cs; Occasions.Birthday): a matte paper party hat on the crown, leaning a
+                             touch, gold stripes wound round it, a fluffy trim and pompom, and the elastic down the side of the
+                             hood. The brim just overlaps the top of the face opening (down to y 32), like the Santa hat's,
+                             well clear of the eyes. -->
+                        <Canvas x:Name="PartyHat" Visibility="Collapsed">
+                            <Path Data="M 46,26 Q 51,7 57,-12 Q 66,7 74,26 Q 60,31 46,26 Z">
+                                <Path.Fill>
+                                    <RadialGradientBrush Center="0.34,0.4" GradientOrigin="0.34,0.4" RadiusX="0.9" RadiusY="0.9">
+                                        <GradientStop Offset="0" Color="#7E64C4"/><GradientStop Offset="0.55" Color="#5B439E"/><GradientStop Offset="1" Color="#33245E"/>
+                                    </RadialGradientBrush>
+                                </Path.Fill>
+                            </Path>
+                            <!-- Stripes, clipped to the cone -->
+                            <Canvas Clip="M 46,26 Q 51,7 57,-12 Q 66,7 74,26 Q 60,31 46,26 Z">
+                                <Path Stroke="#E8B33C" StrokeThickness="3"
+                                      Data="M 40,27 Q 58,22 78,14 M 42,15 Q 58,10 76,2 M 46,3 Q 57,-1 72,-8"/>
+                                <Path Stroke="#9C7520" StrokeThickness="0.5" Opacity="0.6"
+                                      Data="M 40,28.6 Q 58,23.6 78,15.6 M 42,16.6 Q 58,11.6 76,3.6 M 46,4.6 Q 57,0.6 72,-6.4"/>
+                            </Canvas>
+                            <Path Data="M 46,26 Q 51,7 57,-12 Q 66,7 74,26 Q 60,31 46,26 Z" Fill="{DynamicResource Weave}" Opacity="0.75"/>
+                            <!-- Shade down the far side, a little light on the near one -->
+                            <Path Stroke="#59000000" StrokeThickness="1.6" Effect="{StaticResource Crease}" Data="M 62,-4 Q 67,9 72,24"/>
+                            <Path Stroke="#33FFFFFF" StrokeThickness="1" Data="M 50,20 Q 53,7 56,-6"/>
+                            <!-- Elastic, running down the side of the hood to under the chin -->
+                            <Path Stroke="#BFD6CFC8" StrokeThickness="0.8" Data="M 73.5,27 Q 84,40 86,58"/>
+                            <!-- Fluffy trim round the brim, and the pompom -->
+                            <Path Fill="{StaticResource Glove}" Data="M 44.5,25.5 Q 60,31 75.5,25.5 Q 76.5,28 75,29 Q 60,34 45,29 Q 43.5,28 44.5,25.5 Z"/>
+                            <Path Fill="{DynamicResource Weave}" Opacity="0.45" Data="M 44.5,25.5 Q 60,31 75.5,25.5 Q 76.5,28 75,29 Q 60,34 45,29 Q 43.5,28 44.5,25.5 Z"/>
+                            <Ellipse Canvas.Left="52.5" Canvas.Top="-17" Width="9" Height="9" Fill="{StaticResource Glove}"/>
+                            <Ellipse Canvas.Left="52.5" Canvas.Top="-17" Width="9" Height="9" Fill="{DynamicResource Weave}" Opacity="0.45"/>
                         </Canvas>
                     </Canvas>
                 </Canvas>

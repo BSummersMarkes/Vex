@@ -29,6 +29,8 @@ static class Native
     public const uint SWP_NOSIZE = 0x0001, SWP_NOMOVE = 0x0002, SWP_NOACTIVATE = 0x0010;
     public const int GWL_EXSTYLE = -20;
     public const long WS_EX_TOOLWINDOW = 0x80, WS_EX_NOACTIVATE = 0x08000000;
+    /// <summary>Mouse clicks go straight through the whole window (with layered windows), not just its see-through pixels.</summary>
+    public const long WS_EX_TRANSPARENT = 0x20;
     const int DWMWA_EXTENDED_FRAME_BOUNDS = 9, DWMWA_CLOAKED = 14;
 
     [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();

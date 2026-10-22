@@ -38,10 +38,26 @@ public class VexConfig
     /// <summary>How many days before an occasion its outfit goes on (it comes off after the day itself), unless the occasion sets its own.</summary>
     public int DressUpLeadDays { get; set; } = 5;
     /// <summary>
-    /// For trying outfits on: an occasion id ("christmas", "easter", "halloween") is worn now whatever the date, even
-    /// with DressUp off. Empty = go by the date. Setup → Theme → Try one on.
+    /// For trying outfits on: an occasion id ("christmas", "easter", "halloween", or "birthday" for the party hat) is worn
+    /// now whatever the date, even with DressUp off. Empty = go by the date. Setup → Theme → Try one on.
     /// </summary>
     public string DressUpPreview { get; set; } = "";
+
+    // Your birthday (VexBirthday.cs). Setup → You; 0 = not set, so clearing the day or month turns it all off.
+    /// <summary>Day of the month (1–31) and month (1–12) of your birthday. 29 Feb is kept on the 28th in other years.</summary>
+    public int BirthdayDay { get; set; }
+    public int BirthdayMonth { get; set; }
+    /// <summary>Year you were born, optional (0 = not given). Only used for the odd line about your age.</summary>
+    public int BirthdayYear { get; set; }
+    /// <summary>
+    /// Not about on the day (weekend, leave, Vex not running)? He still wishes you happy birthday the first time he sees
+    /// you, up to this many days late. After that it's let go until next year.
+    /// </summary>
+    public int BirthdayLateDays { get; set; } = 21;
+    /// <summary>How long the birthday party popper's confetti stays on screen, in seconds.</summary>
+    public double ConfettiSeconds { get; set; } = 4.5;
+    /// <summary>Bits of confetti in the burst (plus a streamer for every ten).</summary>
+    public int ConfettiPieces { get; set; } = 80;
 
     /// <summary>Keep Vex (and his chat) out of screenshots and screen shares.</summary>
     public bool HideFromScreenCapture { get; set; } = true;
@@ -292,6 +308,10 @@ public class VexState
     public int ClockInNudges { get; set; }
     /// <summary>Outfits he's already remarked on, as "id-year" (e.g. "halloween-2026"), so it's one comment a year each.</summary>
     public List<string> DressUpRemarked { get; set; } = new();
+    /// <summary>The year of the last birthday he's wished you happy birthday for, so it's once a year (VexBirthday.cs).</summary>
+    public int BirthdayGreetedYear { get; set; }
+    /// <summary>The day ("yyyy-MM-dd") that greeting was given: he keeps the party hat on for the rest of it, late or not.</summary>
+    public string BirthdayGreetedOn { get; set; } = "";
     /// <summary>Journal checkboxes paired with items on the Lab Notebook's To-Do list (Services/Notebook.cs, TodoListMirror).</summary>
 #if !LITE
     public List<Services.TodoLink> TodoLinks { get; set; } = new();

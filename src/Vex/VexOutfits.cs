@@ -36,7 +36,18 @@ static class Occasions
         }),
     };
 
-    public static Occasion? Find(string id) => All.FirstOrDefault(o => string.Equals(o.Id, id, StringComparison.OrdinalIgnoreCase));
+    /// <summary>
+    /// Your birthday's party hat (VexBirthday.cs). Not in All: it isn't seasonal, has no lead-in and isn't switched off
+    /// with DressUp; it goes on for the day itself (or the day of a late greeting) and beats any seasonal outfit then.
+    /// Its remarks are the birthday greeting, said by VexBirthday.cs.
+    /// </summary>
+    public static readonly Occasion Birthday =
+        new("birthday", "Birthday", y => Birthdays.On(y) ?? DateTime.MinValue, "PartyHat", new string[0], LeadDays: 0);
+
+    /// <summary>Everything he can wear, for Setup's Try one on and for looking an id up.</summary>
+    public static Occasion[] Wearable => All.Concat(new[] { Birthday }).ToArray();
+
+    public static Occasion? Find(string id) => Wearable.FirstOrDefault(o => string.Equals(o.Id, id, StringComparison.OrdinalIgnoreCase));
 
     /// <summary>
     /// The occasion whose outfit is on for <paramref name="day"/>, and the year it belongs to (so a lead-in that starts
@@ -69,7 +80,7 @@ static class Occasions
 /// <summary>
 /// Seasonal dress-up: around Christmas, Easter and Halloween he wears that occasion's outfit (Occasions.All), drawn
 /// inside his hood so it follows every pose. DressUp in config.json turns it off; DressUpPreview forces one on for
-/// trying it out. The first time an outfit goes on each year he says one dry line about it, once you're there to see.
+/// trying it out. On your birthday the party hat (Occasions.Birthday) takes the place of any of them. The first time an outfit goes on each year he says one dry line about it, once you're there to see.
 /// </summary>
 public partial class VexWindow
 {
@@ -84,14 +95,18 @@ public partial class VexWindow
     /// <summary>Called every frame; the date and settings are only looked at every 30 seconds.</summary>
     void UpdateOutfit()
     {
+        if (birthdayDue != null) TryBirthdayGreeting();   // VexBirthday.cs; goes before the outfit's remark
         if (outfitRemark != null) TryOutfitRemark();
         if (now < nextOutfitCheck) return;
         nextOutfitCheck = now + 30;
+        CheckBirthday();
 
         var c = Store.Config;
         Occasion? wear = null;
         bool preview = c.DressUpPreview.Length > 0 && Occasions.Find(c.DressUpPreview) != null;
         if (preview) wear = Occasions.Find(c.DressUpPreview);
+        // Birthday hat first: on your day a seasonal outfit (and its remark) waits until tomorrow.
+        else if (PartyHatOn) wear = Occasions.Birthday;
         else if (c.DressUp && Occasions.On(DateTime.Today) is { } on)
         {
             wear = on.Occasion;
@@ -99,7 +114,7 @@ public partial class VexWindow
             string key = $"{on.Occasion.Id}-{on.Year}";
             if (!Store.State.DressUpRemarked.Contains(key)) outfitRemark = key;
         }
-        if (wear == null || preview) outfitRemark = null;
+        if (wear == null || preview || wear == Occasions.Birthday) outfitRemark = null;
 
         string want = wear?.Outfit ?? "";
         if (want == wornOutfit) return;

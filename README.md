@@ -15,6 +15,7 @@ A small desktop companion for Windows. He lives on your taskbar in a deep teal h
 - **Claude Code alerts:** tells you when a Claude Code session needs you or has finished (optional). If you like, he also sits in the bottom-right corner typing on a little laptop while a session is working, and nods when it's done (Setup → Behaviour).
 - **Chat:** click him. He knows roughly what you've been doing today, your meetings and your to-dos, and can add to-dos, tick them off, take notes, set reminders and remember things about you. Reminders can repeat: "remind me to take my tablets every day at 10", "weekdays at 2 to drink some water", "Mondays and Thursdays at 9:30 …". A repeating one has a **Stop these** button, or ask him to cancel it. Plain timers and reminders are set on the spot without asking Claude, so they work offline too: "timer 10m", "set a timer for 25 minutes for the tea", "remind me in 20m to call Sam", "remind me to call Sam at 3pm". Anything less clear-cut goes to Claude as usual (`ChatLocalReminders` in config.json turns this off).
 - **Dresses up** for the season: a Santa hat for Christmas, bunny ears for Easter and an oni mask on the side of his hood for Halloween, from five days before until the day itself. Setup → Theme turns it off, and *Try one on* puts any of them on him straight away to see how it looks.
+- **Your birthday** (optional, Setup → You): on the day he wishes you happy birthday, once, sets off a party popper (confetti you can click straight through, and a pop if the knock sound is on) and wears a party hat all day. Away on the day? He says it the first time he sees you after, a bit late, and wears the hat then. 29 February counts as the 28th in other years. *Try it now* shows it straight away; clear the date to turn it off.
 - **The mug** empties over time. Click it when you refill yours. He counts. Clicked it by mistake? Right-click the mug → Undo last refill.
 
 ## Getting started
@@ -37,7 +38,8 @@ For chat you need **[Claude Code](https://claude.com/claude-code) installed and 
 | Right-click the mug | Today's coffee count and Undo last refill (count down one, mug back to its level before; repeat to step back further) |
 | Right-click Vex (not the mug) → To-do list | Today's journal to-dos as a checklist: tick one to tick it off, or type in the box and press Enter to add one. Works without Claude |
 | Right-click Vex (not the mug) or the tray icon | Setup…, What Vex knows…, Where today (working from home / at the office today, or work it out from the network), Theme (light/dark, hoodie colour; Original brings back the dark red), Quit. Left-click the tray icon to chat |
-| Setup → Theme | Hoodie lightness: slide it darker or lighter and watch him change; Save keeps it. Seasonal outfits on or off, and Try one on |
+| Setup → You | Your name, workplace, and your birthday (day and month, year optional), with Clear and Try it now |
+| Setup → Theme | Hoodie lightness: slide it darker or lighter and watch him change; Save keeps it. Seasonal outfits on or off, and Try one on (the birthday party hat too) |
 | Setup → Behaviour → Right now | Lunch break / End lunch, nap / wake up, I refilled my coffee, other screen, hide / show, chat, forget today's chat |
 | Setup → Privacy → Your data | Open his memory pages, chat history, config.json or the data folder |
 | Typing in the chat | Enter sends; Shift+Enter or Shift+Space starts a new line |

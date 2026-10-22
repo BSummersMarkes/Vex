@@ -24,6 +24,7 @@ public partial class SetupWindow : Window
 
         NameBox.Text = c.UserName.Length > 0 ? c.UserName : GuessName();
         WorkBox.Text = c.Workplace;
+        WireBirthday(vex);
 
 #if LITE
         LiteLayout();
@@ -139,6 +140,38 @@ public partial class SetupWindow : Window
     }
 
     /// <summary>
+    /// You → birthday: day and month drop-downs (the day list follows the month, so there's no 31 February) and an
+    /// optional year. Clear empties them; Save keeps whatever's there. Try it now (only once Vex is running) shows the
+    /// greeting, confetti and party hat straight away without using up the year's greeting.
+    /// </summary>
+    void WireBirthday(VexWindow? vex)
+    {
+        var c = Store.Config;
+        BirthMonth.Items.Add("–");
+        foreach (var m in CultureInfo.CurrentCulture.DateTimeFormat.MonthNames.Take(12)) BirthMonth.Items.Add(m);
+        // Item index = day / month number; 0 is the "–" for not set.
+        void FillDays()
+        {
+            int keep = BirthDay.SelectedIndex, max = BirthMonth.SelectedIndex > 0 ? DateTime.DaysInMonth(2024, BirthMonth.SelectedIndex) : 31;
+            BirthDay.Items.Clear();
+            BirthDay.Items.Add("–");
+            for (int d = 1; d <= max; d++) BirthDay.Items.Add(d.ToString(CultureInfo.CurrentCulture));
+            BirthDay.SelectedIndex = Math.Clamp(keep, 0, max);
+        }
+        bool set = Birthdays.Set;
+        BirthMonth.SelectedIndex = set ? c.BirthdayMonth : 0;
+        FillDays();
+        BirthDay.SelectedIndex = set ? c.BirthdayDay : 0;
+        BirthYear.Text = set && c.BirthdayYear > 0 ? c.BirthdayYear.ToString(CultureInfo.InvariantCulture) : "";
+        BirthMonth.SelectionChanged += (_, _) => FillDays();
+        ClearBirthday.Click += (_, _) => { BirthMonth.SelectedIndex = 0; BirthDay.SelectedIndex = 0; BirthYear.Text = ""; };
+        if (vex != null) TryBirthday.Click += (_, _) => vex.BirthdayPreview();
+        else TryBirthday.Visibility = Visibility.Collapsed;
+        // Saved with no birthday: a hat still on from Try it now comes off as well.
+        Closed += (_, _) => { if (DialogResult == true && !Birthdays.Set) vex?.EndBirthdayPreview(); };
+    }
+
+    /// <summary>
     /// Theme → Hoodie lightness: Vex (and the swatch) repaint as the slider moves, as a live preview. Only Save keeps
     /// it; closing any other way puts back the lightness he had when the window opened.
     /// </summary>
@@ -171,7 +204,8 @@ public partial class SetupWindow : Window
         string list = names.Count > 1 ? string.Join(", ", names.Take(names.Count - 1)) + " and " + names[^1] : string.Join("", names);
         DressUpNote.Text = $"{list}: from {c.DressUpLeadDays} days before until the end of the day itself. " +
                            "The first time each year I'll say something about it. Once.";
-        foreach (var (id, name) in new[] { ("", "Go by the date") }.Concat(Occasions.All.Select(o => (o.Id, o.Name))))
+        // The birthday party hat is in the list too (Wearable), so it can be tried on without waiting for the day.
+        foreach (var (id, name) in new[] { ("", "Go by the date") }.Concat(Occasions.Wearable.Select(o => (o.Id, o.Name))))
         {
             var choice = new System.Windows.Controls.RadioButton
             {
@@ -295,6 +329,15 @@ public partial class SetupWindow : Window
     {
         var c = Store.Config;
         c.UserName = NameBox.Text.Trim();
+        // Half a date isn't a birthday: without both day and month it's cleared. A year that can't be (the future, or
+        // 29 Feb in a year without one) is just dropped; it's only ever used for his age.
+        int bMonth = BirthMonth.SelectedIndex, bDay = BirthDay.SelectedIndex;
+        if (bMonth <= 0 || bDay <= 0) bMonth = bDay = 0;
+        int bYear = bMonth > 0 && int.TryParse(BirthYear.Text.Trim(), NumberStyles.None, CultureInfo.InvariantCulture, out var y)
+                    && y >= 1900 && y <= DateTime.Today.Year && bDay <= DateTime.DaysInMonth(y, bMonth) ? y : 0;
+        bool birthdayMoved = bMonth != c.BirthdayMonth || bDay != c.BirthdayDay;
+        c.BirthdayDay = bDay; c.BirthdayMonth = bMonth; c.BirthdayYear = bYear;
+        if (birthdayMoved) Birthdays.Changed();
 #if !LITE
         c.Workplace = WorkBox.Text.Trim();
         c.NotesMode = UseNotebook.IsChecked == true ? "notebook" : "local";
