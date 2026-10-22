@@ -29,7 +29,6 @@ public partial class VexWindow : Window
     const double BubbleGap = 132;          // bubble's bottom edge, measured up from his feet
     const double BodyHalfW = 46, BodyH = 150;
     const double EyeY = 98;                // eyes, measured up from his feet
-    const double PeekDrop = 86;            // how far he sinks so only the hood and eyes show
 
     static readonly HashSet<string> IgnoredClasses = new()
     {
@@ -51,7 +50,7 @@ public partial class VexWindow : Window
     double vy;
     double targetX, speed;
     int facing = -1;
-    bool peeking, hidden, autoHidden, thinking, napping;
+    bool peeking, hidden, autoHidden, thinking, napping;   // peeking: no clear floor, so he stands his ground (VexFloor.cs)
     Action? bubbleTimeout;
     double turn;
     Window? bubbleWin;
@@ -88,16 +87,17 @@ public partial class VexWindow : Window
             Native.SetWindowLongPtr(hwnd, Native.GWL_EXSTYLE, ex | Native.WS_EX_TOOLWINDOW | Native.WS_EX_NOACTIVATE);
             // Never shows up in screen shares or screenshots.
             if (Store.Config.HideFromScreenCapture) Native.SetWindowDisplayAffinity(hwnd, Native.WDA_EXCLUDEFROMCAPTURE);
-            var wa = Forms.Screen.PrimaryScreen!.WorkingArea;
+            WatchScreens();   // fresh monitors, and kept fresh from now on (VexFloor.cs)
+            var wa = Primary.WorkingArea;
             x = wa.Right - 320 * S;
-            y = wa.Bottom;
+            y = wa.Bottom;    // starts standing on the taskbar
             Place(force: true);
             Services.Hub.Start(this);
             RegisterQuickChat();
         };
-        // Queued, not Invoke: this can arrive on Windows' own system-events thread during remote desktop and display
+        // Monitor and taskbar changes are watched in WatchScreens (VexFloor.cs). Its system events are queued with
+        // BeginInvoke, not Invoke: they can arrive on Windows' own system-events thread during remote desktop and display
         // changes, and an error inside a blocking Invoke would land on that thread, which takes the whole app down.
-        SystemEvents.DisplaySettingsChanged += (_, _) => Dispatcher.BeginInvoke(() => screens = Forms.Screen.AllScreens);
 
         Rig.MouseLeftButtonDown += RigDown;
         Rig.MouseMove += RigMove;
@@ -126,6 +126,7 @@ public partial class VexWindow : Window
         double dt = Math.Min(0.1, now - lastFrame);
         lastFrame = now;
         if (hwnd == IntPtr.Zero) return;
+        CheckScreens();   // taskbar or monitors changed? (VexFloor.cs)
 
         var scr = ScreenAt(x);
         double floor = PerchFloor() ?? scr.WorkingArea.Bottom; // top of the window he's standing on, or the taskbar
@@ -171,7 +172,7 @@ public partial class VexWindow : Window
                 else if (!hopMoved)
                 {
                     hopMoved = true; x = hopToX; peeking = hopPeek;
-                    y = ScreenAt(x).WorkingArea.Bottom + (peeking ? PeekDrop * S : 0);
+                    y = ScreenAt(x).WorkingArea.Bottom;
                     Place(force: true);
                 }
                 else if (t < 0.35) Opacity = (t - 0.15) / 0.2;
@@ -193,6 +194,7 @@ public partial class VexWindow : Window
                 if (!peeking && !AtLunch && !Coding && Native.IdleTime().TotalMinutes >= Store.Config.SleepAfterMinutes) Sleep();
                 break;
         }
+        KeepAboveFloor();   // whatever he's doing, never below the taskbar (VexFloor.cs)
 
         UpdateNudge();
         UpdateActs(scr);
@@ -209,7 +211,8 @@ public partial class VexWindow : Window
 
     void Settle(double floor, double dt)
     {
-        double want = floor + (peeking ? PeekDrop * S : 0);
+        double want = floor;
+        if (y > want) y = want;   // below the floor (the taskbar grew, or he was put there): straight back up, not a slow rise
         y += (want - y) * Math.Min(1, dt * 8);
         if (Math.Abs(want - y) < 0.5) y = want; else settling = true;
     }
@@ -221,7 +224,7 @@ public partial class VexWindow : Window
         // Monitor unplugged under him? Go home.
         if (!screens.Any(s => s.WorkingArea.Left <= x && x < s.WorkingArea.Right))
         {
-            var home = Forms.Screen.PrimaryScreen!.WorkingArea;
+            var home = Primary.WorkingArea;
             HopTo(home.Right - 320 * S, false);
             return;
         }
@@ -260,7 +263,8 @@ public partial class VexWindow : Window
         }
         else
         {
-            // Nowhere to go: duck down where he is so just his eyes peek over the taskbar.
+            // Nowhere to go: stay put, standing on the taskbar. He used to duck down past it so only his hood showed,
+            // which put half of him below the bottom of the screen; the taskbar is now as low as he ever goes.
             mode = Mode.Idle;
             peeking = true;
         }
@@ -316,6 +320,9 @@ public partial class VexWindow : Window
         }
         return best;
     }
+
+    /// <summary>The primary monitor from the fresh list (VexFloor.cs), not WinForms' cached one.</summary>
+    Forms.Screen Primary => screens.FirstOrDefault(s => s.Primary) ?? Forms.Screen.PrimaryScreen!;
 
     Forms.Screen ScreenAt(double px)
     {
@@ -875,10 +882,13 @@ public partial class VexWindow : Window
 
     void Place(bool force = false)
     {
-        int wx = (int)Math.Round(x - RigCx * S), wy = (int)Math.Round(y - WinH * S);
+        // Placed from where his boots are actually drawn, so the soles land exactly on (x, y) whatever the scaling.
+        double k = DrawnScale();
+        int wx = (int)Math.Round(x - RigCx * k), wy = (int)Math.Round(y - SoleY * k);
         bool topmost = now >= nextTopmost;
         if (!force && !topmost && wx == lastWinX && wy == lastWinY) return;
         if (topmost) nextTopmost = now + 2; // other topmost windows can bury us; keep reclaiming the top
+        if (force || topmost) FixWindowSize(k);   // a window cut short would crop his boots (VexFloor.cs)
         Native.SetWindowPos(hwnd, Native.HWND_TOPMOST, wx, wy, 0, 0, Native.SWP_NOSIZE | Native.SWP_NOACTIVATE);
         lastWinX = wx; lastWinY = wy;
     }

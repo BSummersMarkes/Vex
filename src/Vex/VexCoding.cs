@@ -58,7 +58,7 @@ public partial class VexWindow
             GoHome();
             return;
         }
-        if (act == Act.Code && peeking) actEnd = Math.Min(actEnd, now + 0.35);   // ducked down out of the way: no room to type
+        if (act == Act.Code && peeking) actEnd = Math.Min(actEnd, now + 0.35);   // nowhere clear to stand: no room to type
         if (Coding || AtLunch) return;
         if (act != Act.None) { actEnd = Math.Min(actEnd, now + 0.6); return; }   // put the book down first
         // Same manners as wandering: not mid-conversation, not with a nudge waiting, not while you're pointing at him.

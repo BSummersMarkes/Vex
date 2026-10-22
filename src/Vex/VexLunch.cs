@@ -103,7 +103,7 @@ public partial class VexWindow
         if (Services.Hub.Presence.Locked || idle.TotalMinutes >= Store.Config.LunchAwayMinutes) lunchSawAway = true;
         else if (lunchSawAway && idle.TotalSeconds < 2) { WakeFromLunch(timeUp: false); return; }
 
-        if (act == Act.Lunch && peeking) actEnd = Math.Min(actEnd, now + 0.35);   // ducked out of the way: no room to sit
+        if (act == Act.Lunch && peeking) actEnd = Math.Min(actEnd, now + 0.35);   // nowhere clear to stand: no room to sit
         if (act == Act.Lunch || pendingAct == Act.Lunch) return;
         if (mode != Mode.Idle || peeking || hidden || autoHidden) return;
         if (act != Act.None) { actEnd = Math.Min(actEnd, now + 0.6); return; }

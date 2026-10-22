@@ -108,6 +108,19 @@ static class Native
 
     [DllImport("user32.dll")] static extern int GetWindowTextLength(IntPtr hWnd);
 
+    delegate bool MonitorEnumProc(IntPtr hMonitor, IntPtr hdc, ref RECT r, IntPtr lParam);
+    [DllImport("user32.dll")] static extern bool EnumDisplayMonitors(IntPtr hdc, IntPtr clip, MonitorEnumProc cb, IntPtr lParam);
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)] public static extern uint RegisterWindowMessage(string name);
+    public const int WM_SETTINGCHANGE = 0x001A, WM_DISPLAYCHANGE = 0x007E, WM_DPICHANGED = 0x02E0;
+
+    /// <summary>Each monitor's full bounds as Windows has them right now (physical pixels), asked fresh every call.</summary>
+    public static System.Collections.Generic.List<RECT> MonitorRects()
+    {
+        var list = new System.Collections.Generic.List<RECT>();
+        EnumDisplayMonitors(IntPtr.Zero, IntPtr.Zero, (IntPtr _, IntPtr _, ref RECT r, IntPtr _) => { list.Add(r); return true; }, IntPtr.Zero);
+        return list;
+    }
+
     /// <summary>
     /// Visible, titled top-level windows of other processes, topmost first, with their visible bounds. Used for perching
     /// and climbing, which only need where windows are: whether one has a title is checked (untitled ones are mostly

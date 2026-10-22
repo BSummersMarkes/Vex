@@ -12,6 +12,11 @@ public class VexConfig
     public double MugSteamMinutes { get; set; } = 15;
     public double SleepAfterMinutes { get; set; } = 5;
     public double WalkSpeed { get; set; } = 70;          // DIP per second
+    /// <summary>
+    /// How often he re-reads the monitors' working areas (where the taskbar is) as a safety net, in seconds. Windows
+    /// tells him about most changes straight away; this catches any it doesn't (VexFloor.cs).
+    /// </summary>
+    public double ScreenCheckSeconds { get; set; } = 2;
     public string Model { get; set; } = "sonnet";
     public string? ClaudePath { get; set; }
     /// <summary>What Vex calls you. Asked on first run; defaults from the Windows account name.</summary>

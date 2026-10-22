@@ -47,7 +47,8 @@ public partial class VexWindow
         var wa = scr.WorkingArea;
         x = Math.Clamp(x, wa.Left + BodyHalfW * S, wa.Right - BodyHalfW * S);
 
-        if (vy > 0 && FindLedge(prevY, y) is { } ledge) { Land(ledge.Rect.Top, ledge.Hwnd, ledge.Rect); return; }
+        // A window top below the taskbar's isn't somewhere to land: the taskbar catches him first.
+        if (vy > 0 && FindLedge(prevY, y) is { } ledge && ledge.Rect.Top <= wa.Bottom) { Land(ledge.Rect.Top, ledge.Hwnd, ledge.Rect); return; }
         if (y >= wa.Bottom) Land(wa.Bottom, IntPtr.Zero, default);
     }
 
@@ -125,6 +126,8 @@ public partial class VexWindow
         }
         perchRect = r;
         if (x < r.Left + 8 * S || x > r.Right - 8 * S) { FallOff(); return null; }
+        // Window dragged down behind the taskbar, or the taskbar grew over it: off he gets, onto the taskbar.
+        if (r.Top > ScreenAt(x).WorkingArea.Bottom) { FallOff(); return null; }
         return r.Top;
     }
 
