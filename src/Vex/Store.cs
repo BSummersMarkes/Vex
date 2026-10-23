@@ -17,6 +17,11 @@ public class VexConfig
     /// tells him about most changes straight away; this catches any it doesn't (VexFloor.cs).
     /// </summary>
     public double ScreenCheckSeconds { get; set; } = 2;
+    /// <summary>
+    /// How often he checks that he can still be clicked (window style, enabled, on top where he's drawn) and puts
+    /// right whatever isn't, in seconds (VexClicks.cs).
+    /// </summary>
+    public double ClickCheckSeconds { get; set; } = 2;
     public string Model { get; set; } = "sonnet";
     public string? ClaudePath { get; set; }
     /// <summary>What Vex calls you. Asked on first run; defaults from the Windows account name.</summary>

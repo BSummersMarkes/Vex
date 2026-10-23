@@ -88,6 +88,7 @@ public partial class VexWindow : Window
             // Never shows up in screen shares or screenshots.
             if (Store.Config.HideFromScreenCapture) Native.SetWindowDisplayAffinity(hwnd, Native.WDA_EXCLUDEFROMCAPTURE);
             WatchScreens();   // fresh monitors, and kept fresh from now on (VexFloor.cs)
+            WatchClicks();    // clicked while a dialog has him disabled: show the dialog (VexClicks.cs)
             var wa = Primary.WorkingArea;
             x = wa.Right - 320 * S;
             y = wa.Bottom;    // starts standing on the taskbar
@@ -128,6 +129,7 @@ public partial class VexWindow : Window
         lastFrame = now;
         if (hwnd == IntPtr.Zero) return;
         CheckScreens();   // taskbar or monitors changed? (VexFloor.cs)
+        KeepClickable();  // can a click still reach him? (VexClicks.cs)
 
         var scr = ScreenAt(x);
         double floor = PerchFloor() ?? scr.WorkingArea.Bottom; // top of the window he's standing on, or the taskbar
@@ -177,7 +179,7 @@ public partial class VexWindow : Window
                     Place(force: true);
                 }
                 else if (t < 0.35) Opacity = (t - 0.15) / 0.2;
-                else { Opacity = hidden ? 0 : 1; mode = Mode.Idle; nextWander = now + 10; }
+                else { Opacity = hidden || autoHidden ? 0 : 1; mode = Mode.Idle; nextWander = now + 10; }   // vanished for full screen too: else visible but not clickable
                 break;
 
             case Mode.Climbing:

@@ -34,7 +34,7 @@
     <Page Include="..\Vex\SetupWindow.xaml" Link="SetupWindow.xaml" />
     <Compile Include="..\Vex\SetupWindow.xaml.cs" Link="SetupWindow.xaml.cs" DependentUpon="SetupWindow.xaml" />
     <Compile Include="..\Vex\Native.cs;..\Vex\Theme.cs;..\Vex\Store.cs" />
-    <Compile Include="..\Vex\VexActs.cs;..\Vex\VexClimb.cs;..\Vex\VexCoding.cs;..\Vex\VexJuggle.cs;..\Vex\VexKnock.cs;..\Vex\VexLunch.cs;..\Vex\VexPace.cs;..\Vex\VexPerch.cs;..\Vex\VexFloor.cs;..\Vex\VexOutfits.cs;..\Vex\VexBirthday.cs;..\Vex\PartyPopper.cs;..\Vex\VexBreakClock.cs" />
+    <Compile Include="..\Vex\VexActs.cs;..\Vex\VexClimb.cs;..\Vex\VexCoding.cs;..\Vex\VexJuggle.cs;..\Vex\VexKnock.cs;..\Vex\VexLunch.cs;..\Vex\VexPace.cs;..\Vex\VexPerch.cs;..\Vex\VexFloor.cs;..\Vex\VexClicks.cs;..\Vex\VexOutfits.cs;..\Vex\VexBirthday.cs;..\Vex\PartyPopper.cs;..\Vex\VexBreakClock.cs" />
     <Compile Include="..\Vex\Services\Activity.cs;..\Vex\Services\Calendar.cs;..\Vex\Services\Commute.cs;..\Vex\Services\Nudges.cs;..\Vex\Services\Pending.cs;..\Vex\Services\Presence.cs;..\Vex\Services\ReminderTimes.cs" />
     <Compile Include="*.cs" />
     <Page Include="*.xaml" />

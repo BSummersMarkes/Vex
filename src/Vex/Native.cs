@@ -31,6 +31,20 @@ static class Native
     public const long WS_EX_TOOLWINDOW = 0x80, WS_EX_NOACTIVATE = 0x08000000;
     /// <summary>Mouse clicks go straight through the whole window (with layered windows), not just its see-through pixels.</summary>
     public const long WS_EX_TRANSPARENT = 0x20;
+    public const long WS_EX_TOPMOST = 0x08;
+    public const int WM_SETCURSOR = 0x0020, WM_LBUTTONDOWN = 0x0201, HTERROR = -2;
+    const uint GA_ROOT = 2;
+    [DllImport("user32.dll")] public static extern bool IsWindowEnabled(IntPtr hWnd);
+    [DllImport("user32.dll")] public static extern bool EnableWindow(IntPtr hWnd, bool enable);
+    [DllImport("user32.dll")] static extern IntPtr WindowFromPoint(POINT p);
+    [DllImport("user32.dll")] static extern IntPtr GetAncestor(IntPtr hWnd, uint flags);
+
+    /// <summary>The top-level window a click at this screen point (physical pixels) would go to, or zero.</summary>
+    public static IntPtr TopWindowAt(int x, int y)
+    {
+        var h = WindowFromPoint(new POINT { X = x, Y = y });
+        return h == IntPtr.Zero ? h : GetAncestor(h, GA_ROOT);
+    }
     const int DWMWA_EXTENDED_FRAME_BOUNDS = 9, DWMWA_CLOAKED = 14;
 
     [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
