@@ -121,6 +121,19 @@ static class Native
         return list;
     }
 
+    [DllImport("user32.dll")] static extern IntPtr RegisterPowerSettingNotification(IntPtr hRecipient, ref Guid setting, int flags);
+    public const int WM_POWERBROADCAST = 0x0218;
+
+    /// <summary>
+    /// Asks Windows to send the window WM_POWERBROADCAST when the monitors turn off, dim or come back on
+    /// (GUID_CONSOLE_DISPLAY_STATE), on top of the usual suspend and resume ones.
+    /// </summary>
+    public static void WatchDisplayPower(IntPtr hWnd)
+    {
+        var consoleDisplayState = new Guid("6FE69556-704A-47A0-8F24-C28D936FDA47");
+        RegisterPowerSettingNotification(hWnd, ref consoleDisplayState, 0 /* DEVICE_NOTIFY_WINDOW_HANDLE */);
+    }
+
     /// <summary>
     /// Visible, titled top-level windows of other processes, topmost first, with their visible bounds. Used for perching
     /// and climbing, which only need where windows are: whether one has a title is checked (untitled ones are mostly

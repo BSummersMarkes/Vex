@@ -91,6 +91,7 @@ public partial class VexWindow : Window
             var wa = Primary.WorkingArea;
             x = wa.Right - 320 * S;
             y = wa.Bottom;    // starts standing on the taskbar
+            KeepOnWorkArea("start");   // no position is saved between runs; this guards the start-up spot like any other
             Place(force: true);
             Services.Hub.Start(this);
             RegisterQuickChat();
@@ -194,7 +195,7 @@ public partial class VexWindow : Window
                 if (!peeking && !AtLunch && !Coding && Native.IdleTime().TotalMinutes >= Store.Config.SleepAfterMinutes) Sleep();
                 break;
         }
-        KeepAboveFloor();   // whatever he's doing, never below the taskbar (VexFloor.cs)
+        KeepOnWorkArea("frame");   // whatever he's doing (carried too), never below the taskbar or off the screen (VexFloor.cs)
 
         UpdateNudge();
         UpdateActs(scr);

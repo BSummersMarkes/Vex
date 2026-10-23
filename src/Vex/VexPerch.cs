@@ -158,7 +158,9 @@ public partial class VexWindow
     (double Lo, double Hi) WalkRange(Forms.Screen scr)
     {
         double half = BodyHalfW * S;
-        if (Perched) return (perchRect.Left + half + 6 * S, perchRect.Right - half - 6 * S);
+        // Perched, only the part of the window top that's on his work area: he's kept on that anyway (VexFloor.cs).
+        if (Perched) return (Math.Max(perchRect.Left + half + 6 * S, scr.WorkingArea.Left + half),
+                             Math.Min(perchRect.Right - half - 6 * S, scr.WorkingArea.Right - half));
         return (scr.WorkingArea.Left + half + 10 * S, scr.WorkingArea.Right - half - 10 * S);
     }
 
