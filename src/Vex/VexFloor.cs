@@ -141,8 +141,21 @@ public partial class VexWindow
         else
         {
             double half = BodyHalfW * S, lo = wa.Left + half, hi = Math.Max(lo, wa.Right - half);
+            if (mode == Mode.Walking)
+            {
+                // Walking on foot to the next monitor where the taskbars join (dodging, standing up from no clear
+                // floor, going back after coding): the floor is both work areas, so he can cross the join. Clamped to
+                // his own monitor alone, he was stopped at its edge each frame and the 0.3 s dodge check sent him off
+                // again, flicking between walking and standing at the edge.
+                var tw = ScreenAt(targetX).WorkingArea;
+                if (tw != wa && !Perched && Walkable(x, targetX))
+                {
+                    lo = Math.Min(wa.Left, tw.Left) + half;
+                    hi = Math.Max(lo, Math.Max(wa.Right, tw.Right) - half);
+                }
+                targetX = Math.Clamp(targetX, lo, hi);   // else he'd walk on the spot at the edge
+            }
             x = Math.Clamp(x, lo, hi);
-            if (mode == Mode.Walking) targetX = Math.Clamp(targetX, lo, hi);   // else he'd walk on the spot at the edge
             if (y < wa.Top) { y = wa.Bottom; perchHwnd = IntPtr.Zero; }       // feet above the screen's top: wholly lost
         }
         if (y > wa.Bottom) y = wa.Bottom;
