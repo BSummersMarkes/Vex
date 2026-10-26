@@ -18,7 +18,7 @@ A small desktop companion for Windows. He lives on your taskbar in a deep teal h
 - **Dresses up** for the season: a Santa hat for Christmas, bunny ears for Easter and an oni mask on the side of his hood for Halloween, from five days before until the day itself. Setup → Theme turns it off, and *Try one on* puts any of them on him straight away to see how it looks.
 - **Your birthday** (optional, Setup → You): on the day he wishes you happy birthday, once, sets off a party popper (confetti you can click straight through, and a pop if the knock sound is on) and wears a party hat all day. Away on the day? He says it the first time he sees you after, a bit late, and wears the hat then. 29 February counts as the 28th in other years. *Try it now* shows it straight away; clear the date to turn it off.
 - **Stays up:** if he crashes or is closed without Quit, he restarts himself after a few seconds (giving up if he keeps falling over). Back after going missing, he says so ("I went missing around 14:20. Back now.") and notes it in your journal. What went wrong is in Setup → Privacy → *Crash log*. To close him for good, use Quit rather than Task Manager, which he treats as a crash.
-- **The mug** empties over time. Click it when you refill yours. He counts. Clicked it by mistake? Right-click the mug → Undo last refill.
+- **The mug** empties over time. Click it when you refill yours. He counts. Clicked it by mistake? Right-click the mug → Undo last refill, or pick the right number in its Coffees today dropdown.
 
 ## Getting started
 
@@ -37,7 +37,7 @@ For chat you need **[Claude Code](https://claude.com/claude-code) installed and 
 | Ctrl+Alt+V | Open the chat from anywhere (`QuickChatHotkey` in config.json) |
 | Drag Vex | Pick him up and drop him (on the taskbar or on a window) |
 | Click the mug | "I've refilled my coffee" |
-| Right-click the mug | Today's coffee count and Undo last refill (count down one, mug back to its level before; repeat to step back further) |
+| Right-click the mug | Today's coffee count as a dropdown (pick a number to correct it; clicks then add to that) and Undo last refill (count down one, mug back to its level before; repeat to step back further) |
 | Right-click Vex (not the mug) → To-do list | Today's journal to-dos as a checklist: tick one to tick it off, or type in the box and press Enter to add one. Works without Claude |
 | Right-click Vex (not the mug) or the tray icon | Setup…, What Vex knows…, Where today (working from home / at the office today, or work it out from the network), Theme (light/dark, hoodie colour; Original brings back the dark red), Quit. Left-click the tray icon to chat |
 | Setup → You | Your name, workplace, and your birthday (day and month, year optional), with Clear and Try it now |

@@ -10,6 +10,8 @@ public class VexConfig
 {
     public double MugDrainMinutes { get; set; } = 45;
     public double MugSteamMinutes { get; set; } = 15;
+    /// <summary>Highest number offered in the mug menu's coffee-count dropdown (0 up to this, or today's count if higher).</summary>
+    public int CoffeeMenuMax { get; set; } = 10;
     public double SleepAfterMinutes { get; set; } = 5;
     public double WalkSpeed { get; set; } = 70;          // DIP per second
     /// <summary>

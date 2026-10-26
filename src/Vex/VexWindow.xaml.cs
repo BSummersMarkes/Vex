@@ -111,7 +111,7 @@ public partial class VexWindow : Window
         // (Left-click on the mug already means "refilled", so the menu is right-click only.)
         Mug.MouseRightButtonUp += (_, e) => { ShowMugMenu(); e.Handled = true; };
         Mug.ToolTip = "";
-        Mug.ToolTipOpening += (_, _) => Mug.ToolTip = $"Coffee #{Store.State.Coffees} today. Click when you refill yours; right-click to undo.";
+        Mug.ToolTipOpening += (_, _) => Mug.ToolTip = $"Coffee #{Store.State.Coffees} today. Click when you refill yours; right-click to correct or undo.";
         Bubble.MouseLeftButtonUp += (_, _) => { if (BubbleButtons.Children.Count == 0) HideBubble(); };
 
         nextWander = 6; nextBlink = 2;
@@ -400,6 +400,23 @@ public partial class VexWindow : Window
         mugMoaned = MugLevel() <= 0;
         int n = Store.State.Coffees;
         Say(n == 0 ? "Un-poured. Zero today, officially." : $"Fine. Back to {n}. I'll pretend I didn't see.", 3);
+    }
+
+    /// <summary>
+    /// Overwrites today's coffee count with a corrected number (a missed or double-counted refill) from the mug menu.
+    /// The mug's level is left alone; later clicks on the mug just add to the new number.
+    /// </summary>
+    void SetCoffees(int n)
+    {
+        Store.RollDay();
+        if (n < 0 || n == Store.State.Coffees) return;
+        Store.State.Coffees = n;
+        // Undo can't take the count below zero, so it never needs more saved levels than there are coffees;
+        // the most recent ones are kept, as those are the ones undo reaches first.
+        var undo = Store.State.RefillUndo;
+        if (undo.Count > n) undo.RemoveRange(0, undo.Count - n);
+        Store.SaveState();
+        Say(n == 0 ? "Zero today. If you say so." : $"{n}, then. Noted. Officially.", 3);
     }
 
     public void SetThinking(bool on) { thinking = on; if (on) HideBubble(); }
@@ -700,16 +717,29 @@ public partial class VexWindow : Window
     }
 
     /// <summary>
-    /// The mug's own right-click menu: today's coffee count, and Undo last refill (greyed out when there's none today).
+    /// The mug's own right-click menu: today's coffee count as a dropdown (pick a number to correct it), and Undo last
+    /// refill (greyed out when there's none today).
     /// </summary>
     void ShowMugMenu()
     {
         Store.RollDay();
         var menu = new ContextMenu();
-        menu.Items.Add(new MenuItem
+        int count = Store.State.Coffees;
+        var pick = new ComboBox { MinWidth = 52, Margin = new Thickness(8, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center };
+        // 0 to CoffeeMenuMax, stretched to today's count if it's already past that so the current value can show.
+        for (int i = 0; i <= Math.Max(Store.Config.CoffeeMenuMax, count); i++) pick.Items.Add(i);
+        pick.SelectedItem = count;
+        // Hooked up after the current value is selected, so only Ben's own pick changes the count.
+        pick.SelectionChanged += (_, _) =>
         {
-            Header = $"Coffee: {Store.State.Coffees} today", IsHitTestVisible = false, Focusable = false, FontWeight = FontWeights.SemiBold,
-        });
+            if (pick.SelectedItem is int n) SetCoffees(n);
+            menu.IsOpen = false;
+        };
+        var row = new StackPanel { Orientation = Orientation.Horizontal };
+        row.Children.Add(new TextBlock { Text = "Coffees today:", FontWeight = FontWeights.SemiBold, VerticalAlignment = VerticalAlignment.Center });
+        row.Children.Add(pick);
+        // StaysOpenOnClick: clicking the row (to open the dropdown) mustn't close the menu under it.
+        menu.Items.Add(new MenuItem { Header = row, StaysOpenOnClick = true });
         menu.Items.Add(new Separator());
         var undo = new MenuItem { Header = "Undo last refill", IsEnabled = Store.State.Coffees > 0 };
         undo.Click += (_, _) => UndoRefill();
