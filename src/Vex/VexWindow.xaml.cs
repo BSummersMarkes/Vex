@@ -465,7 +465,8 @@ public partial class VexWindow : Window
         {
             var b = new Button
             {
-                Content = label, Margin = new Thickness(6, 0, 0, 0), Padding = new Thickness(8, 2, 8, 2),
+                // Top margin spaces the rows apart when the buttons wrap onto a second line.
+                Content = label, Margin = new Thickness(6, 4, 0, 0), Padding = new Thickness(8, 2, 8, 2),
                 Background = Theme.Brush(Theme.Current.Button),
                 Foreground = Theme.Brush(Theme.Current.ButtonText), BorderThickness = new Thickness(0), Cursor = Cursors.Hand,
                 FontSize = 12,

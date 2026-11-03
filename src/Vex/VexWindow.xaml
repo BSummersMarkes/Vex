@@ -34,8 +34,11 @@
                 <StackPanel>
                     <TextBlock x:Name="BubbleText" Foreground="#E8EAF2" FontSize="13" TextWrapping="Wrap"
                                FontFamily="Segoe UI"/>
-                    <StackPanel x:Name="BubbleButtons" Orientation="Horizontal" HorizontalAlignment="Right"
-                                Margin="0,6,0,0" Visibility="Collapsed"/>
+                    <!-- A WrapPanel, not a horizontal StackPanel: a nudge with four buttons (pack-up, stretch, lunch) is
+                         wider than the bubble's MaxWidth, and a StackPanel ran them off the edge where the bubble
+                         clipped them. Now they flow onto a second row and the bubble grows taller to fit. -->
+                    <WrapPanel x:Name="BubbleButtons" Orientation="Horizontal" HorizontalAlignment="Right"
+                               Margin="0,2,0,2" Visibility="Collapsed"/>
                 </StackPanel>
             </Border>
         </Grid>
