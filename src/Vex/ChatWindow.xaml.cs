@@ -138,6 +138,14 @@ public partial class ChatWindow : Window
             });
             return;
         }
+        // Clear all sits small and right-aligned above the list, and only exists while there's something to clear.
+        var clear = CardButton("Clear all");
+        clear.HorizontalAlignment = HorizontalAlignment.Right;
+        clear.Margin = new Thickness(0, 0, 0, 2);
+        clear.FontSize = 11;
+        clear.ToolTip = "Dismiss everything here, the same as ✕ on each";
+        clear.Click += (_, _) => ClearPending(items);
+        PendingList.Children.Add(clear);
         foreach (var item in items)
         {
             // Its original options, plus a plain ✕ to clear it if it didn't come with one.
@@ -173,6 +181,17 @@ public partial class ChatWindow : Window
         var note = Services.Pending.Choose(item.Id, option);
         if (note != null) Add("note", note);
         if (Messages.Children.Count != before && showingPending) ShowTab(pending: false);
+    }
+
+    /// <summary>
+    /// Clear all on the Pending tab: presses ✕ on every item, so each goes through <see cref="ChoosePending"/> exactly
+    /// as a click would (a nudge's own ✕ still runs and logs, a Build it / Restart card still reports "✗ Left it.").
+    /// Not while he's mid-reply, the same as a single ✕.
+    /// </summary>
+    void ClearPending(IReadOnlyList<Services.PendingItem> items)
+    {
+        if (pending != null) return;
+        foreach (var item in items) ChoosePending(item, Services.Pending.Drop);
     }
 
     /// <summary>Pick up where we left off; a fresh "What." only when there's no history.</summary>

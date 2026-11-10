@@ -47,7 +47,7 @@ For chat you need **[Claude Code](https://claude.com/claude-code) installed and 
 | Typing in the chat | Enter sends; Shift+Enter or Shift+Space starts a new line |
 | Ctrl+V in the chat | Paste a picture (screenshot, diagram, error message) to send with your message; up to 3, ✕ on a thumbnail removes it |
 | Chat header | Copy the chat as text (Ctrl+Shift+C) or as a picture |
-| Pending (chat header) | Nudges and questions you didn't answer, with their original buttons, so you can pick one later. The badge shows how many are waiting; they're cleared after 7 days |
+| Pending (chat header) | Nudges and questions you didn't answer, with their original buttons, so you can pick one later. The badge shows how many are waiting; they're cleared after 7 days. **Clear all** dismisses the lot at once |
 
 **Notes and to-dos** go in a folder of plain markdown files (default `Documents\Vex Notes`), or the Lab Notebook if you have it:
 
