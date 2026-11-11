@@ -193,7 +193,7 @@ public partial class VexWindow : Window
 
             default: // Idle
                 Settle(floor, dt);
-                if (!peeking && !thinking && !hovering && chat == null && currentNudge == null && act == Act.None && pendingAct == Act.None && !AtLunch && now >= nextWander) Wander(scr); // no strolling off mid-conversation
+                if (!peeking && !thinking && !hovering && chat == null && currentNudge == null && act == Act.None && pendingAct == Act.None && !AtLunch && !daemonOut && now >= nextWander) Wander(scr); // no strolling off mid-conversation, or while his daemon's out playing
                 if (!peeking && !AtLunch && !Coding && Native.IdleTime().TotalMinutes >= Store.Config.SleepAfterMinutes) Sleep();
                 break;
         }
@@ -206,9 +206,11 @@ public partial class VexWindow : Window
         Animate(dt);
         if (bubbleUntil > 0 && hovering) bubbleUntil = Math.Max(bubbleUntil, now + 2);
         if (bubbleUntil > 0 && now > bubbleUntil) BubbleExpired();
+        UpdateDaemon(dt);   // his daemon, if it's out to play (VexDaemon.cs)
         Place();
         chat?.Follow(x, y - BodyH * S, ScreenAt(x)); // chat first: the bubble steps round where it is now
         PlaceBubble(ScreenAt(x)); // same frame as Vex's own move, so the two stay locked together
+        PlaceDaemon();   // after his own window, so it stays over him (on his shoulder, at his boots)
         Pace();   // how soon the next frame comes (VexPace.cs)
     }
 
@@ -848,6 +850,7 @@ public partial class VexWindow : Window
         double eyeCap = 1; double? actTurn = null, actLookY = null;
         ActPose(ref eyeCap, ref actTurn, ref actLookY);
         ClimbPose(ref eyeCap, ref actTurn, ref actLookY); // climbing isn't an Act (he's on the move), so it poses itself (VexClimb.cs)
+        if (act == Act.None && DaemonGaze() is { } dg) { actTurn ??= dg.Turn; actLookY ??= dg.LookY; }   // watching his daemon play (VexDaemon.cs)
         if (KnockPose()) { actTurn = 0; actLookY = 0; eyeCap = 1; } // face front, eyes wide: knocking on your side of the glass
         RipplePose();
         AirPose(); // flailing when falling, dangling when carried

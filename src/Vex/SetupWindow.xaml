@@ -164,6 +164,14 @@
                     <TextBlock Style="{StaticResource Heading}" Text="Idle actions"/>
                     <TextBlock Style="{StaticResource Note}" Text="What I get up to when I'm bored. Untick them all and I'll just stand about."/>
                     <WrapPanel x:Name="IdleActsList"/>
+                    <!-- His daemon (VexDaemon.cs): its own switch and how often, rather than a plain idle-action tick box. -->
+                    <CheckBox x:Name="Daemon" Content="Let my daemon out to play now and then"/>
+                    <StackPanel Orientation="Horizontal" Margin="20,5,0,0" IsEnabled="{Binding IsChecked, ElementName=Daemon}">
+                        <TextBlock Text="How often" VerticalAlignment="Center"/>
+                        <ComboBox x:Name="DaemonFrequency" Width="110" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                    </StackPanel>
+                    <TextBlock Style="{StaticResource Note}" Margin="20,0,0,0"
+                               Text="A small cat (now and then a mouse, a moth or a bird) that pops out of my hoodie when I'm bored and you're about. It never gets in the way of your clicks and hides the moment I've something to say."/>
 
                     <!-- What used to be on the right-click menu. Happens straight away; nothing here waits for Save. -->
                     <StackPanel x:Name="RightNow">

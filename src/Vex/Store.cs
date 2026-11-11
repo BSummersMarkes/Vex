@@ -135,6 +135,23 @@ public class VexConfig
     /// <summary>How fast he climbs, DIP per second (walking is WalkSpeed).</summary>
     public double ClimbSpeed { get; set; } = 55;
 
+    // His daemon (VexDaemon.cs).
+    /// <summary>
+    /// His daemon: a little cat (that sometimes shapeshifts) who now and then comes out of his hoodie to play when he's
+    /// bored and you're at the desk. Setup → Behaviour.
+    /// </summary>
+    public bool Daemon { get; set; } = true;
+    /// <summary>"rare", "sometimes" or "often": which of the DaemonXxxMinutes below sets how often it comes out. Setup → Behaviour.</summary>
+    public string DaemonFrequency { get; set; } = "sometimes";
+    /// <summary>Average minutes between its visits (counted while Vex runs) for each frequency; never less than the cooldown.</summary>
+    public double DaemonRareMinutes { get; set; } = 120;
+    public double DaemonSometimesMinutes { get; set; } = 60;
+    public double DaemonOftenMinutes { get; set; } = 25;
+    /// <summary>It never comes out again sooner than this many minutes after its last visit, whatever the frequency.</summary>
+    public double DaemonCooldownMinutes { get; set; } = 20;
+    /// <summary>Chance (0–1) that it shapeshifts during a visit (into a mouse, moth or bird, or all three in turn).</summary>
+    public double DaemonShiftChance { get; set; } = 0.4;
+
     // Coding at the laptop (VexCoding.cs).
     /// <summary>While his workshop is building, he sits in a corner and types on a laptop. Setup → Behaviour.</summary>
     public bool CodingAtLaptop { get; set; } = true;

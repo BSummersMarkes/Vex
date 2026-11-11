@@ -45,7 +45,7 @@ public partial class VexWindow
     void BringDialogForward()
     {
         var dlg = Application.Current.Windows.OfType<Window>().LastOrDefault(w =>
-            w != this && w != bubbleWin && w != chat && w.IsVisible && Native.IsWindowEnabled(new WindowInteropHelper(w).Handle));
+            w != this && w != bubbleWin && w != chat && w != daemon && w.IsVisible && Native.IsWindowEnabled(new WindowInteropHelper(w).Handle));
         if (dlg == null) return;
         Store.Log($"Clicks: clicked while \"{dlg.Title}\" was open: brought it forward.");
         Native.BringToFront(new WindowInteropHelper(dlg).Handle);

@@ -83,7 +83,8 @@ public partial class VexWindow
                 return;
             }
         }
-        if (now < nextAct) return;
+        if (now < nextAct || daemonOut) return;   // with his daemon out he just watches it
+        if (TryDaemon()) return;                  // due out, and all's quiet: that's this time's idle action (VexDaemon.cs)
 
         var options = new List<(Act Act, double Weight)>
         {
@@ -121,6 +122,8 @@ public partial class VexWindow
     /// <summary>Testing aid (debug endpoint): start an activity now.</summary>
     internal string DebugAct(string name)
     {
+        // His daemon isn't an Act (he carries on being himself while it plays): "daemon" or "daemon <routine>".
+        if (name.Trim().StartsWith("daemon", StringComparison.OrdinalIgnoreCase)) return DebugDaemon(name.Trim().Substring(6).Trim());
         if (!Enum.TryParse<Act>(name.Trim(), true, out var a) || a == Act.None) return "unknown act";
         act = Act.None; mode = Mode.Idle;
         switch (a)

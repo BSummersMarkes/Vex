@@ -60,6 +60,11 @@ public partial class SetupWindow : Window
             {
                 Content = a.Name, Tag = a.Id, IsChecked = IdleActs.Enabled(a.Act), Width = 200,
             });
+        // His daemon (VexDaemon.cs): on/off and how often. An unknown frequency in config.json shows as Sometimes.
+        Daemon.IsChecked = c.Daemon;
+        foreach (var (id, label) in new[] { ("rare", "Rarely"), ("sometimes", "Sometimes"), ("often", "Often") })
+            DaemonFrequency.Items.Add(new System.Windows.Controls.ComboBoxItem { Content = label, Tag = id });
+        DaemonFrequency.SelectedIndex = c.DaemonFrequency switch { "rare" => 0, "often" => 2, _ => 1 };
         WireLightness();
         WireOutfits(vex);
         ActivityLog.IsChecked = c.ActivityLog;
@@ -359,6 +364,8 @@ public partial class SetupWindow : Window
         // Every activity written out, on or off, so config.json shows the full list to edit.
         foreach (var box in IdleActsList.Children.OfType<System.Windows.Controls.CheckBox>())
             c.IdleActivities[(string)box.Tag] = box.IsChecked == true;
+        c.Daemon = Daemon.IsChecked == true;   // off: it goes home at once if it's out (VexDaemon.cs)
+        if (DaemonFrequency.SelectedItem is System.Windows.Controls.ComboBoxItem { Tag: string freq }) c.DaemonFrequency = freq;   // its next visit is re-timed to match
         c.HoodieLightness = Lightness.Value;   // already previewing; this makes it stick
         c.DressUp = DressUp.IsChecked == true;  // the try-on choice is already in DressUpPreview
 #if !LITE

@@ -69,6 +69,7 @@ namespace Vex
         public static double Sin(double v) => System.Math.Sin(v);
         public static double Cos(double v) => System.Math.Cos(v);
         public static double Exp(double v) => System.Math.Exp(v);
+        public static double Log(double v) => System.Math.Log(v);   // the daemon's random visit times (VexDaemon.cs)
         public static double Pow(double a, double b) => System.Math.Pow(a, b);
         public static double Sqrt(double v) => System.Math.Sqrt(v);
         public static double Floor(double v) => System.Math.Floor(v);
