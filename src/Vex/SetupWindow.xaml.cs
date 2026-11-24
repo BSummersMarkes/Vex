@@ -12,6 +12,7 @@ namespace Vex;
 /// </summary>
 public partial class SetupWindow : Window
 {
+    readonly System.Collections.Generic.List<System.Windows.Controls.TextBox> leaveDayBoxes = new();   // Going home → a time per weekday
 #if !LITE
     readonly string? notebookPath = Services.Notebook.Detect();
 #endif
@@ -74,12 +75,18 @@ public partial class SetupWindow : Window
         // Working days only; a weekend entry can still go in config.json, and Save leaves it alone.
         foreach (var day in new[] { "Mon", "Tue", "Wed", "Thu", "Fri" })
         {
-            LeaveDays.Children.Add(new System.Windows.Controls.TextBlock { Text = day, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 4, 0) });
-            LeaveDays.Children.Add(new System.Windows.Controls.TextBox
+            // Day name above its box: side by side, five of them ran off the end of the row.
+            var col = new System.Windows.Controls.StackPanel { Margin = new Thickness(0, 0, 8, 0) };
+            col.Children.Add(new System.Windows.Controls.TextBlock { Text = day, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 0, 0, 2) });
+            var box = new System.Windows.Controls.TextBox
             {
-                Tag = day, Width = 46, Margin = new Thickness(0, 0, 10, 0),
+                Tag = day, Width = 50,
                 Text = c.LeaveAtByDay.TryGetValue(day, out var dayLeave) ? dayLeave : "",
-            });
+                ToolTip = $"A different time to leave on {day} (HH:mm). Leave empty to use the usual time.",
+            };
+            leaveDayBoxes.Add(box);
+            col.Children.Add(box);
+            LeaveDays.Children.Add(col);
         }
         WorkAddress.Text = c.WorkAddress;
         HomeAddress.Text = c.HomeAddress;
@@ -101,6 +108,8 @@ public partial class SetupWindow : Window
             ? "Claude Code found: chat uses your own Claude login." + (Services.ClaudeWatch.Installed() ? " Alerts connected ✓" : "")
             : "Claude Code isn't installed, so I can't chat yet. Everything else works. Install Claude Code and sign in, then I'll pick it up.";
 
+        WireMemoryFolder();
+        WireSelfEdit(claude);
         OpenMemory.Click += (_, _) => App.Open(Services.Memory.Folder);
         OpenChats.Click += (_, _) => App.Open(ChatLog.Folder);
         OpenCrashLog.Click += (_, _) => Services.Lifeline.OpenCrashLog();
@@ -230,6 +239,49 @@ public partial class SetupWindow : Window
     }
 
 #if !LITE
+    /// <summary>
+    /// Privacy → Memory folder: where it is now (or, before the first start has settled it, where it's about to go).
+    /// Moved on Save, not here, like every other setting.
+    /// </summary>
+    void WireMemoryFolder()
+    {
+        MemoryBox.Text = Store.Config.MemoryFolder is { Length: > 0 } f ? f : Services.Memory.DefaultFolder;
+        BrowseMemory.Click += (_, _) =>
+        {
+            using var dlg = new System.Windows.Forms.FolderBrowserDialog { SelectedPath = MemoryBox.Text, Description = "Folder for Vex's memory pages" };
+            if (dlg.ShowDialog() == System.Windows.Forms.DialogResult.OK) MemoryBox.Text = dlg.SelectedPath;
+        };
+    }
+
+    /// <summary>
+    /// Self-editing: the on/off switch, the one folder the workshop may work in (checked as you type: it has to be a git
+    /// checkout of Vex), pushing, and whether Claude Code is here at all.
+    /// </summary>
+    void WireSelfEdit(bool claude)
+    {
+        var c = Store.Config;
+        SelfEdit.IsChecked = Services.Workshop.Enabled || c.SelfEdit == true;
+        SourceBox.Text = c.SourcePath ?? "";
+        WorkshopPush.IsChecked = c.WorkshopPush;
+        void Check()
+        {
+            var path = SourceBox.Text.Trim();
+            SourceNote.Text = path.Length == 0 ? "Pick the folder you cloned my source into (the one with build.ps1)."
+                : Services.Workshop.IsCheckout(path) ? "✓ A git checkout of my source. Only this folder is touched."
+                : "That isn't a git checkout of my source: it needs a .git folder and src\\Vex\\Vex.csproj.";
+        }
+        SourceBox.TextChanged += (_, _) => Check();
+        Check();
+        BrowseSource.Click += (_, _) =>
+        {
+            using var dlg = new System.Windows.Forms.FolderBrowserDialog { SelectedPath = SourceBox.Text, Description = "Vex's source folder (a git checkout)" };
+            if (dlg.ShowDialog() == System.Windows.Forms.DialogResult.OK) SourceBox.Text = dlg.SelectedPath;
+        };
+        SelfEditClaude.Text = claude
+            ? $"Claude Code found: {ClaudeCodeBrain.FindClaude()}. Changes run on your Claude login, model {c.WorkshopModel} (WorkshopModel in config.json)."
+            : "Claude Code isn't installed, so I can't change anything yet. Install it and sign in, then switch this on.";
+    }
+
     /// <summary>Working copies of the saved networks; written to config.json only on Save, like everything else here.</summary>
     readonly System.Collections.Generic.List<NetPrint> homeNets = Store.Config.HomeNetworks.ToList(),
                                                        officeNets = Store.Config.OfficeNetworks.ToList();
@@ -295,7 +347,8 @@ public partial class SetupWindow : Window
     void LiteLayout()
     {
         foreach (var e in new UIElement[] { WorkPart, NotesTab, WatchTab, ClaudeHooks, ClaudeNote, CodingAtLaptop, CodingForClaude, CodingNote,
-                                            TomTomLabel, TomTomKey, ForgetNow, OpenMemory, OpenChats, OpenCrashLog, HomeDaysTab })
+                                            TomTomLabel, TomTomKey, ForgetNow, OpenMemory, OpenChats, OpenCrashLog, HomeDaysTab,
+                                            SelfEditTab, MemoryPart })
             e.Visibility = Visibility.Collapsed;
         IntroNote.Text = "I live on your taskbar, keep out of the way and nudge you about breaks, water, lunch and meetings. " +
                          "Click me to set reminders.";
@@ -376,7 +429,7 @@ public partial class SetupWindow : Window
 #endif
         c.LeaveAt = Services.Commute.ParseTime(LeaveAt.Text) is { } leave ? $"{leave:hh\\:mm}" : "";
         // Cleared days are written as "" rather than removed, so the Friday default can't come back on the next load.
-        foreach (var box in LeaveDays.Children.OfType<System.Windows.Controls.TextBox>())
+        foreach (var box in leaveDayBoxes)
             c.LeaveAtByDay[(string)box.Tag] = Services.Commute.ParseTime(box.Text) is { } dayLeave ? $"{dayLeave:hh\\:mm}" : "";
         c.WorkAddress = WorkAddress.Text.Trim();
         c.HomeAddress = HomeAddress.Text.Trim();
@@ -386,6 +439,9 @@ public partial class SetupWindow : Window
         c.ClockOutAt = Services.Commute.ParseTime(ClockOutAt.Text) is { } clockOut ? $"{clockOut:hh\\:mm}" : "";
         c.HomeNetworks = homeNets;
         c.OfficeNetworks = officeNets;
+        c.SelfEdit = SelfEdit.IsChecked == true;
+        c.SourcePath = SourceBox.Text.Trim() is { Length: > 0 } source ? source : null;
+        c.WorkshopPush = WorkshopPush.IsChecked == true;
 #endif
         c.CommuteBy = ByTransit.IsChecked == true ? "transit" : ByCycle.IsChecked == true ? "cycle" : ByWalk.IsChecked == true ? "walk" : "drive";
         c.SetupDone = true;
@@ -393,6 +449,10 @@ public partial class SetupWindow : Window
 
 #if !LITE
         if (c.NotesMode == "local") { try { Directory.CreateDirectory(c.NotesFolder ?? Services.Hub.DefaultNotesFolder); } catch { } }
+        // A new memory folder: the pages move there (none overwritten). It saves config.json itself once it's done.
+        var memory = MemoryBox.Text.Trim();
+        if (memory.Length > 0 && !SameFolder(memory, Services.Memory.Folder) && Services.Memory.MoveTo(memory) is { } memErr)
+            MessageBox.Show(this, $"I couldn't move my pages to {memory}:\n{memErr}\n\nThey're still in {Services.Memory.Folder}.", "Vex", MessageBoxButton.OK, MessageBoxImage.Warning);
         App.SetStartup(Startup.IsChecked == true);
         try
         {
@@ -404,5 +464,11 @@ public partial class SetupWindow : Window
         App.SetStartup(Startup.IsChecked == true);
 #endif
         DialogResult = true;
+    }
+
+    static bool SameFolder(string a, string b)
+    {
+        try { return Path.GetFullPath(a).TrimEnd('\\').Equals(Path.GetFullPath(b).TrimEnd('\\'), StringComparison.OrdinalIgnoreCase); }
+        catch { return false; }
     }
 }

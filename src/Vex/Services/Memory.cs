@@ -8,9 +8,9 @@ namespace Vex.Services;
 
 /// <summary>
 /// Vex's own memory: a folder of markdown pages he owns ("About Ben", "Remembered", "Diary", "Projects", ...).
-/// It's the source of truth. The Lab Notebook mirrors it (reads the files and writes edits back in place),
-/// so Vex never depends on the notebook running to remember something. Contract: SPEC.md section 8.
-///   %LOCALAPPDATA%\Vex\memory\{Page title}.md     (or MemoryFolder in config.json)
+/// It's the source of truth, and the one copy: the Lab Notebook shows the same files (reads them and writes edits back
+/// in place), so Vex never depends on the notebook running to remember something. Contract: SPEC.md section 8.
+///   {MemoryFolder}\{Page title}.md     (default: "Vex memory" beside the notebook's data file, else in Documents)
 /// Files are read fresh each time, so edits made in an editor or the notebook are picked up straight away.
 /// </summary>
 public static class Memory
@@ -18,8 +18,21 @@ public static class Memory
     public const string Remembered = "Remembered";
     public const string Diary = "Diary";
 
-    /// <summary>MemoryFolder from config, else %LOCALAPPDATA%\Vex\memory.</summary>
-    public static string Folder => Store.Config.MemoryFolder is { Length: > 0 } f ? f : Path.Combine(Store.Dir, "memory");
+    /// <summary>MemoryFolder from config (set on the first start of this version), else the old place in AppData.</summary>
+    public static string Folder => Store.Config.MemoryFolder is { Length: > 0 } f ? f : LegacyFolder;
+
+    /// <summary>Where the pages lived before they moved out of AppData.</summary>
+    static string LegacyFolder => Path.Combine(Store.Dir, "memory");
+
+    /// <summary>
+    /// Where the pages go when none has been chosen: a "Vex memory" folder beside the Lab Notebook's data file when the
+    /// notebook is on this PC (so they sit with the notebook's data, synced the same way, one copy for both), else
+    /// Documents\Vex memory. Outside AppData either way, so they're easy to find, back up and edit.
+    /// </summary>
+    public static string DefaultFolder =>
+        Notebook.Detect() is { } data && Path.GetDirectoryName(data) is { Length: > 0 } dir
+            ? Path.Combine(dir, "Vex memory")
+            : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "Vex memory");
 
     public static string AboutPage => $"About {(Store.Config.UserName.Length > 0 ? Store.Config.UserName : "me")}";
 
@@ -28,6 +41,13 @@ public static class Memory
     /// <summary>Creates the folder and the starter pages, and brings older layouts across (once).</summary>
     public static void Start()
     {
+        // First start since the pages moved out of AppData: settle on the default folder, bring the pages over and
+        // write the choice into config.json, so the notebook (and Setup) read one definite place.
+        if (Store.Config.MemoryFolder is not { Length: > 0 })
+        {
+            var to = DefaultFolder;
+            if (MoveTo(to) is { } err) Store.Log($"Memory: couldn't move the pages to {to} ({err}); staying in {Folder} for now.");
+        }
         try
         {
             Directory.CreateDirectory(Folder);
@@ -69,6 +89,52 @@ public static class Memory
             }
         Store.State.MemoryAdopted = true;
         Store.SaveState();
+    }
+
+    /// <summary>
+    /// Makes <paramref name="to"/> the memory folder: every page in the current folder is moved there, then the choice is
+    /// saved in config.json. A page that already exists there (same title) is kept as it is, and the old copy stays
+    /// behind renamed "*.md.old", so nothing is ever overwritten or lost. Returns null, or why it couldn't.
+    /// Used on first start (the move out of AppData) and by Setup → Privacy → Memory folder.
+    /// </summary>
+    public static string? MoveTo(string to)
+    {
+        to = to.Trim();
+        if (to.Length == 0) return "no folder given";
+        try
+        {
+            to = Path.GetFullPath(to);
+            Directory.CreateDirectory(to);
+            var from = Folder;
+            if (!Path.GetFullPath(from).TrimEnd('\\').Equals(to.TrimEnd('\\'), StringComparison.OrdinalIgnoreCase) && Directory.Exists(from))
+            {
+                int moved = 0;
+                foreach (var f in Directory.GetFiles(from, "*.md"))
+                {
+                    // The pre-pages files (about-me.md, notes.md) are Adopt's to gather; leave them where it looks.
+                    if (from == LegacyFolder && Path.GetFileName(f) is "about-me.md" or "notes.md") continue;
+                    var dest = Path.Combine(to, Path.GetFileName(f));
+                    try
+                    {
+                        if (File.Exists(dest)) File.Move(f, f + ".old", overwrite: true);
+                        else { File.Move(f, dest); moved++; }
+                    }
+                    catch (IOException ex)
+                    {
+                        // Open in an editor, say: copy it instead so the page still comes along; the original stays put.
+                        Store.Log($"Memory: couldn't move {f} ({ex.Message}), copying it instead");
+                        if (!File.Exists(dest)) { File.Copy(f, dest); moved++; }
+                    }
+                }
+                // A pointer for anyone (or anything) still looking in the old place.
+                try { File.WriteAllText(Path.Combine(from, "MOVED.txt"), $"Vex's memory pages are now in:\r\n{to}\r\n"); } catch { }
+                Store.Log($"Memory: moved {moved} page(s) from {from} to {to}");
+            }
+            Store.Config.MemoryFolder = to;
+            Store.SaveConfig();
+            return null;
+        }
+        catch (Exception ex) { return ex.Message; }
     }
 
     static string Safe(string title) => string.Concat(title.Split(Path.GetInvalidFileNameChars())).Trim();

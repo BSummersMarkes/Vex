@@ -199,6 +199,7 @@ public partial class ChatWindow : Window
     {
         Messages.Children.Clear();
         shown.Clear();
+        lastMine = null;
         var history = ChatLog.Recent();
         DateTime? last = null;
         foreach (var line in history)
@@ -220,6 +221,7 @@ public partial class ChatWindow : Window
         {
             "note" => $"    {l.Text}",
             "me" => $"[{l.At:HH:mm}] {me}: {l.Text}",
+            "react" => $"    {ChatReactions.Describe(l.Text)}",
             _ => $"[{l.At:HH:mm}] Vex: {l.Text}",
         }));
         try { Clipboard.SetText(text); Flash("Copied the chat as text."); }
@@ -509,8 +511,10 @@ public partial class ChatWindow : Window
         try
         {
             var raw = await brain.AskAsync(text, images, pending.Token);
-            var (reply, done, confirms) = Services.Hub.RunActions(raw);
-            Add("vex", reply.Length > 0 ? reply : "...");
+            var (reply, done, confirms, reaction) = Services.Hub.RunActions(raw);
+            if (reaction != null) Add("react", reaction);
+            // A reaction can be the whole answer (a 👍 to "thanks"): then there's no empty bubble.
+            if (reply.Length > 0 || reaction == null) Add("vex", reply.Length > 0 ? reply : "...");
             foreach (var d in done) Add("note", d);
             foreach (var c in confirms) ConfirmCard(c);
         }
@@ -573,9 +577,36 @@ public partial class ChatWindow : Window
         Background = Theme.Brush(P.Button), Foreground = Theme.Brush(P.ButtonText), BorderThickness = new Thickness(0),
     };
 
+    /// <summary>Your newest message's bubble, which a reaction from Vex attaches to.</summary>
+    Border? lastMine;
+
+    /// <summary>
+    /// Vex's reaction (<see cref="ChatReactions"/>) as a small badge tucked under the bottom-right corner of your newest
+    /// message, like a Teams reaction. A second one on the same message replaces the first.
+    /// </summary>
+    void RenderReaction(string id)
+    {
+        if (lastMine == null || ChatReactions.Glyph(id) is not { Length: > 0 } glyph) return;
+        int at = Messages.Children.IndexOf(lastMine);
+        if (at < 0) return;
+        if (at + 1 < Messages.Children.Count && Messages.Children[at + 1] is Border { Tag: "reaction" } old) Messages.Children.Remove(old);
+        bool follow = AtBottom;
+        Messages.Children.Insert(at + 1, new Border
+        {
+            Tag = "reaction",
+            Background = Theme.Brush(P.VexBubble), BorderBrush = Theme.Brush(P.Panel), BorderThickness = new Thickness(1.5),
+            CornerRadius = new CornerRadius(9), Padding = new Thickness(5, 0, 5, 1), Margin = new Thickness(0, -9, 10, 2),
+            HorizontalAlignment = HorizontalAlignment.Right, ToolTip = $"Vex reacted: {id}",
+            // Segoe UI Emoji has all four; WPF draws them in one colour, which suits the panel anyway.
+            Child = new TextBlock { Text = glyph, FontFamily = new FontFamily("Segoe UI Emoji"), FontSize = 12, Foreground = Theme.Brush(P.Text) },
+        });
+        KeepInView(follow);
+    }
+
     void Render(string who, string text, DateTime at, IReadOnlyList<ChatImage>? images = null)
     {
         shown.Add(new ChatLine(at, who, text));
+        if (who == "react") { RenderReaction(text); return; }
         // Ben's own messages always come into view; anything else only if he isn't scrolled up reading.
         bool follow = who == "me" || AtBottom;
         if (who == "note")
@@ -614,6 +645,7 @@ public partial class ChatWindow : Window
             Child = content,
         };
         Messages.Children.Add(bubble);
+        if (me) lastMine = bubble;
         KeepInView(follow);
     }
 }

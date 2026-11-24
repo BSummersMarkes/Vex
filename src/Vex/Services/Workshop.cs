@@ -31,7 +31,15 @@ public static class Workshop
     static readonly string SwapResult = Path.Combine(Dir, "swap-result.txt");
     const int Rounds = 3;   // coder ↔ build/review round trips before giving up
 
-    public static bool Enabled => C.SourcePath is { Length: > 0 } && Directory.Exists(Path.Combine(Repo, ".git"));
+    /// <summary>
+    /// Self-editing is switched on (Setup → Self-editing; off for a new install) and the chosen folder is a git checkout.
+    /// That folder is the only one the coder session may touch (--restricted confines its file tools to it).
+    /// </summary>
+    public static bool Enabled => (C.SelfEdit ?? C.SourcePath is { Length: > 0 }) && IsCheckout(C.SourcePath);
+
+    /// <summary>A folder the workshop can work in: a git checkout of Vex (it has src\Vex\Vex.csproj to publish).</summary>
+    public static bool IsCheckout(string? folder) => folder is { Length: > 0 } && Directory.Exists(Path.Combine(folder, ".git"))
+                                                    && File.Exists(Path.Combine(folder, "src", "Vex", "Vex.csproj"));
 
     /// <summary>The request being worked on, or null when idle.</summary>
     public static string? Job { get; private set; }
@@ -51,7 +59,7 @@ public static class Workshop
 
     public static string Start(string request)
     {
-        if (!Enabled) return "✗ My workshop isn't set up (SourcePath in config.json).";
+        if (!Enabled) return "✗ Self-editing is off. Switch it on in Setup → Self-editing.";
         if (Job != null) return $"✗ Already working on \"{Job}\". One thing at a time.";
         if (string.IsNullOrWhiteSpace(request)) return "✗ Build what, exactly?";
         Job = request.Trim();

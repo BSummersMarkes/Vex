@@ -165,7 +165,10 @@ public class VexConfig
     public double CodingClaudeMaxMinutes { get; set; } = 120;
 
     // Memory and the daily diary.
-    /// <summary>Vex's own pages (markdown). Null = %LOCALAPPDATA%\Vex\memory. The Lab Notebook mirrors this folder.</summary>
+    /// <summary>
+    /// Vex's own pages (markdown), the one copy both he and the Lab Notebook use. Null = not chosen yet: on start he
+    /// picks the default outside AppData (Memory.DefaultFolder), moves the pages there and writes it here. Setup → Privacy.
+    /// </summary>
     public string? MemoryFolder { get; set; }
     /// <summary>Writes each day's diary entry (and files what he learned) from the chat and activity, the next morning.</summary>
     public string DiaryModel { get; set; } = "sonnet";
@@ -229,6 +232,16 @@ public class VexConfig
     // Integrations.
     public int HookPort { get; set; } = 47321;
     public string? CalendarJsonPath { get; set; }           // Power Automate export; default %OneDriveCommercial%\Vex\calendar.json
+    /// <summary>
+    /// How many working days past today the calendar reads ahead, for "what's on tomorrow?" (1 = the next working day,
+    /// so Monday on a Friday). 0 = today only. Nudges and warnings only ever use today's.
+    /// </summary>
+    public int CalendarDaysAhead { get; set; } = 1;
+    /// <summary>
+    /// Read each meeting's organiser, attendees, your response and the start of the invite text, not just its title,
+    /// time and place. Turn off if classic Outlook ever asks whether to allow a program to read email addresses.
+    /// </summary>
+    public bool CalendarDetails { get; set; } = true;
     public double ClaudeRenudgeMinutes { get; set; } = 5;
     /// <summary>
     /// Copy open journal to-dos onto the Lab Notebook's To-Do list and keep ticks in step both ways (via its inbox).
@@ -239,8 +252,14 @@ public class VexConfig
     public bool KnockSound { get; set; } = true;
     public bool DebugEndpoints { get; set; } = false;
 
-    // Workshop: Vex changing his own code when asked in chat. Off unless SourcePath is a git checkout of Vex.
-    /// <summary>Vex's source repo (the folder with build.ps1). Null = no workshop.</summary>
+    // Workshop: Vex changing his own code through Claude Code when asked in chat. Setup → Self-editing.
+    /// <summary>
+    /// The switch for the workshop: he may change his own code, and only inside <see cref="SourcePath"/>. Null (a new
+    /// install, or config.json from before this setting) = on only if SourcePath is already set, as it used to be, so
+    /// it's off unless someone chose a folder. Setup writes true or false.
+    /// </summary>
+    public bool? SelfEdit { get; set; }
+    /// <summary>Vex's source repo (the folder with build.ps1): the one folder the workshop may touch. Null = none chosen.</summary>
     public string? SourcePath { get; set; }
     public string WorkshopModel { get; set; } = "opus";         // writes the code
     public string WorkshopReviewModel { get; set; } = "opus";   // checks it before commit

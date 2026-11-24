@@ -72,7 +72,8 @@ public static class Diary
             {
                 var transcript = string.Join("\n", chat.Select(l => l.Who switch
                 {
-                    "me" => $"[{l.At:HH:mm}] {who}: {l.Text}", "note" => $"    ({l.Text})", _ => $"[{l.At:HH:mm}] Vex: {l.Text}",
+                    "me" => $"[{l.At:HH:mm}] {who}: {l.Text}", "note" => $"    ({l.Text})", "react" => $"    {ChatReactions.Describe(l.Text)}",
+                    _ => $"[{l.At:HH:mm}] Vex: {l.Text}",
                 }));
                 if (transcript.Length > 15000) transcript = "…" + transcript[^15000..];
                 sb.AppendLine($"Chat between {who} and Vex:\n{transcript}");

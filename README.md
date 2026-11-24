@@ -44,6 +44,8 @@ For chat you need **[Claude Code](https://claude.com/claude-code) installed and 
 | Setup → You | Your name, workplace, and your birthday (day and month, year optional), with Clear and Try it now |
 | Setup → Theme | Hoodie lightness: slide it darker or lighter and watch him change; Save keeps it. Seasonal outfits on or off, and Try one on (the birthday party hat too) |
 | Setup → Behaviour → Right now | Lunch break / End lunch, nap / wake up, I refilled my coffee, other screen, hide / show, chat, forget today's chat |
+| Setup → Self-editing | Let him change his own code through Claude Code when you ask in chat (off by default), and pick the one folder he may touch: a git checkout of his source |
+| Setup → Privacy → Memory folder | Where his pages live (one copy, shared with the Lab Notebook); Save moves them |
 | Setup → Privacy → Your data | Open his memory pages, chat history, config.json, the data folder or the crash log (errors and times he went missing) |
 | Typing in the chat | Enter sends; Shift+Enter or Shift+Space starts a new line |
 | Ctrl+V in the chat | Paste a picture (screenshot, diagram, error message) to send with your message; up to 3, ✕ on a thumbnail removes it |
@@ -55,7 +57,7 @@ For chat you need **[Claude Code](https://claude.com/claude-code) installed and 
 - `Journal\YYYY-MM-DD.md`: each day's log. To-dos are `- [ ] item`; Vex ticks them `- [x]` in place, so you keep the history.
 - With the Lab Notebook, open journal to-dos are also copied onto its To-Do list, and ticking one in either place ticks the other (`TodoListMirror` in `config.json` turns this off).
 
-Vex's own pages (*About you*, *Remembered*, *Diary*, *Projects*, ...) are markdown files in `%LOCALAPPDATA%\Vex\memory` (Setup → Privacy → *Memory*). Edit them freely; he reads them back. Each day's chat is kept in `%LOCALAPPDATA%\Vex\chats` (Setup → Privacy → *Chat history*); each morning starts a fresh conversation.
+Vex's own pages (*About you*, *Remembered*, *Diary*, *Projects*, ...) are markdown files in his memory folder: `Vex memory` beside the Lab Notebook's data file if you have it, else `Documents\Vex memory`. It's one copy, shared with the notebook, and shown (and changeable) in Setup → Privacy → *Memory folder*; changing it moves the pages. Edit them freely; he reads them back. Each day's chat is kept in `%LOCALAPPDATA%\Vex\chats` (Setup → Privacy → *Chat history*); each morning starts a fresh conversation.
 
 ## Privacy
 

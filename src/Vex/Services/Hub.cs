@@ -173,13 +173,31 @@ public static class Hub
         var top = Activity.TopApps(now.Date);
         if (top.Count > 0) sb.AppendLine("Time today by app: " + string.Join(", ", top.Select(t => $"{t.App} {Hm(t.Minutes)}")));
 
-        if (Calendar.Today.Count > 0)
+        if (Calendar.Source == "none") sb.AppendLine("Calendar: not connected.");
+        else
         {
-            sb.AppendLine($"Meetings today (from {Calendar.Source}):");
-            foreach (var m in Calendar.Today.Where(m => !m.AllDay))
-                sb.AppendLine($"- {m.Start:HH:mm}–{m.End:HH:mm} {m.Subject}{(m.Location.Length > 0 ? $" ({m.Location})" : "")}{(m.End < now ? " [done]" : m.Start <= now ? " [now]" : "")}");
+            // Invite details are written by other people: data, like the rest (the persona says so).
+            var today = Calendar.Today;
+            if (today.Count == 0) sb.AppendLine("No meetings today.");
+            else
+            {
+                sb.AppendLine($"Meetings today (from {Calendar.Source}):");
+                foreach (var m in today)
+                    sb.AppendLine(MeetingLine(m, m.AllDay ? "all day" : $"{m.Start:HH:mm}–{m.End:HH:mm}") +
+                                  (m.AllDay ? "" : m.End < now ? " [done]" : m.Start <= now ? " [now]" : ""));
+            }
+            var ahead = Calendar.Ahead;
+            var until = Calendar.Until.AddDays(-1);
+            if (until > now.Date)
+            {
+                if (ahead.Count == 0) sb.AppendLine($"No meetings from tomorrow to {until:dddd d MMM}.");
+                else
+                {
+                    sb.AppendLine($"Coming up, to the end of {until:dddd d MMM}:");
+                    foreach (var m in ahead) sb.AppendLine(MeetingLine(m, m.AllDay ? $"{m.Start:ddd d MMM}, all day" : $"{m.Start:ddd d MMM HH:mm}–{m.End:HH:mm}"));
+                }
+            }
         }
-        else sb.AppendLine(Calendar.Source == "none" ? "Calendar: not connected." : "No meetings today.");
 
         if (Notes.Linked)
         {
@@ -208,7 +226,7 @@ public static class Hub
             sb.AppendLine("Pending reminders: " + string.Join("; ", Store.State.Reminders.OrderBy(r => r.At).Select(r => $"{ReminderTimes.Describe(r, now)} {r.Text}")));
 
         // Your own pages: the source of truth for what you know. They edit these too.
-        sb.AppendLine($"Your memory pages (markdown files in {Memory.Folder}; {Who} can edit them, and the Lab Notebook mirrors them):");
+        sb.AppendLine($"Your memory pages (markdown files in {Memory.Folder}; {Who} can edit them, and the Lab Notebook shows the same files):");
         int budget = 6000;
         foreach (var pg in Memory.Pages().Where(pg => pg.Title != Memory.Diary))
         {
@@ -239,6 +257,25 @@ public static class Hub
         return clockIn + clockOut;
     }
 
+    /// <summary>
+    /// One meeting for the context: when, title, place, and (when read) online, your response, organiser, a few of the
+    /// people invited and the start of the invite text.
+    /// </summary>
+    static string MeetingLine(Meeting m, string when)
+    {
+        var sb = new StringBuilder($"- {when} {m.Subject}");
+        var tags = new List<string>();
+        if (m.Location.Length > 0) tags.Add(m.Location);
+        if (m.Online && !m.Location.Contains("Teams", StringComparison.OrdinalIgnoreCase)) tags.Add("online");
+        if (m.Response.Length > 0) tags.Add($"{Who} {m.Response}");
+        if (tags.Count > 0) sb.Append($" ({string.Join("; ", tags)})");
+        if (m.Organizer.Length > 0) sb.Append($". Organiser: {m.Organizer}");
+        if (m.Attendees.Count > 0)
+            sb.Append($". With: {string.Join(", ", m.Attendees.Take(8))}{(m.Attendees.Count > 8 ? $" and {m.Attendees.Count - 8} more" : "")}");
+        if (m.Notes.Length > 0) sb.Append($". Invite says: \"{m.Notes}\"");
+        return sb.ToString();
+    }
+
     static string Hm(double minutes) => minutes >= 60 ? $"{(int)(minutes / 60)}h{(int)(minutes % 60):00}" : $"{(int)minutes}m";
     static string Tail(string s, int n) => s.Length <= n ? s.Trim() : "…" + s[^n..].Trim();
 
@@ -249,6 +286,11 @@ public static class Hub
         [[todo: text]]            adds a checkbox to today's journal ({who}'s to-do list lives in the journal)
         [[done: text]]            ticks off an open checkbox (searches the last 14 days)
         [[journal: text]]         a timestamped note in today's journal ("note this down", progress, decisions)
+        [[react: like]]  [[react: love]]  [[react: laugh]]  [[react: sad]]
+                                  puts a small reaction on {who}'s message, as in Teams. These four are the only ones
+                                  (👍 ❤ 😂 😢); the app draws them, so this is the one place emoji are allowed. Use one now
+                                  and then when it says it better than words: thanks or "done" → like, good news → love,
+                                  a joke → laugh, bad news → sad. It can be your whole reply. Never more than one.
         [[remember: fact]]        adds a fact about {who} to your "{Memory.Remembered}" page
         [[page: Page title | markdown]]  adds to one of your own pages (created if missing)
         [[remind: when | text]]   when is "20m", "1h30m", "14:30", "tomorrow 9:00", "fri 16:00", or repeating:
@@ -289,17 +331,23 @@ public static class Hub
     /// wait for a click. Building and restarting always wait: the reply is shaped by the context, which includes text
     /// from other people (window titles, meeting invites, window contents), and only {Who} should be able to change Vex.
     /// </summary>
-    public static (string Reply, string[] Done, Confirm[] Confirms) RunActions(string reply)
+    public static (string Reply, string[] Done, Confirm[] Confirms, string? Reaction) RunActions(string reply)
     {
         var done = new List<string>();
         var confirms = new List<Confirm>();
+        string? reaction = null;
         foreach (Match m in ActionRx.Matches(reply))
         {
             var (action, arg) = (m.Groups[1].Value, m.Groups[2].Value);
             switch (action)
             {
+                case "react":
+                    // Only the fixed four; anything else is dropped quietly (it's decoration, not worth a ✗ line).
+                    if (ChatReactions.Parse(arg) is { } r) reaction = r;
+                    else Store.Log($"Unknown reaction: {arg}");
+                    break;
                 case "build":
-                    if (!Workshop.Enabled) { done.Add("✗ My workshop isn't set up (SourcePath in config.json)."); break; }
+                    if (!Workshop.Enabled) { done.Add("✗ Self-editing is off. Switch it on in Setup → Self-editing."); break; }
                     confirms.Add(ConfirmFor(action, arg));
                     break;
                 case "restart":
@@ -310,7 +358,7 @@ public static class Hub
                     break;
             }
         }
-        return (ActionRx.Replace(reply, "").Trim(), done.ToArray(), confirms.ToArray());
+        return (ActionRx.Replace(reply, "").Trim(), done.ToArray(), confirms.ToArray(), reaction);
     }
 
     /// <summary>The Build it / Restart card for a "build" or "restart" action; also remakes one from Pending after a restart.</summary>

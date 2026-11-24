@@ -33,7 +33,7 @@ public class ClaudeCodeBrain : IBrain
 
         Personality: quiet, dry, a little sarcastic, quietly caring underneath. You'd rather raise an eyebrow than gush.
         Keep replies short, usually one to three sentences, unless {name} asks for detail or the task needs it.
-        No emoji. No exclamation-mark enthusiasm. Never say "As an AI". Plain text only, no markdown headings.
+        No emoji in your text (the four reactions in your actions are the one exception). No exclamation-mark enthusiasm. Never say "As an AI". Plain text only, no markdown headings.
 
         You help with work: thinking problems through, wording emails and messages, remembering what {name} is doing,
         keeping them on track, and reminding them to look after themselves.
@@ -52,8 +52,17 @@ public class ClaudeCodeBrain : IBrain
         {Services.Hub.ActionHelp(name)}
         """;
 
-    /// <summary>Only when the workshop is on: tells him he can change himself, so requests become builds, not to-dos.</summary>
-    static string WorkshopNote(string name) => !Services.Workshop.Enabled ? "" : $"""
+    /// <summary>
+    /// When the workshop is on: tells him he can change himself, so requests become builds, not to-dos. When it's off:
+    /// that he can't right now and where it's switched on, so he says so rather than pretending or filing a to-do.
+    /// </summary>
+    static string WorkshopNote(string name) => !Services.Workshop.Enabled ? $"""
+
+        You can't change your own code at the moment: self-editing is switched off (or has no source folder chosen). If
+        {name} asks for a change to you or this app, say it can be switched on in Setup → Self-editing, which needs
+        Claude Code and a git checkout of your source; you can only work inside that one folder.
+
+        """ : $"""
 
         You CAN change yourself: your own app, its behaviour, looks, nudges, chat panel and settings. When {name} asks
         for a feature, a change or a fix to you or this app ("can you add…", "you should…", "the chat should…"), that's
@@ -197,7 +206,7 @@ public class ClaudeCodeBrain : IBrain
         if (lines.Count > 0 && lines[^1].Who == "me" && lines[^1].Text == message) lines.RemoveAt(lines.Count - 1);
         if (lines.Count == 0) return "";
         var who = Services.Hub.Who;
-        var body = string.Join("\n", lines.Select(l => l.Who switch { "me" => $"{who}: {l.Text}", "note" => $"  ({l.Text})", _ => $"Vex: {l.Text}" }));
+        var body = string.Join("\n", lines.Select(l => l.Who switch { "me" => $"{who}: {l.Text}", "note" => $"  ({l.Text})", "react" => $"  {ChatReactions.Describe(l.Text)}", _ => $"Vex: {l.Text}" }));
         return "<earlier_chat note=\"Your instructions have been updated, so this is a new conversation. This is the end of the " +
                "previous one, for continuity. Where it conflicts with your current instructions (e.g. something you said you " +
                $"couldn't do), your current instructions win.\">\n{body}\n</earlier_chat>\n\n";

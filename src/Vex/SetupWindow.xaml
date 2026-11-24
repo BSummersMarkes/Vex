@@ -246,7 +246,7 @@
                         <TextBlock Text="I leave at (HH:mm)" VerticalAlignment="Center"/>
                         <TextBox x:Name="LeaveAt" Grid.Column="1" Width="70" HorizontalAlignment="Left" Margin="0,2"/>
                         <!-- One box per weekday, made in code; empty means that day leaves at the time above. -->
-                        <TextBlock Grid.Row="1" Text="Except on" VerticalAlignment="Center"/>
+                        <TextBlock Grid.Row="1" Text="Other times on" VerticalAlignment="Bottom" Margin="0,0,0,5"/>
                         <StackPanel x:Name="LeaveDays" Grid.Row="1" Grid.Column="1" Orientation="Horizontal" Margin="0,2"/>
                         <TextBlock Grid.Row="2" Text="I go home by" VerticalAlignment="Center"/>
                         <StackPanel Grid.Row="2" Grid.Column="1" Orientation="Horizontal" Margin="0,0,0,3">
@@ -297,10 +297,41 @@
                 </StackPanel>
             </TabItem>
 
+            <!-- The workshop (Services/Workshop.cs): Vex changing his own code through Claude Code. Off unless switched on here. -->
+            <TabItem x:Name="SelfEditTab" Header="Self-editing">
+                <StackPanel>
+                    <TextBlock Style="{StaticResource Title}" Text="Changing my own code"/>
+                    <CheckBox x:Name="SelfEdit" Content="Let me change my own code through Claude Code when you ask in chat"/>
+                    <StackPanel Margin="20,0,0,0" IsEnabled="{Binding IsChecked, ElementName=SelfEdit}">
+                        <TextBlock Style="{StaticResource Heading}" Text="The one folder I may touch"/>
+                        <DockPanel>
+                            <Button x:Name="BrowseSource" DockPanel.Dock="Right" Content="Browse…" Padding="8,2" Margin="6,0,0,0"/>
+                            <TextBox x:Name="SourceBox"/>
+                        </DockPanel>
+                        <TextBlock x:Name="SourceNote" Style="{StaticResource Note}"/>
+                        <CheckBox x:Name="WorkshopPush" Content="Push to the remote after an approved change"/>
+                    </StackPanel>
+                    <TextBlock x:Name="SelfEditClaude" Style="{StaticResource Note}" Margin="0,10,0,0"/>
+                    <TextBlock Style="{StaticResource Note}" Margin="0,6,0,0"
+                               Text="Ask me for a change and I'll show a Build it button first; nothing starts until you press it. Then one Claude Code session writes it (its file tools can't reach outside that folder, and it can't run anything but dotnet build and read-only git), a second one reviews it, and it's committed. I knock when there's a new version to restart into. The folder must be a git checkout of my source with nothing uncommitted."/>
+                </StackPanel>
+            </TabItem>
+
             <TabItem Header="Privacy">
                 <StackPanel>
                     <TextBlock Style="{StaticResource Title}" Text="Privacy"/>
                     <TextBlock x:Name="PrivacyText" Style="{StaticResource Note}" FontSize="11.5"/>
+
+                    <!-- Memory folder (Services/Memory.cs): one copy, used by Vex and the Lab Notebook. Moved on Save. -->
+                    <StackPanel x:Name="MemoryPart">
+                        <TextBlock Style="{StaticResource Heading}" Text="Memory folder"/>
+                        <DockPanel>
+                            <Button x:Name="BrowseMemory" DockPanel.Dock="Right" Content="Browse…" Padding="8,2" Margin="6,0,0,0"/>
+                            <TextBox x:Name="MemoryBox"/>
+                        </DockPanel>
+                        <TextBlock x:Name="MemoryNote" Style="{StaticResource Note}"
+                                   Text="My pages (what I've learned about you and your work), as markdown files. One copy: the Lab Notebook uses the same folder. Change it and Save, and the pages move with it."/>
+                    </StackPanel>
 
                     <!-- The folders and files that used to be on the tray menu: everything I keep, one click away. -->
                     <TextBlock Style="{StaticResource Heading}" Text="Your data"/>
