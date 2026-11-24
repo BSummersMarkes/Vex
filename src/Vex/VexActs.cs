@@ -69,6 +69,9 @@ public partial class VexWindow
         if (mode is Mode.Dragging or Mode.Hopping or Mode.Sleeping or Mode.Falling) pendingAct = Act.None;
         UpdateLunch(scr);    // lunch timer, you coming back, sitting down again after being moved (VexLunch.cs)
         UpdateCoding(scr);   // off to the laptop while code is being written (VexCoding.cs)
+#if !LITE
+        UpdateShow();        // something he was asked to show in chat, waiting for its moment (VexSkills.cs)
+#endif
         if (mode != Mode.Idle || act != Act.None || peeking || thinking || hovering || hidden || autoHidden || currentNudge != null) return;
 
         // Arrived at the screen edge to sit down (or have lunch, or code), or at the foot or top of a window edge to climb?
@@ -106,7 +109,16 @@ public partial class VexWindow
         var pick = options.First().Act;
         foreach (var o in options) { if ((roll -= o.Weight) <= 0) { pick = o.Act; break; } }
 
-        switch (pick)
+        StartIdleAct(pick, scr, route);
+    }
+
+    /// <summary>
+    /// Starts one idle activity the way he does when bored. Shared by the picker above and by being asked to show it
+    /// in chat (VexSkills.cs), so both look the same. Climbing needs the route found beforehand.
+    /// </summary>
+    void StartIdleAct(Act a, Forms.Screen scr, ClimbPlan? route = null)
+    {
+        switch (a)
         {
             case Act.Sip: Begin(Act.Sip, 2.8); lastSip = now; break;
             case Act.Phone: Begin(Act.Phone, 7 + rng.NextDouble() * 7); break;
@@ -115,7 +127,7 @@ public partial class VexWindow
             case Act.Watch: Begin(Act.Watch, 2.4); lastWatch = now; break;
             case Act.Sit: GoSit(scr); break;
             case Act.Juggle: StartJuggle(); break;
-            case Act.Climb: GoClimb(route!); break;
+            case Act.Climb: if (route != null) GoClimb(route); break;
         }
     }
 

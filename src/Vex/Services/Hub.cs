@@ -225,6 +225,9 @@ public static class Hub
         if (Store.State.Reminders.Count > 0)
             sb.AppendLine("Pending reminders: " + string.Join("; ", Store.State.Reminders.OrderBy(r => r.At).Select(r => $"{ReminderTimes.Describe(r, now)} {r.Text}")));
 
+        // What he does on screen, from the one list in VexSkills.cs, so a new animation shows up here by itself.
+        sb.Append(VexWindow.SkillsSummary(Who));
+
         // Your own pages: the source of truth for what you know. They edit these too.
         sb.AppendLine($"Your memory pages (markdown files in {Memory.Folder}; {Who} can edit them, and the Lab Notebook shows the same files):");
         int budget = 6000;
@@ -306,6 +309,9 @@ public static class Hub
         [[where: home]]  or  [[where: office]]  when {who} says they're working from home or at the office today: sets
                                   today's place by hand, for when the network guess is wrong or unsure (home days get
                                   clock-in and clock-out nudges instead of pack-up). [[where: auto]] goes back to the guess.
+        [[show: id]]              performs one of your own animations when {who} asks to see it ("go on, juggle", "show me
+                                  your daemon"). Ids: {VexWindow.ShowableIds}. Ones that need the chat
+                                  out of the way happen once it's closed, so say so. Only when asked; one at a time.
         {(Commute.CanCheck ? "[[traffic: now]]          checks the drive home right now and tells " + who + " in a bubble\n" : "")}{(Workshop.Enabled ? WorkshopHelp(who) : "")}Only act when {who} asks or clearly implies it. Never mention this syntax; Vex's app hides it and confirms.
 
         You're learning {who}'s work, so keep your pages organised as a knowledge base: "Projects", "People",
@@ -435,6 +441,9 @@ public static class Hub
             case "traffic":
                 _ = Commute.SayNow();
                 return "✓ Checking the traffic…";
+            case "show":
+                // One of his own animations, on request (VexSkills.cs); it may wait for the chat to close.
+                return Vex.Show(arg);
             default:
                 return $"✗ Unknown action: {action}";
         }

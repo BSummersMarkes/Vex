@@ -119,6 +119,12 @@ public partial class VexWindow
         RefreshOutfit();
         Say(line, 9, important: true);
         if (hidden || autoHidden) return;
+        Pop();
+    }
+
+    /// <summary>The party popper on its own, from his free mitten. Also shown on request in chat (VexSkills.cs).</summary>
+    void Pop()
+    {
         // The left mitten sits 31 DIP left of centre and 44 up from his feet in the drawing (Facing mirrors it); the
         // popper is held up a little above it.
         PartyPopper.Fire(x - 31 * facing * S, y - 60 * S, -facing, ScreenAt(x));

@@ -135,6 +135,15 @@ public class VexConfig
     /// <summary>How fast he climbs, DIP per second (walking is WalkSpeed).</summary>
     public double ClimbSpeed { get; set; } = 55;
 
+    // Showing off on request ([[show: …]] in chat; VexSkills.cs).
+    /// <summary>
+    /// Something asked for that needs the chat out of the way (his daemon, climbing, a nap…) waits for it to close;
+    /// if it hasn't had its chance after this many seconds, it's quietly dropped rather than turning up out of nowhere.
+    /// </summary>
+    public double ShowWaitSeconds { get; set; } = 180;
+    /// <summary>How long a nap or a stint at the laptop lasts when it's only being shown, in seconds.</summary>
+    public double ShowSeconds { get; set; } = 20;
+
     // His daemon (VexDaemon.cs).
     /// <summary>
     /// His daemon: a little cat (that sometimes shapeshifts) who now and then comes out of his hoodie to play when he's

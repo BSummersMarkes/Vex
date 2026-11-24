@@ -134,15 +134,18 @@ public partial class VexWindow
         return "ok";
     }
 
-    /// <summary>Out it comes, with a routine (picked at random unless one's asked for) and the way home queued after it.</summary>
-    void StartDaemon(int side, string? want)
+    /// <summary>
+    /// Out it comes, with a routine (picked at random unless one's asked for) and the way home queued after it.
+    /// <paramref name="forceShift"/> settles whether it shapeshifts (asked for in chat, VexSkills.cs); null leaves it to DaemonShiftChance.
+    /// </summary>
+    void StartDaemon(int side, string? want, bool? forceShift = null)
     {
         daemon ??= new DaemonWindow(PokeDaemon);
         dmSide = side; dmForm = DaemonForm.Cat;
         dmAsleep = dmHeadingBack = daemonGoing = dmMote = false;
         dmPokeAt = dmPounced = -99; dmHop = 0; dmAlpha = 0; dmSize = 0.35;
         daemonOut = true;
-        bool shift = rng.NextDouble() < Store.Config.DaemonShiftChance;
+        bool shift = forceShift ?? rng.NextDouble() < Store.Config.DaemonShiftChance;
         var steps = new List<DaemonStep>();
 
         // Out of his hoodie pocket, or just there beside him as if it had been all along.
