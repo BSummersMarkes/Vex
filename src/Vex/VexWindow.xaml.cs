@@ -362,7 +362,7 @@ public partial class VexWindow : Window
     {
         mode = Mode.Idle; napping = false; Zzz.Visibility = Visibility.Collapsed;
         blinkStart = now; nextWander = now + 6;
-        if (!quiet && rng.NextDouble() < 0.3) Say(Pick("I wasn't asleep. I was resting my eyes.", "Oh. You're back.", "Welcome back. Nothing happened. I checked."), 4);
+        if (!quiet && !NightSleeping && rng.NextDouble() < 0.3) Say(Pick("I wasn't asleep. I was resting my eyes.", "Oh. You're back.", "Welcome back. Nothing happened. I checked."), 4);
     }
 
     void Refill()
@@ -423,10 +423,10 @@ public partial class VexWindow : Window
 
     public void SetThinking(bool on) { thinking = on; if (on) HideBubble(); }
 
-    /// <param name="important">Shown even while he naps at lunch (things you just asked for, errors); other remarks are dropped then.</param>
+    /// <param name="important">Shown even while he naps at lunch or sleeps for the night (things you just asked for, errors); other remarks are dropped then.</param>
     public void Say(string text, double seconds = 6, bool important = false)
     {
-        if (LunchNapping && !important) return;
+        if ((LunchNapping || NightSleeping) && !important) return;
         ShowBubble(text, seconds, null, null);
     }
 
@@ -755,14 +755,17 @@ public partial class VexWindow : Window
     /// <summary>At lunch (or counting one down without his routine): Setup offers End lunch instead of Lunch break, and no nap.</summary>
     public bool OnLunch => AtLunch || LunchClockOn;
 
-    /// <summary>Dozing (asked to or on his own): Setup's nap button says Wake up.</summary>
-    public bool Asleep => mode == Mode.Sleeping;
+    /// <summary>Dozing (asked to or on his own), or down for the night: Setup's nap button says Wake up.</summary>
+    public bool Asleep => mode == Mode.Sleeping || NightSleeping;
 
     /// <summary>"I refilled my coffee", same as clicking the mug.</summary>
     public void RefillCoffee() => Refill();
 
-    /// <summary>Have a nap, or wake him if he's dozing. Mid-climb he only comes down (no dozing halfway up a window).</summary>
-    public void ToggleNap() { if (mode == Mode.Sleeping) Wake(); else if (mode == Mode.Climbing) LetGo(slipped: false); else Sleep(requested: true); }
+    /// <summary>
+    /// Have a nap, or wake him if he's dozing (which also ends a night's sleep, VexNight.cs). Mid-climb he only comes
+    /// down (no dozing halfway up a window).
+    /// </summary>
+    public void ToggleNap() { if (EndNight()) return; if (mode == Mode.Sleeping) Wake(); else if (mode == Mode.Climbing) LetGo(slipped: false); else Sleep(requested: true); }
 
     /// <summary>Walk over to the other monitor, if there is one.</summary>
     public void GoToOtherScreen()

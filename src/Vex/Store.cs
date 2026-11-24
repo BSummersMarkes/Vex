@@ -99,6 +99,11 @@ public class VexConfig
     public double LunchEatMaxMinutes { get; set; } = 10;
     /// <summary>Idle this long (or locked) during his lunch means you've gone; your next input then wakes him early.</summary>
     public double LunchAwayMinutes { get; set; } = 3;
+    /// <summary>
+    /// After a good night in chat ([[sleep: night]], VexNight.cs) he sleeps until your first keyboard or mouse input
+    /// after this time ("HH:mm") the next morning.
+    /// </summary>
+    public string NightWakeTime { get; set; } = "07:00";
     public string EndOfDay { get; set; } = "17:15";
     public int[] MeetingWarnMinutes { get; set; } = { 10, 2 };
 
@@ -391,6 +396,11 @@ public class VexState
     public int BirthdayGreetedYear { get; set; }
     /// <summary>The day ("yyyy-MM-dd") that greeting was given: he keeps the party hat on for the rest of it, late or not.</summary>
     public string BirthdayGreetedOn { get; set; } = "";
+    /// <summary>
+    /// Asleep for the night after a good night in chat (VexNight.cs): the morning wake time it runs to, null when not.
+    /// Kept here, not in memory, so a restart overnight doesn't wake him. Not cleared at midnight: the night spans it.
+    /// </summary>
+    public DateTime? NightUntil { get; set; }
     /// <summary>Journal checkboxes paired with items on the Lab Notebook's To-Do list (Services/Notebook.cs, TodoListMirror).</summary>
 #if !LITE
     public List<Services.TodoLink> TodoLinks { get; set; } = new();

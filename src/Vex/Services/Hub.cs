@@ -127,7 +127,7 @@ public static class Hub
 
     static void WelcomeBack(TimeSpan away)
     {
-        if (away < TimeSpan.FromMinutes(15) || Quiet || Vex.LunchRecent) return;   // his lunch wake-up line says it already
+        if (away < TimeSpan.FromMinutes(15) || Quiet || Vex.LunchRecent || Vex.NightRecent) return;   // his lunch or good-morning line says it already
         var next = Calendar.Upcoming.FirstOrDefault(m => m.Start > DateTime.Now && m.Start - DateTime.Now < TimeSpan.FromMinutes(45));
         var line = next != null ? $"Welcome back. {next.Subject} at {next.Start:HH:mm}." : "Oh. You're back. Nothing happened. I checked.";
         Vex.Say(line, 6);
@@ -155,6 +155,7 @@ public static class Hub
                           string.Join(", ", p.AwayTimes.TakeLast(4).Select(a => $"{a.Start:HH:mm}–{a.End:HH:mm}")));
         if (InCall != null) sb.AppendLine($"In a call (microphone in use by {InCall}).");
         if (Vex.LunchStatus() is { } lunch) sb.AppendLine(lunch);
+        if (Vex.NightStatus() is { } night) sb.AppendLine(night);
         sb.AppendLine(Where.Summary() + (Where.HomeToday ? HomeDayLine() : ""));
         if (!Where.HomeToday && Commute.Summary() is { } home) sb.AppendLine(home);   // no packing up at home
 
@@ -309,6 +310,10 @@ public static class Hub
         [[where: home]]  or  [[where: office]]  when {who} says they're working from home or at the office today: sets
                                   today's place by hand, for when the network guess is wrong or unsure (home days get
                                   clock-in and clock-out nudges instead of pack-up). [[where: auto]] goes back to the guess.
+        [[sleep: night]]          when {who} says good night, or goodbye for the day: you go to sleep once the chat's
+                                  closed and stay asleep (keyboard and mouse don't wake you) until they're back after
+                                  {Store.Config.NightWakeTime} next morning. Not for "back in a bit". Say good night back.
+                                  [[sleep: wake]] if they want you up again before then.
         [[show: id]]              performs one of your own animations when {who} asks to see it ("go on, juggle", "show me
                                   your daemon"). Ids: {VexWindow.ShowableIds}. Ones that need the chat
                                   out of the way happen once it's closed, so say so. Only when asked; one at a time.
@@ -435,6 +440,16 @@ public static class Hub
                 Place? place = a.Contains("home") ? Place.Home : a.Contains("office") ? Place.Office : null;
                 if (place == null && !a.Contains("auto")) return $"✗ Not sure where \"{arg}\" is.";
                 return "✓ " + Where.SetOverride(place, "chat");
+            }
+            case "sleep":
+            {
+                // Good night: asleep till morning (VexNight.cs). "wake" (or off/up) calls it off early.
+                var a = parts[0].ToLowerInvariant();
+                if (a is "wake" or "off" or "up" or "morning" or "stop")
+                    return Vex.EndNight() ? "✓ Awake again" : "✗ I wasn't asleep for the night.";
+                if (a.Contains("night") || a.Contains("bye"))
+                    return $"✓ Asleep once the chat's closed, till you're back after {Vex.StartNight():HH:mm}";
+                return $"✗ Not sure what \"{arg}\" means for sleeping.";
             }
             case "remember":
                 return Memory.Append(Memory.Remembered, $"- {DateTime.Now:yyyy-MM-dd}: {arg}") ? $"✓ Remembered: {arg}" : "✗ Couldn't write that down.";

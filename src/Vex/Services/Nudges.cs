@@ -54,8 +54,8 @@ public class Nudges
     {
         if (!n.Exempt)
         {
-            // Napping at lunch: only the important (exempt) ones wake him; the rest wait for their next turn.
-            if (Hub.Quiet || Hub.Presence.Away || Hub.Vex.LunchNapping) return false;
+            // Napping at lunch or asleep for the night: only the important (exempt) ones wake him; the rest wait for their next turn.
+            if (Hub.Quiet || Hub.Presence.Away || Hub.Vex.LunchNapping || Hub.Vex.NightSleeping) return false;
             if (DateTime.Now - lastNormal < TimeSpan.FromMinutes(C.NudgeGapMinutes)) return false;
             lastNormal = DateTime.Now;
         }
@@ -161,7 +161,7 @@ public class Nudges
 #endif
 
         var p = Hub.Presence;
-        if (p.Away || Hub.Quiet || Hub.Vex.LunchNapping) return;   // (some mark themselves done once made, so don't make them now)
+        if (p.Away || Hub.Quiet || Hub.Vex.LunchNapping || Hub.Vex.NightSleeping) return;   // (some mark themselves done once made, so don't make them now)
         if (now - lastNormal < TimeSpan.FromMinutes(C.NudgeGapMinutes)) return;
 
 #if LITE

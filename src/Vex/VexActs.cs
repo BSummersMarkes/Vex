@@ -69,6 +69,7 @@ public partial class VexWindow
         if (mode is Mode.Dragging or Mode.Hopping or Mode.Sleeping or Mode.Falling) pendingAct = Act.None;
         UpdateLunch(scr);    // lunch timer, you coming back, sitting down again after being moved (VexLunch.cs)
         UpdateCoding(scr);   // off to the laptop while code is being written (VexCoding.cs)
+        UpdateNight();       // asleep till morning after a good night in chat (VexNight.cs)
 #if !LITE
         UpdateShow();        // something he was asked to show in chat, waiting for its moment (VexSkills.cs)
 #endif
