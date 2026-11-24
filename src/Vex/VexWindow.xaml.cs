@@ -921,11 +921,15 @@ public partial class VexWindow : Window
     {
         // Placed from where his boots are actually drawn, so the soles land exactly on (x, y) whatever the scaling.
         double k = DrawnScale();
-        int wx = (int)Math.Round(x - RigCx * k), wy = (int)Math.Round(y - SoleY * k);
         bool topmost = now >= nextTopmost;
+        if (force || topmost) FixWindowSize(k);   // a window cut short would crop his boots (VexFloor.cs)
+        // Across, centred on him by the window's real width, not by k: straight after a DPI change the two disagree, and a
+        // window sized for one scale but placed for the other sat mostly on the other monitor, which flipped its DPI
+        // back, and so on several times a second (see CheckDpiFlicker, VexFloor.cs). Centred, it's always mostly on his.
+        double halfW = Native.GetWindowRect(hwnd, out var cur) && cur.Right > cur.Left ? (cur.Right - cur.Left) / 2.0 : RigCx * k;
+        int wx = (int)Math.Round(x - halfW), wy = (int)Math.Round(y - SoleY * k);
         if (!force && !topmost && wx == lastWinX && wy == lastWinY) return;
         if (topmost) nextTopmost = now + 2; // other topmost windows can bury us; keep reclaiming the top
-        if (force || topmost) FixWindowSize(k);   // a window cut short would crop his boots (VexFloor.cs)
         Native.SetWindowPos(hwnd, Native.HWND_TOPMOST, wx, wy, 0, 0, Native.SWP_NOSIZE | Native.SWP_NOACTIVATE);
         lastWinX = wx; lastWinY = wy;
     }

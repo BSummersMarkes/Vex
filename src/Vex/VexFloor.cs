@@ -77,6 +77,41 @@ public partial class VexWindow
     {
         screenBurstUntil = now + 6;
         RefreshScreens(why);
+        if (why == "DPI") CheckDpiFlicker();
+    }
+
+    readonly System.Collections.Generic.Queue<double> dpiChanges = new();
+    double dpiEscapeUntil;
+
+    /// <summary>
+    /// Monitors with different scaling side by side: Windows gives his window the DPI of whichever monitor holds most
+    /// of it. Straddling the join (standing, hovered mid-walk, climbing a window edge that sits on it), each rescale
+    /// resizes and re-places the window so the larger share lands on the other monitor, which rescales it back, and he
+    /// flashed between the two several times a second, indefinitely (2026-11-19). Four flips inside two seconds is no
+    /// real monitor change: he lets go of whatever he's on and hops wholly onto the monitor he's on.
+    /// </summary>
+    void CheckDpiFlicker()
+    {
+        // The real clock, not `now`: the flood of DPI messages starves the frame timer, so `now` stops moving. Going by
+        // it (and hopping, which only lands in a frame), the first escape of 2026-11-19 was its last: stuck for good.
+        double t = clock.Elapsed.TotalSeconds;
+        dpiChanges.Enqueue(t);
+        while (dpiChanges.Count > 0 && t - dpiChanges.Peek() > 2) dpiChanges.Dequeue();
+        if (dpiChanges.Count < 4 || t < dpiEscapeUntil || mode == Mode.Dragging) return;
+        dpiChanges.Clear();
+        dpiEscapeUntil = t + 1;
+
+        var b = ScreenAt(x).Bounds;
+        Native.GetWindowRect(hwnd, out var r);
+        // Wholly on one monitor whatever scale he's drawn at: half the window at the larger of the two, and a bit.
+        double half = RigCx * Math.Max(Math.Max(S, DrawnScale()), 1.5) + 8;
+        double tx = Math.Clamp(x, b.Left + half, Math.Max(b.Left + half, b.Right - half));
+        Store.Log($"DPI flicker: window at ({r.Left},{r.Top})-({r.Right},{r.Bottom}) straddles monitors with different scaling ({mode}, act {act}, climbing {climb != null}, perched {Perched}, x {x:0}, y {y:0}, drawn {DrawnScale():0.00}, dpi {S:0.00}); moved to {tx:0}.");
+        // Put straight there, not hopped: a hop only lands in a frame, and frames are what the flicker starves.
+        climb = null; peeking = false; perchHwnd = IntPtr.Zero;
+        mode = Mode.Idle; nextWander = now + 10;
+        x = tx; y = ScreenAt(x).WorkingArea.Bottom;
+        Place(force: true);
     }
 
     /// <summary>Called every frame: re-reads the monitors on the safety-net timer, more often just after a change.</summary>
